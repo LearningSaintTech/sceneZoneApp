@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     flex: 1,
     textAlign: 'center',
-    marginRight:260,
+    marginRight:240,
   },
   backButton: {
     padding: design.spacing.sm,

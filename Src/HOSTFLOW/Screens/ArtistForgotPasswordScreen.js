@@ -18,6 +18,20 @@ import ForgotIcon from '../assets/icons/forgot';
 
 const { width, height } = Dimensions.get('window');
 
+// Responsive dimensions for all screen sizes
+const isTablet = width >= 768;
+const isSmallPhone = width < 350;
+
+const responsiveDimensions = {
+  buttonWidth: Math.min(width - 32, Math.max(width * 0.9, 300)), // 90% of screen width, min 300px, max screen width - 32px
+  buttonHeight: Math.max(height * 0.065, 48), // 6.5% of screen height, min 48px
+  buttonMargin: Math.max(width * 0.04, 16), // 4% of screen width, min 16px
+  buttonBottom: Math.max(height * 0.08, 60), // 8% of screen height, min 60px
+  borderRadius: Math.max(width * 0.035, 12), // 3.5% of screen width, min 12px
+  paddingHorizontal: Math.max(width * 0.04, 16), // 4% of screen width, min 16px
+  paddingRight: Math.max(width * 0.12, 50), // 12% of screen width, min 50px
+};
+
 const ArtistForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const insets = useSafeAreaInsets();
@@ -54,7 +68,13 @@ const ArtistForgotPasswordScreen = ({ navigation }) => {
             </Text>
 
             {/* Email Input */}
-            <View style={styles.inputContainer}>
+            <View style={[
+              styles.inputContainer,
+              {
+                width: responsiveDimensions.buttonWidth,
+                alignSelf: 'center', // Center the input container
+              }
+            ]}>
               <Ionicons name="mail-outline" size={20} color="#aaa" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
@@ -69,13 +89,29 @@ const ArtistForgotPasswordScreen = ({ navigation }) => {
           </View>
         </ScrollView>
 
-        {/* Confirm Button - Fixed position */}
-        <TouchableOpacity style={[styles.confirmButton, { bottom: insets.bottom + 60 }]} onPress={handleConfirm}>
+        {/* Confirm Button - Responsive for all devices */}
+        <TouchableOpacity 
+          style={[
+            styles.confirmButton, 
+            { 
+              bottom: insets.bottom + responsiveDimensions.buttonBottom,
+              width: responsiveDimensions.buttonWidth,
+              height: responsiveDimensions.buttonHeight,
+              left: (width - responsiveDimensions.buttonWidth) / 2, // Center the button
+              borderRadius: responsiveDimensions.borderRadius,
+              paddingHorizontal: responsiveDimensions.paddingHorizontal,
+            }
+          ]} 
+          onPress={handleConfirm}
+        >
           <LinearGradient 
             colors={['#B15CDE', '#7952FC']} 
-            start={{x: 1, y: 0}}
-            end={{x: 0, y: 0}}
-            style={styles.confirmButtonGradient}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 0}}
+            style={[
+              styles.confirmButtonGradient,
+              { borderRadius: responsiveDimensions.borderRadius }
+            ]}
           >
             <Text style={styles.confirmButtonText}>Confirm</Text>
           </LinearGradient>
@@ -136,7 +172,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   inputContainer: {
-    width: 361,
+    // width is set dynamically to match button width
     height: 48,
     gap: 12,
     borderRadius: 12,
@@ -159,22 +195,21 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     position: 'absolute',
-    width: 361,
-    height: 52,
-    // bottom will be set dynamically with safe area insets
-    left: 16,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 10,
-    borderRadius: 14,
-    paddingRight: 16,
-    paddingLeft: 16,
+    flexShrink: 0,
     overflow: 'hidden',
   },
   confirmButtonGradient: {
     width: '100%',
     height: '100%',
-    alignItems: 'center',
+    display: 'flex',
     justifyContent: 'center',
-    borderRadius: 14,
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
   },
   confirmButtonText: {
     fontFamily: 'Nunito Sans',

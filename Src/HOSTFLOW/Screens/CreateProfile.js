@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,16 +8,21 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
-import { useDispatch } from 'react-redux';
-import { loginArtist } from '../Redux/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginArtist, selectToken } from '../Redux/slices/authSlice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Dimensions } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import CustomToggle from '../Components/CustomToggle';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { useRoute } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -37,6 +42,7 @@ const dimensions = {
 };
 
 const CreateProfile = ({ navigation }) => {
+  const [avatarSource, setAvatarSource] = useState(null);
   const [fullName, setFullName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [email, setEmail] = useState('');
@@ -49,8 +55,25 @@ const CreateProfile = ({ navigation }) => {
   const [budget, setBudget] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [crowdGuarantee, setCrowdGuarantee] = useState(false);
+  
+  // State for performance data
+  const [performanceData, setPerformanceData] = useState(null);
+
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const token = useSelector(selectToken);
+  const route = useRoute();
+
+  useEffect(() => {
+    if (route.params?.performanceData) {
+      setPerformanceData(route.params.performanceData);
+      // Optional: show an alert or a message that performance data has been added
+      Alert.alert(
+        'Performance Added',
+        `Venue: ${route.params.performanceData.venue}\nVideo: ${route.params.performanceData.video.fileName}`
+      );
+    }
+  }, [route.params?.performanceData]);
 
   const typeOptions = ['Music', 'Comedy', 'Magician', 'Anchor', 'Dancer', 'Poet'];
   const artistTypeOptions = ['Solo', 'Duo', 'Trio', '4PC', '5PC', 'Group'];
@@ -90,16 +113,155 @@ const CreateProfile = ({ navigation }) => {
     return totalOptionsHeight + borderAndPaddingHeight;
   };
 
-  const handleContinue = () => {
-    // Dispatch login action for artist
-    dispatch(loginArtist({
-      id: 'artist123',
-      name: fullName || 'Kevin Richards',
-      email: email || 'artist@example.com',
-      phone: phoneNumber || '+91 412-123-4215'
-    }));
-    
-    navigation.navigate('ArtistHome');
+  const handleAvatarPress = () => {
+    Alert.alert(
+      'Select a Photo',
+      'Choose an option',
+      [
+        { text: 'Take Photo...', onPress: () => openCamera() },
+        { text: 'Choose from Library...', onPress: () => openGallery() },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const openCamera = async () => {
+    const options = {
+      mediaType: 'photo',
+      includeBase64: false,
+      maxHeight: 2000,
+      maxWidth: 2000,
+    };
+
+    try {
+      const response = await launchCamera(options);
+      if (response.didCancel) {
+        console.log('User cancelled camera');
+      } else if (response.errorCode) {
+        console.log('Camera Error: ', response.errorMessage);
+      } else {
+        let imageUri = response.assets?.[0]?.uri;
+        setAvatarSource(imageUri);
+      }
+    } catch (error) {
+      console.log('An error occurred with camera: ', error);
+      Alert.alert('Error', 'Failed to open camera. Have you rebuilt the app?');
+    }
+  };
+
+  const openGallery = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        {
+          title: 'Storage Permission Required',
+          message: 'This app needs access to your storage to select photos.',
+          buttonPositive: 'OK',
+        }
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert('Permission Denied', 'Storage permission is required to select photos.');
+        return;
+      }
+    }
+    const options = {
+      mediaType: 'photo',
+      includeBase64: false,
+      maxHeight: 2000,
+      maxWidth: 2000,
+    };
+
+    try {
+      const response = await launchImageLibrary(options);
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorCode) {
+        console.log('ImagePicker Error: ', response.errorMessage);
+      } else {
+        let imageUri = response.assets?.[0]?.uri;
+        setAvatarSource(imageUri);
+      }
+    } catch (error) {
+      console.log('An error occurred with gallery: ', error);
+      Alert.alert('Error', 'Failed to open gallery. Have you rebuilt the app?');
+    }
+  };
+
+  const handleContinue = async () => {
+    // Validate required fields
+    if (
+      !fullName ||
+      !dateOfBirth ||
+      !email ||
+      !address ||
+      !genre ||
+      (genre === 'Music' && !artistType) ||
+      !instrument ||
+      !budget ||
+      !phoneNumber ||
+      !avatarSource ||
+      !performanceData // If performance video is required
+    ) {
+      Alert.alert('Missing Details', 'Please fill all details first.');
+      return;
+    }
+
+    const formData = new FormData();
+
+    formData.append('fullName', fullName);
+    formData.append('dateOfBirth', dateOfBirth);
+    formData.append('email', email);
+    formData.append('address', address);
+    formData.append('type', genre);
+    formData.append('artistType', artistType);
+    formData.append('instrument', instrument);
+    formData.append('budget', budget);
+    formData.append('phoneNumber', phoneNumber);
+    formData.append('crowdGuarantee', crowdGuarantee);
+
+    if (avatarSource) {
+      formData.append('profilePicture', {
+        uri: avatarSource,
+        type: 'image/jpeg',
+        name: 'profile.jpg',
+      });
+    }
+
+    // Add performance data if it exists
+    if (performanceData) {
+      formData.append('performanceVenue', performanceData.venue);
+      formData.append('performanceGenre', performanceData.genre);
+      formData.append('performanceVideo', {
+        uri: performanceData.video.uri,
+        type: performanceData.video.type,
+        name: performanceData.video.fileName,
+      });
+    }
+
+    try {
+      const response = await fetch('http://localhost:3000/api/artist/create-profile', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // 'Content-Type': 'multipart/form-data' is set automatically by fetch with FormData
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // You might want to update the user state in Redux with the new profile data
+        dispatch(loginArtist({ ...result.data, token }));
+        navigation.navigate('ArtistHome');
+      } else {
+        Alert.alert('Profile Creation Failed', result.message || 'An unknown error occurred.');
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error);
+      Alert.alert('Error', 'An error occurred while creating your profile. Please try again.');
+    }
   };
 
   return (
@@ -113,10 +275,10 @@ const CreateProfile = ({ navigation }) => {
       >
         <View style={styles.avatarContainer}>
           <Image
-            source={require('../assets/Images/frame1.png')}
+            source={avatarSource ? { uri: avatarSource } : require('../assets/Images/frame1.png')}
             style={styles.avatar}
           />
-          <TouchableOpacity style={styles.cameraIconContainer}>
+          <TouchableOpacity style={styles.cameraIconContainer} onPress={handleAvatarPress}>
             <MaterialIcons name="camera-alt" size={24} color="#fff" />
           </TouchableOpacity>
         </View>

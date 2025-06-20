@@ -17,6 +17,20 @@ import MailboxIcon from '../assets/icons/mailbox';
 
 const { width, height } = Dimensions.get('window');
 
+// Responsive dimensions for all screen sizes
+const isTablet = width >= 768;
+const isSmallPhone = width < 350;
+
+const responsiveDimensions = {
+  buttonWidth: Math.min(width - 40, Math.max(width * 0.9, 300)), // 90% of screen width, min 300px, max screen width - 40px
+  buttonHeight: Math.max(height * 0.065, 52), // 6.5% of screen height, min 52px
+  buttonMargin: Math.max(width * 0.05, 20), // 5% of screen width, min 20px
+  buttonBottom: Math.max(height * 0.05, 20), // 5% of screen height, min 20px
+  borderRadius: Math.max(width * 0.035, 14), // 3.5% of screen width, min 14px
+  paddingHorizontal: Math.max(width * 0.04, 16), // 4% of screen width, min 16px
+  gap: Math.max(width * 0.025, 10), // 2.5% of screen width, min 10px
+};
+
 const ArtistCheckMailbox = ({ navigation }) => {
   const [otp, setOtp] = useState(['', '', '', '']);
   const insets = useSafeAreaInsets();
@@ -93,9 +107,23 @@ const ArtistCheckMailbox = ({ navigation }) => {
           </View>
         </ScrollView>
 
-        {/* Buttons at bottom */}
-        <View style={[styles.buttonContainer, { bottom: insets.bottom + 20 }]}> 
-          <TouchableOpacity style={styles.resendButton} onPress={handleResendOTP}>
+        {/* Buttons at bottom - Responsive */}
+        <View style={[
+          styles.buttonContainer, 
+          { 
+            bottom: insets.bottom + responsiveDimensions.buttonBottom,
+            paddingHorizontal: responsiveDimensions.buttonMargin,
+          }
+        ]}> 
+          <TouchableOpacity 
+            style={[
+              styles.resendButton,
+              {
+                marginBottom: responsiveDimensions.gap,
+              }
+            ]} 
+            onPress={handleResendOTP}
+          >
             <LinearGradient 
               colors={['#B15CDE', '#7952FC']} 
               start={{x: 1, y: 0}}
@@ -105,7 +133,10 @@ const ArtistCheckMailbox = ({ navigation }) => {
               <Text style={styles.resendButtonText}>Resend OTP</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+          <TouchableOpacity 
+            style={styles.confirmButton} 
+            onPress={handleConfirm}
+          >
             <Text style={styles.confirmButtonTextBorder}>Confirm</Text>
           </TouchableOpacity>
         </View>
@@ -194,19 +225,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    padding: 20,
     backgroundColor: 'transparent',
     alignItems: 'center',
   },
   resendButton: {
-    width: 361,
+    display: 'flex',
     height: 52,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 10,
+    alignSelf: 'stretch',
     borderRadius: 14,
-    paddingRight: 16,
-    paddingLeft: 16,
     overflow: 'hidden',
-    marginBottom: 12,
   },
   resendButtonGradient: {
     width: '100%',
@@ -226,17 +257,17 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 1)',
   },
   confirmButton: {
-    width: 361,
+    display: 'flex',
     height: 52,
-    gap: 10,
-    borderRadius: 14,
-    paddingRight: 16,
-    paddingLeft: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(198, 197, 237, 1)',
-    overflow: 'hidden',
-    alignItems: 'center',
+    paddingHorizontal: 16,
     justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    alignSelf: 'stretch',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#C6C5ED',
+    overflow: 'hidden',
   },
   confirmButtonTextBorder: {
     fontFamily: 'Nunito Sans',

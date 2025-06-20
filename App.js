@@ -112,10 +112,11 @@ if (!Array.prototype.findLastIndex) {
 }
 
 export default function App() {
-  const [isAppInBackground, setIsAppInBackground] = React.useState(false);
-  const [showSplash, setShowSplash] = React.useState(true);
+  // const [isAppInBackground, setIsAppInBackground] = React.useState(false);
+  // const [showSplash, setShowSplash] = React.useState(true);
   const navigationRef = React.useRef();
 
+  /*
   React.useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
@@ -137,6 +138,7 @@ export default function App() {
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription?.remove();
   }, [isAppInBackground]);
+  */
 
   return (
     <Provider store={store}>
@@ -250,7 +252,8 @@ export default function App() {
             <Stack.Screen name="HomeScreen" component={HomeScreen} />
             <Stack.Screen name="HostVerifiedScreen" component={HostVerifiedScreen} />
             <Stack.Screen name="HostAddPayment" component={HostAddPayment} />
-            <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />            <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} /> 
+                       
             <Stack.Screen name="HostDiscount" component={HostDiscount} />
             <Stack.Screen name="UserVerifiedScreen" component={UserVerifiedScreen} />
             <Stack.Screen name="UserTicketDownload" component={UserTicketDownload} />
