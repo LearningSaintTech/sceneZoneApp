@@ -20,6 +20,8 @@ import { useSelector } from 'react-redux';
 import { selectToken, selectUserData } from '../Redux/slices/authSlice';
 import api from '../Config/api';
 import * as ImagePicker from 'react-native-image-picker';
+import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -58,7 +60,7 @@ const HostEditProfileScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [location, setLocation] = useState('');
   const [phoneNumber, setPhoneNumber] = useState(userData?.mobileNumber ? String(userData.mobileNumber) : '');
-  const [profileImage, setProfileImage] = useState(null);
+  const [profileImageUri, setProfileImageUri] = useState(null);
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -75,8 +77,8 @@ const HostEditProfileScreen = ({ navigation }) => {
       const response = await api.get('/host/get-profile', {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.data.success) {
@@ -84,7 +86,7 @@ const HostEditProfileScreen = ({ navigation }) => {
         setFullName(data.fullName || data.name || '');
         setEmail(data.email || '');
         setLocation(data.location || '');
-        setProfileImage(data.profileImageUrl ? { uri: data.profileImageUrl } : null);
+        setProfileImageUri(data.profileImageUrl || null);
         if (!userData?.mobileNumber && data.mobileNumber) {
           setPhoneNumber(String(data.mobileNumber));
         }
@@ -95,18 +97,59 @@ const HostEditProfileScreen = ({ navigation }) => {
     }
   };
 
-  const handleImagePicker = () => {
+  const handleImagePicker = async () => {
+    const options = {
+      mediaType: 'photo',
+      includeBase64: false,
+      maxHeight: 200,
+      maxWidth: 200,
+      quality: 0.8,
+      saveToPhotos: false,
+    };
+
+    const cameraPermission = Platform.select({
+      android: PERMISSIONS.ANDROID.CAMERA,
+      ios: PERMISSIONS.IOS.CAMERA,
+    });
+
+    const storagePermission = Platform.select({
+      android: Platform.Version >= 33
+        ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES
+        : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
+      ios: PERMISSIONS.IOS.PHOTO_LIBRARY,
+    });
+
     Alert.alert(
       'Choose Image Source',
       'Select image from',
       [
         {
           text: 'Camera',
-          onPress: () => launchCamera(),
+          onPress: async () => {
+            const cameraStatus = await check(cameraPermission);
+            if (cameraStatus !== RESULTS.GRANTED) {
+              const result = await request(cameraPermission);
+              if (result !== RESULTS.GRANTED) {
+                Alert.alert('Permission Error', 'Camera permission is required');
+                return;
+              }
+            }
+            launchCamera(options);
+          },
         },
         {
           text: 'Gallery',
-          onPress: () => launchGallery(),
+          onPress: async () => {
+            const storageStatus = await check(storagePermission);
+            if (storageStatus !== RESULTS.GRANTED) {
+              const result = await request(storagePermission);
+              if (result !== RESULTS.GRANTED) {
+                Alert.alert('Permission Error', 'Gallery permission is required');
+                return;
+              }
+            }
+            launchGallery(options);
+          },
         },
         {
           text: 'Cancel',
@@ -116,75 +159,103 @@ const HostEditProfileScreen = ({ navigation }) => {
     );
   };
 
-  const launchCamera = () => {
-    ImagePicker.launchCamera({
-      mediaType: 'photo',
-      quality: 0.8,
-      includeBase64: true,
-    }, (response) => {
-      if (response.didCancel) {
-        return;
-      }
+  const launchCamera = (options) => {
+    ImagePicker.launchCamera(options, (response) => {
+      if (response.didCancel) return;
       if (response.errorCode) {
-        Alert.alert('Error', response.errorMessage);
+        Alert.alert('Camera Error', response.errorMessage || 'Unknown error');
         return;
       }
-      setProfileImage(response.assets[0]);
+      if (response.assets && response.assets[0] && response.assets[0].uri) {
+        setProfileImageUri(response.assets[0].uri);
+      }
     });
   };
 
-  const launchGallery = () => {
-    ImagePicker.launchImageLibrary({
-      mediaType: 'photo',
-      quality: 0.8,
-      includeBase64: true,
-    }, (response) => {
-      if (response.didCancel) {
-        return;
-      }
+  const launchGallery = (options) => {
+    ImagePicker.launchImageLibrary(options, (response) => {
+      if (response.didCancel) return;
       if (response.errorCode) {
-        Alert.alert('Error', response.errorMessage);
+        Alert.alert('Gallery Error', response.errorMessage || 'Unknown error');
         return;
       }
-      setProfileImage(response.assets[0]);
+      if (response.assets && response.assets[0] && response.assets[0].uri) {
+        setProfileImageUri(response.assets[0].uri);
+      }
     });
   };
 
   const handleSaveChanges = async () => {
+    console.log('--- Starting Profile Update ---');
     try {
       setLoading(true);
+      console.log('Loading state set to true');
 
       const formData = new FormData();
-      formData.append('fullName', fullName);
-      formData.append('location', location);
-      formData.append('email', email);
+      console.log('FormData created');
       
-      if (profileImage && profileImage.uri) {
-        formData.append('profileImage', {
-          uri: profileImage.uri,
-          type: profileImage.type || 'image/jpeg',
-          name: profileImage.fileName || 'profile.jpg',
-        });
+      formData.append('fullName', fullName);
+      console.log('Appended fullName:', fullName);
+      
+      formData.append('location', location);
+      console.log('Appended location:', location);
+
+      formData.append('email', email);
+      console.log('Appended email:', email);
+
+      // Only append image if it exists and has a uri
+      if (profileImageUri && profileImageUri.startsWith('file:')) {
+        console.log('New profile image found:', profileImageUri);
+        const imagePayload = {
+          uri: profileImageUri,
+          type: 'image/jpeg',
+          name: `photo_${Date.now()}.jpg`,
+        };
+        console.log('Image payload for form data:', JSON.stringify(imagePayload, null, 2));
+        formData.append('profileImageUrl', imagePayload);
+        console.log('Appended image with key "profileImageUrl"');
+      } else {
+        console.log('No new profile image to upload.');
       }
+
+      console.log('Sending request to /host/update-profile with token:', token);
+      console.log('Form data being sent (cannot view content directly):', formData);
 
       const response = await api.patch('/host/update-profile', formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 10000, // Added 10-second timeout
       });
+      console.log('Update profile response received:', JSON.stringify(response.data, null, 2));
 
       if (response.data.success) {
+        console.log('Profile update successful.');
         Alert.alert('Success', 'Profile updated successfully');
         navigation.navigate('MainTabs');
       } else {
+        console.log('Profile update failed:', response.data.message);
         Alert.alert('Error', response.data.message || 'Failed to update profile');
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update profile');
+      console.error('--- Error updating profile ---');
+      if (error.response) {
+        console.error('Error Response Data:', JSON.stringify(error.response.data, null, 2));
+        console.error('Error Response Status:', error.response.status);
+        console.error('Error Response Headers:', JSON.stringify(error.response.headers, null, 2));
+      } else if (error.request) {
+        console.error('Error Request:', error.request);
+        console.error('Network Error Details:', error.code, error.message);
+      } else {
+        console.error('Error Message:', error.message);
+      }
+      console.error('Full Error Object:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update profile. Ensure server is running at http://10.0.2.2:3000.');
     } finally {
       setLoading(false);
+      console.log('Loading state set to false');
+      console.log('--- Finished Profile Update ---');
     }
   };
 
@@ -224,7 +295,7 @@ const HostEditProfileScreen = ({ navigation }) => {
           }
         ]}>
           <Image
-            source={profileImage ? { uri: profileImage.uri } : require('../assets/Images/frame1.png')}
+            source={profileImageUri ? { uri: profileImageUri } : require('../assets/Images/frame1.png')}
             style={styles.profileImage}
           />
           <TouchableOpacity

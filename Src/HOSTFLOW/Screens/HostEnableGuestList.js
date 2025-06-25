@@ -5,7 +5,7 @@ import Feather from 'react-native-vector-icons/Feather';
 const HostEnableGuestListScreen = ({ navigation }) => {
   // Sample data for the guest list (replace with actual data from your API or state)
   const guestData = [
-    { id: '1', name: 'Nova Brightsky', ticketId: '#8954673009' },
+    { id: '1', name: 'Nova ZSDGFHBrightsky', ticketId: '#8954673009' },
     { id: '2', name: 'Celeste Moonshadow', ticketId: '#8954673009' },
     { id: '3', name: 'Stella Nightingale', ticketId: '#8954673009' },
     { id: '4', name: 'Aurora Skydancer', ticketId: '#8954673009' },
@@ -62,6 +62,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(26, 26, 31, 1)',
   },
   header: {
+    marginTop:25,
     width: 393,
     height: 64,
     flexDirection: 'row',

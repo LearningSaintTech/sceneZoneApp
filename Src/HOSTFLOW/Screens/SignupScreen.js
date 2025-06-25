@@ -24,13 +24,10 @@ import MobileIcon from '../assets/icons/mobile';
 import LocationIcon from '../assets/icons/location';
 import LockIcon from '../assets/icons/lock';
 import api from '../Config/api';
-import { useDispatch } from 'react-redux';
-import { loginHost } from '../Redux/slices/authSlice';
 
 const { width, height } = Dimensions.get('window');
 
 const SignUpScreen = ({ navigation }) => {
-  const dispatch = useDispatch();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -89,27 +86,6 @@ const SignUpScreen = ({ navigation }) => {
       console.log("API Response host:", response.data); // Debug: Log API response
 
       if (response.data) {
-        // Store user data in Redux with all required fields
-        dispatch(loginHost({
-          id: response.data.data?.id || 'host123',
-          name: fullName.trim(),
-          fullName: fullName.trim(),
-          email: response.data.data?.email || '',
-          phone: mobile,
-          mobileNumber: parseInt(mobile),
-          location: location.trim(),
-          role: 'host',
-          token: response.data.data?.token || null
-        }));
-
-        // Log the Redux state after dispatch
-        console.log("User data stored in Redux:", {
-          fullName: fullName.trim(),
-          mobileNumber: parseInt(mobile),
-          location: location.trim(),
-          role: 'host'
-        });
-
         Alert.alert('Success', 'Account created successfully!', [
           { 
             text: 'OK', 

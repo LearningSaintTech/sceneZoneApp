@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout, selectToken, selectUserData, selectLocation, selectFullName, selectMobileNumber } from '../Redux/slices/authSlice';
 import HostEditProfileScreen from './HostEditProfile';
 import api from '../Config/api';
+import { useFocusEffect } from '@react-navigation/native';
 
 const settings = [
   { icon: 'user', label: 'Edit Profile', nav: 'HostEditProfile' },
@@ -27,6 +28,13 @@ const ProfileScreen = ({ navigation }) => {
   const fullName = useSelector(selectFullName);
   const mobileNumber = useSelector(selectMobileNumber);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('Profile screen focused, fetching data.');
+      fetchProfile();
+    }, [])
+  );
+
   useEffect(() => {
     console.log('Current Redux State:', {
       token,
@@ -39,6 +47,7 @@ const ProfileScreen = ({ navigation }) => {
   }, []);
 
   const fetchProfile = async () => {
+    setLoading(true);
     try {
       if (!token) {
         console.error('No token available in Redux store');
@@ -108,13 +117,20 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Profile</Text>
         {/* Profile Card */}
         <View style={styles.profileCard}>
-          <Image source={require('../assets/Images/Profile1.png')} style={styles.profileBg} resizeMode="cover" />
+          <Image 
+            source={profileData?.profileImageUrl ? { uri: profileData.profileImageUrl } : require('../assets/Images/Profile1.png')} 
+            style={styles.profileBg} 
+            resizeMode="cover" 
+          />
           <View style={styles.profileContent}>
-            <Image source={require('../assets/Images/frame1.png')} style={styles.avatar} />
+            <Image 
+              source={profileData?.profileImageUrl ? { uri: profileData.profileImageUrl } : require('../assets/Images/frame1.png')} 
+              style={styles.avatar} 
+            />
             <View style={{ marginLeft: 16 }}>
               <Text style={styles.profileName}>{profileData?.fullName || fullName || 'Loading...'}</Text>
               <Text style={styles.profileEmail}>{profileData?.email || userData?.email || 'No email provided'}</Text>
-              <Text style={styles.profileLocation}>{location || 'No location provided'}</Text>
+              <Text style={styles.profileLocation}>{profileData?.location || location || 'No location provided'}</Text>
             </View>
           </View>
         </View>

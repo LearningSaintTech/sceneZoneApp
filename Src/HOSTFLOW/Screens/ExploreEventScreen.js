@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,31 +9,94 @@ import {
   SafeAreaView,
   ScrollView,
   Dimensions,
+  Alert,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventDashIcon from '../assets/icons/evendash';
+import axios from 'axios';
+import { useSelector } from 'react-redux';
 
 const { width } = Dimensions.get('window');
 
-const ExploreEventScreen = ({ navigation }) => {
+const ExploreEventScreen = ({ navigation, route }) => {
+  console.log('ExploreEventScreen component mounted');
   const isDark = useColorScheme() === 'dark';
   const textColor = '#C6C5ED';
   const subColor = '#b3b3cc';
   const insets = useSafeAreaInsets();
   const [soundSystemAvailable, setSoundSystemAvailable] = useState(true);
+  const [eventData, setEventData] = useState(null);
+  const token = useSelector(state => state.auth.token);
 
+  useEffect(() => {
+    console.log('useEffect triggered, checking route.params');
+    const fetchEventDetails = async () => {
+      const { eventId } = route.params || {};
+      console.log('Route params:', route.params);
+      console.log('Extracted eventId:', eventId);
+
+      if (!eventId) {
+        console.log('No eventId provided, exiting fetch');
+        Alert.alert('Error', 'No event ID provided.');
+        return;
+      }
+
+      try {
+        console.log(`Making GET request to http://10.0.2.2:3000/api/host/events/get-event/${eventId}`);
+        const response = await axios.get(`http://10.0.2.2:3000/api/host/events/get-event/${eventId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        console.log('API Response:', response.data);
+
+        if (response.data.success) {
+          console.log('API call successful, setting eventData:', response.data.data);
+          setEventData(response.data.data);
+          setSoundSystemAvailable(response.data.data.isSoundSystem || false);
+        } else {
+          console.log('API success is false, message:', response.data.message);
+          Alert.alert('Error', response.data.message || 'Failed to fetch event details');
+        }
+      } catch (error) {
+        console.error('Error fetching event details:', error.response?.data || error.message);
+        Alert.alert('Error', 'Failed to fetch event details.');
+      }
+    };
+
+    fetchEventDetails();
+  }, [route.params, token]);
+
+  const formatDate = (dateStr) => {
+    console.log('formatDate called with:', dateStr);
+    if (!dateStr) return 'Invalid Date';
+    const date = new Date(dateStr);
+    console.log('Parsed date:', date);
+    return date instanceof Date && !isNaN(date) ? `${date.toLocaleString('en-US', { month: 'short' })} ${date.getDate()}` : 'Invalid Date';
+  };
+
+  console.log('Rendering ExploreEventScreen with eventData:', eventData);
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       {/* Background image with gradient overlay */}
       <View style={{ position: 'absolute', width: '100%', height: 320 }}>
-        <Image
-          source={require('../assets/Images/ffff.jpg')}
-          style={{ width: '100%', height: 320, position: 'absolute' }}
-          resizeMode="cover"
-        />
+        {eventData && eventData.posterUrl ? (
+          <Image
+            source={{ uri: eventData.posterUrl }}
+            style={{ width: '100%', height: 320, position: 'absolute' }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Image
+            source={require('../assets/Images/ffff.jpg')}
+            style={{ width: '100%', height: 320, position: 'absolute' }}
+            resizeMode="cover"
+          />
+        )}
         <LinearGradient
           colors={['transparent', '#000']}
           style={{ position: 'absolute', width: '100%', height: 320 }}
@@ -65,9 +128,15 @@ const ExploreEventScreen = ({ navigation }) => {
       <ScrollView contentContainerStyle={{ paddingTop: 320, paddingBottom: Math.max(insets.bottom + 40, 40), paddingHorizontal: 0 }} showsVerticalScrollIndicator={false}>
         {/* Organizer Section */}
         <View style={styles.organizerRowNew}>
-          <Image source={require('../assets/Images/Avatar.png')} style={styles.profilePicNew} />
+          {eventData && eventData.hostId && eventData.hostId.hostProfileImageUrl ? (
+            <Image source={{ uri: eventData.hostId.hostProfileImageUrl }} style={styles.profilePicNew} />
+          ) : (
+            <Image source={require('../assets/Images/Avatar.png')} style={styles.profilePicNew} />
+          )}
           <View style={{ flex: 1 }}>
-            <Text style={styles.organizerName}>Michael De Santa</Text>
+            <Text style={styles.organizerName}>
+              {eventData && eventData.hostId ? eventData.hostId.fullName : 'Michael De Santa'}
+            </Text>
             <Text style={styles.organizerRole}>Organizer</Text>
           </View>
           <LinearGradient
@@ -77,7 +146,9 @@ const ExploreEventScreen = ({ navigation }) => {
             style={styles.upcomingPill}
           >
             <MaterialIcons name="music-note" size={18} color="#fff" style={{ marginRight: 4 }} />
-            <Text style={styles.upcomingText}>Upcoming</Text>
+            <Text style={styles.upcomingText}>
+              {eventData && eventData.eventTime ? `${eventData.eventTime} ${new Date(eventData.eventDate[0]) > new Date('2025-06-21T12:39:00Z') ? 'Upcoming' : 'Past'}` : 'Upcoming'}
+            </Text>
           </LinearGradient>
         </View>
 
@@ -86,20 +157,32 @@ const ExploreEventScreen = ({ navigation }) => {
           <View style={styles.timingPillOutlinedNew}>
             <MaterialIcons name="access-time" size={16} color="#a95eff" style={{ marginRight: 6 }} />
             <Text style={styles.timingPillTextLabelOutlinedNew}>Timing :</Text>
-            <Text style={styles.timingPillTextTimeOutlinedNew}>08:30PM</Text>
+            <Text style={styles.timingPillTextTimeOutlinedNew}>
+              {eventData ? eventData.eventTime : '08:30PM'}
+            </Text>
           </View>
         </View>
 
         {/* Event Title */}
-        <Text style={styles.eventTitleNew}>Sounds of Celebration</Text>
+        <Text style={styles.eventTitleNew}>
+          {eventData ? eventData.eventName : 'Sounds of Celebration'}
+        </Text>
 
         {/* Tags */}
         <View style={styles.tagsRowNew}>
-          {['Rock', 'Classical', 'Jazz', 'Piano', 'Guitar'].map(tag => (
-            <View key={tag} style={styles.tagOutlinedNew}>
-              <Text style={styles.tagTextOutlinedNew}>{tag}</Text>
-            </View>
-          ))}
+          {eventData && eventData.genre && Array.isArray(eventData.genre) ? (
+            eventData.genre.map(tag => (
+              <View key={tag} style={styles.tagOutlinedNew}>
+                <Text style={styles.tagTextOutlinedNew}>{tag}</Text>
+              </View>
+            ))
+          ) : (
+            ['Rock', 'Classical', 'Jazz', 'Piano', 'Guitar'].map(tag => (
+              <View key={tag} style={styles.tagOutlinedNew}>
+                <Text style={styles.tagTextOutlinedNew}>{tag}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Info Card */}
@@ -109,7 +192,9 @@ const ExploreEventScreen = ({ navigation }) => {
               <MaterialIcons name="date-range" size={14} color="#a95eff" style={{ marginRight: 4 }} />
               <Text style={styles.infoLabelNew}>Date</Text>
             </View>
-            <Text style={styles.infoValueNew}>May 20</Text>
+            <Text style={styles.infoValueNew}>
+              {eventData && eventData.eventDate && eventData.eventDate[0] ? formatDate(eventData.eventDate[0]) : 'May 20'}
+            </Text>
           </View>
           <View style={styles.infoDividerNew} />
           <View style={styles.infoItemNew}>
@@ -117,7 +202,7 @@ const ExploreEventScreen = ({ navigation }) => {
               <MaterialIcons name="location-pin" size={14} color="#a95eff" style={{ marginRight: 4 }} />
               <Text style={styles.infoLabelNew}>Location</Text>
             </View>
-            <Text style={styles.infoValueNew}>Yogyakarta</Text>
+            <Text style={styles.infoValueNew}>{eventData ? eventData.venue : 'Yogyakarta'}</Text>
           </View>
           <View style={styles.infoDividerNew} />
           <View style={styles.infoItemNew}>
@@ -125,7 +210,7 @@ const ExploreEventScreen = ({ navigation }) => {
               <MaterialIcons name="attach-money" size={14} color="#a95eff" style={{ marginRight: 4 }} />
               <Text style={styles.infoLabelNew}>Budget</Text>
             </View>
-            <Text style={styles.infoValueNew}>$400</Text>
+            <Text style={styles.infoValueNew}>{eventData ? `$${eventData.budget}` : '$400'}</Text>
           </View>
         </View>
 
@@ -157,7 +242,7 @@ const ExploreEventScreen = ({ navigation }) => {
         {/* About Event */}
         <Text style={styles.sectionTitleNew}>About this event:</Text>
         <Text style={styles.aboutTextNew}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur nec lorem a justo pulvinar suscipit.
+          {eventData ? eventData.description : 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur nec lorem a justo pulvinar suscipit.'}
         </Text>
       </ScrollView>
     </View>
@@ -302,9 +387,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 8,
     marginBottom: 6,
-    marginTop:16,
-    
-  
+    marginTop: 16,
   },
   tagTextOutlinedNew: {
     color: '#C6C5ED',
@@ -324,7 +407,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     paddingVertical: 18,
     paddingHorizontal: 0,
-    height:80,
+    height: 80,
   },
   infoItemNew: {
     flex: 1,

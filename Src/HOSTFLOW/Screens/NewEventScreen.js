@@ -99,43 +99,9 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     }
   };
 
-  const handleTimeChange = (event, pickedTime) => {
-    setShowTimePicker(false);
-    if (event.type === 'set' && pickedTime) {
-      setSelectedTime(pickedTime);
-      const hours = pickedTime.getHours().toString().padStart(2, '0');
-      const minutes = pickedTime.getMinutes().toString().padStart(2, '0');
-      setTime(`${hours}:${minutes}`);
-    }
-  };
-
-  // const handleCameraPress = async () => {
-  //   const options = {
-  //     mediaType: 'photo',
-  //     includeBase64: false,
-  //     maxHeight: 232,
-  //     maxWidth: 317,
-  //     quality: 0.8,
-  //     saveToPhotos: false,
-  //   };
-  //   try {
-  //     const result = await launchCamera(options);
-  //     if (result.didCancel) return;
-  //     if (result.errorCode) {
-  //       Alert.alert('Camera Error', result.errorMessage || 'Unknown error');
-  //       return;
-  //     }
-  //     if (result.assets && result.assets[0] && result.assets[0].uri) {
-  //       setPosterUrl(result.assets[0].uri);
-  //     }
-  //   } catch (error) {
-  //     Alert.alert('Error', 'Failed to open camera');
-  //   }
-  // };
-
+ 
 
   const handleCameraPress = async () => {
-    console.log("Camera button pressed");
     const options = {
       mediaType: 'photo',
       includeBase64: false,
@@ -151,7 +117,9 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     });
   
     const storagePermission = Platform.select({
-      android: PERMISSIONS.ANDROID.READ_MEDIA_IMAGES, // For Android 13+
+      android: Platform.Version >= 33
+        ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES
+        : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
       ios: PERMISSIONS.IOS.PHOTO_LIBRARY,
     });
   
@@ -168,51 +136,95 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     }
   
     try {
-      console.log("Launching camera...");
       const result = await launchCamera(options);
-      console.log("Camera result:", result);
       if (result.didCancel) return;
       if (result.errorCode) {
         Alert.alert('Camera Error', result.errorMessage || 'Unknown error');
         return;
       }
+  
       if (result.assets && result.assets[0] && result.assets[0].uri) {
-        setPosterUrl(result.assets[0].uri);
+        let uri = result.assets[0].uri;
+        // Ensure file:// prefix for Android
+        if (Platform.OS === 'android' && !uri.startsWith('file://')) {
+          uri = 'file://' + uri;
+        }
+        setPosterUrl(uri);
       }
     } catch (error) {
       console.log("Camera error:", error);
       Alert.alert('Error', 'Failed to open camera');
     }
   };
+  
 
 
+  const handleTimeChange = (event, pickedTime) => {
+    setShowTimePicker(false);
+    if (event.type === 'set' && pickedTime) {
+      setSelectedTime(pickedTime);
+      const hours = pickedTime.getHours();
+      const minutes = pickedTime.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const hours12 = hours % 12 || 12; // Convert to 12-hour format
+      const formattedTime = `${hours12}:${minutes} ${ampm}`; // e.g., "4:48 PM"
+      console.log('Formatted time:', formattedTime); // Debug log
+      setTime(formattedTime);
+    }
+  };
+  
   const handleContinue = async () => {
     try {
+      console.log('Starting handleContinue...');
       if (!token) {
+        console.log('No token found');
         Alert.alert('Error', 'Authentication token not found');
         return;
       }
+      console.log('Token found:', token);
       if (!date) {
+        console.log('No date selected');
         Alert.alert('Error', 'Please select a date');
         return;
       }
+      console.log('Date selected:', date);
+  
       const formData = new FormData();
+      console.log('FormData created');
       formData.append('eventName', eventName);
+      console.log('Appended eventName:', eventName);
       formData.append('venue', venueName);
-      formData.append('eventDate', date);
+      console.log('Appended venueName:', venueName);
+      formData.append('eventDate', JSON.stringify([date]));
+      console.log('Appended eventDate:', JSON.stringify([date]));
       formData.append('eventTime', time);
-      formData.append('genre', genre);
+      console.log('Appended eventTime:', time); // Check the value here
+  
+      const genreArray = genre
+        .split(/\s|,+/)
+        .map(g => g.trim())
+        .filter(Boolean);
+      formData.append('genre', JSON.stringify(genreArray));
+      console.log('Appended genre:', JSON.stringify(genreArray));
+  
       formData.append('isSoundSystem', soundSystemAvailable);
+      console.log('Appended isSoundSystem:', soundSystemAvailable);
       formData.append('budget', budget);
-      
+      console.log('Appended budget:', budget);
+  
       if (posterUrl) {
+        console.log('Poster URL found:', posterUrl);
         formData.append('posterUrl', {
           uri: posterUrl,
           type: 'image/jpeg',
           name: 'event-poster.jpg',
         });
+        console.log('Appended poster with URI:', posterUrl);
+      } else {
+        console.log('No poster URL found');
       }
-
+  
+      console.log('Sending request to:', `${API_BASE_URL}/host/events/create-event`);
       const response = await axios.post(
         `${API_BASE_URL}/host/events/create-event`,
         formData,
@@ -223,16 +235,21 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
           },
         }
       );
-
-      if (response.status === 200) {
+      console.log('Response received:', response.status);
+  
+      if (response.status === 200 || response.status === 201) {
+        console.log('Event created successfully');
         Alert.alert('Success', 'Event created successfully');
         navigation.goBack();
+      } else {
+        console.log('Unexpected response status:', response.status);
+        Alert.alert('Error', 'Failed to create event');
       }
     } catch (error) {
+      console.log('Event creation error:', error?.response?.data || error.message);
       Alert.alert('Error', error.response?.data?.message || 'Failed to create event');
     }
   };
-
   return (
     <LinearGradient
       colors={["#B15CDE", "#7952FC"]}

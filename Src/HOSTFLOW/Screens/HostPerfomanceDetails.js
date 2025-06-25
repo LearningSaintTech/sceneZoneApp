@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,61 +8,94 @@ import {
   Image,
   Platform,
   ScrollView,
+  ActivityIndicator,
+  Alert,
+  Linking,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import PlayIcon from '../assets/icons/play';
+import { useSelector } from 'react-redux';
 
-const HostPerfomanceDetailsScreen = ({ navigation }) => {
-  // Sample data for performance items (based on the image)
-  const performanceData = [
-    {
-      id: '1',
-      image: require('../assets/Images/perf1.png'),
-      title: 'Melodies Ablaze',
-      genres: ['Rock', 'Classical', 'Jazz', 'Piano'],
-      instruments: ['Guitar'],
-      rating: 4, // Out of 5 stars
-    },
-     {
-      id: '2',
-      image: require('../assets/Images/perf2.jpg'),
-      title: 'Melodies Ablaze',
-      genres: ['Rock', 'Classical', 'Jazz', 'Piano'],
-      instruments: ['Guitar'],
-      rating: 4, // Out of 5 stars
-    },
-    {
-      id: '3',
-      image: require('../assets/Images/perf1.png'),
-      title: 'Melodies Ablaze',
-      genres: ['Rock', 'Classical', 'Jazz', 'Piano'],
-      instruments: ['Guitar'],
-      rating: 4, // Out of 5 stars
-    },
-    {
-      id: '4',
-      image: require('../assets/Images/perf2.jpg'),
-      title: 'Melodies Ablaze',
-      genres: ['Rock', 'Classical', 'Jazz', 'Piano'],
-      instruments: ['Guitar'],
-      rating: 4, // Out of 5 stars
-    },
-    // Add more performance items if needed
-  ];
+const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
+  const artistId = route?.params?.artistId;
+  console.log('HostPerfomanceDetailsScreen artistId:', artistId);
 
-  const renderPills = (items) => (
-    <View style={styles.pillContainer}>
-      {items.map((item, index) => (
-        <View key={index} style={styles.pill}>
-          <Text style={styles.pillText}>{item}</Text>
-        </View>
-      ))}
-    </View>
-  );
+  const token = useSelector(state => state.auth.token);
 
-   const renderStars = (rating) => {
+  const [performanceData, setPerformanceData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    console.log('useEffect triggered. artistId:', artistId, 'token:', token);
+    const fetchPerformanceData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+        const url = `${API_BASE}/api/artist/get-Artist-Performance/${artistId}`;
+        console.log('Fetching from URL:', url);
+        console.log('Using token:', token);
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        console.log('Fetch response status:', response.status);
+        const result = await response.json();
+        console.log('Raw API response data:', JSON.stringify(result.data, null, 2));
+        if (result.success) {
+          const normalizedData = result.data.map((item) => ({
+            ...item,
+            genre: Array.isArray(item.genre) ? item.genre : [],
+          }));
+          setPerformanceData(normalizedData);
+          console.log('Normalized performance data:', normalizedData);
+        } else {
+          setPerformanceData([]);
+          setError(result.message || 'Failed to fetch performances');
+          console.log('API error:', result.message || 'Failed to fetch performances');
+        }
+      } catch (err) {
+        setPerformanceData([]);
+        setError('Network error');
+        console.log('Network error:', err);
+      } finally {
+        setLoading(false);
+        console.log('Loading set to false');
+      }
+    };
+    if (artistId && token) {
+      fetchPerformanceData();
+    } else {
+      console.log('artistId or token missing. artistId:', artistId, 'token:', token);
+      setLoading(false);
+      setError('Missing artist ID or token');
+    }
+  }, [artistId, token]);
+
+  const renderPills = (items) => {
+    const genres = Array.isArray(items) ? items : [];
+    return (
+      <View style={styles.pillContainer}>
+        {genres.length > 0 ? (
+          genres.map((item, index) => (
+            <View key={index} style={styles.pill}>
+              <Text style={styles.pillText}>{item}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.pillText}>No genre</Text>
+        )}
+      </View>
+    );
+  };
+
+  const renderStars = (rating) => {
     const stars = [];
     for (let i = 0; i < 5; i++) {
       stars.push(
@@ -70,7 +103,7 @@ const HostPerfomanceDetailsScreen = ({ navigation }) => {
           key={i}
           name={i < rating ? 'star' : 'star-outline'}
           size={16}
-          color={'#ffc107'} // Yellow color for stars
+          color={'#ffc107'}
           style={styles.starIcon}
         />
       );
@@ -78,48 +111,66 @@ const HostPerfomanceDetailsScreen = ({ navigation }) => {
     return <View style={styles.starContainer}>{stars}</View>;
   };
 
-  const renderPerformanceCard = (item) => (
-    <View key={item.id} style={{ alignItems: 'center', width: '100%' }}>
+  const renderPerformanceCard = (item, idx) => (
+    <View key={idx} style={{ alignItems: 'center', width: '100%' }}>
       <View style={styles.performanceCard}>
-      <View style={styles.imageContainer}>
-        <Image
-          source={item.image}
-          style={styles.performanceImage}
-          resizeMode="contain"
-        />
-        <TouchableOpacity style={styles.playButton}>
-          <PlayIcon width={44} height={44} />
-        </TouchableOpacity>
+        <View style={styles.imageContainer}>
+          <Image
+            source={require('../assets/Images/perf1.png')}
+            style={styles.performanceImage}
+            resizeMode="contain"
+          />
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={() => {
+              if (item.videoUrl) {
+                Linking.openURL(item.videoUrl).catch(() =>
+                  Alert.alert('Error', 'Unable to open video URL')
+                );
+              }
+            }}
+          >
+            <PlayIcon width={44} height={44} />
+          </TouchableOpacity>
+        </View>
       </View>
-      </View>
-      {/* Title below card */}
-      <Text style={styles.performanceTitle}>{item.title}</Text>
-      {/* Genres as pills below title */}
-      <View style={styles.pillRow}>{renderPills(item.genres)}</View>
-      {/* Star rating below pills */}
-      <View style={styles.starRow}>{renderStars(4)}</View>
+      <Text style={styles.performanceTitle}>{item.venueName}</Text>
+      <View style={styles.pillRow}>{renderPills(item.genre)}</View>
+      <View style={styles.starRow}>{renderStars(item.avgRating)}</View>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={2} ellipsizeMode="tail">Performance</Text>
-        <View style={{ width: 24 }} />{/* Placeholder to balance header */}
+        <View style={{ width: 24 }} />
       </View>
-
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        {performanceData.map(renderPerformanceCard)}
-      </ScrollView>
-
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#B15CDE" />
+        </View>
+      ) : error ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: 'red', marginTop: 40 }}>{error}</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollViewContent}>
+          {performanceData.length === 0 ? (
+            <Text style={{ color: '#fff', marginTop: 40 }}>No performances found.</Text>
+          ) : (
+            performanceData.map(renderPerformanceCard)
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -157,7 +208,7 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
-    alignItems: 'center', // Center the cards horizontally
+    alignItems: 'center',
   },
   performanceCard: {
     display: 'flex',
@@ -188,8 +239,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginTop: -22, // Half of the icon height (44/2)
-    marginLeft: -22, // Half of the icon width (44/2)
+    marginTop: -22,
+    marginLeft: -22,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
@@ -224,7 +275,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   starIcon: {
-    marginRight: 2, // Space between stars
+    marginRight: 2,
   },
   performanceTitle: {
     color: '#FCFCFD',
@@ -255,4 +306,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HostPerfomanceDetailsScreen; 
+export default HostPerfomanceDetailsScreen;

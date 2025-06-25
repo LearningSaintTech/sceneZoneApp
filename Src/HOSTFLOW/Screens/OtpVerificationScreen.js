@@ -143,16 +143,10 @@ const OtpVerificationScreen = ({ navigation, route }) => {
 
       console.log("OTP Verification Response:", response.data); // Debug log
 
-      if (response.data) {
+      if (response.data.success) {
         setShowSuccess(true);
         // Dispatch login action with user data
-        dispatch(loginHost({
-          id: response.data.id || 'host123',
-          name: response.data.name || 'Kevin Richards',
-          email: response.data.email || 'host@example.com',
-          phone: response.data.phone || '+91 412-123-4215',
-          token: response.data.token
-        }));
+        dispatch(loginHost(response.data.data));
         
         // Navigate after a short delay to show success modal
         setTimeout(() => {

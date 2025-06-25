@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,17 @@ import {
   Platform,
   Modal,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FluentIcon from '../assets/icons/fluent';
 import MaskedView from '@react-native-masked-view/masked-view';
+import { useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
+import axios from 'axios';
 
 const { width, height } = Dimensions.get('window');
 
@@ -57,12 +62,115 @@ const dimensions = {
 const ShortlistScreen = ({ navigation }) => {
   const [theme, setTheme] = useState('dark'); // Theme state ('dark' or 'light')
   const [shortlistedItems, setShortlistedItems] = useState({}); // Track shortlisted status
+  const [apiData, setApiData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Shortlist'); // Track which tab is active
   const [isAddOptionsModalVisible, setAddOptionsModalVisible] = useState(false); // State for modal visibility
   const [isContractDetailsModalVisible, setContractDetailsModalVisible] = useState(false); // New state for Contract Details modal
   const [isAddToExistingEventsModalVisible, setAddToExistingEventsModalVisible] = useState(false); // New state for Add To Existing Events modal
+  // New state for manage events
+  const [manageEvents, setManageEvents] = useState([]);
+  const [manageEventsLoading, setManageEventsLoading] = useState(false);
+  const [existingEvents, setExistingEvents] = useState([]);
+  const [existingEventsLoading, setExistingEventsLoading] = useState(false);
 
+  const token = useSelector(state => state.auth.token);
   const insets = useSafeAreaInsets();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchShortlistedArtists = async () => {
+        if (!token) {
+          console.log("No token available.");
+          setLoading(false);
+          return;
+        }
+        setLoading(true);
+        try {
+          const response = await axios.get('http://10.0.2.2:3000/api/host/getShortlistedArtists', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          if (response.data.success && Array.isArray(response.data.data)) {
+            setApiData(response.data.data);
+            const initialStatus = {};
+            response.data.data.forEach(item => {
+              initialStatus[item._id] = true;
+            });
+            setShortlistedItems(initialStatus);
+          } else {
+            console.error("Failed to fetch shortlisted artists:", response.data.message);
+            setApiData([]);
+          }
+        } catch (error) {
+          console.error("API error fetching shortlisted artists:", error.response?.data || error.message);
+          setApiData([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+      if (activeTab === 'Shortlist') {
+        fetchShortlistedArtists();
+      }
+    }, [token, activeTab])
+  );
+
+  // Helper to format date as 'May 20'
+  const formatEventDate = (dateArr) => {
+    if (!Array.isArray(dateArr) || !dateArr[0]) return '';
+    const date = new Date(dateArr[0]);
+    if (isNaN(date)) return '';
+    return `${date.toLocaleString('en-US', { month: 'short' })} ${date.getDate()}`;
+  };
+
+  // Helper to format time as '8:30 PM' (if eventTime is in '06:00 PM' format, just return it)
+  const formatEventTime = (eventTime) => {
+    if (!eventTime) return '';
+    // If already in 'HH:MM AM/PM' just return
+    return eventTime;
+  };
+
+  // Fetch manage events when Manage Event tab is active
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchManageEvents = async () => {
+        if (!token) {
+          setManageEvents([]);
+          setManageEventsLoading(false);
+          return;
+        }
+        if (activeTab !== 'Manage Event') return;
+        setManageEventsLoading(true);
+        try {
+          const response = await axios.get('http://10.0.2.2:3000/api/host/events/get-all-events', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          console.log('API response:', response.data);
+          if (response.data.success && Array.isArray(response.data.data)) {
+            const mappedEvents = response.data.data.map(event => ({
+              ...event,
+              formattedDate: formatEventDate(event.eventDate),
+              formattedTime: formatEventTime(event.eventTime),
+            }));
+            console.log('Mapped events:', mappedEvents);
+            setManageEvents(mappedEvents);
+          } else {
+            setManageEvents([]);
+          }
+        } catch (error) {
+          console.log('Fetch error:', error);
+          setManageEvents([]);
+        } finally {
+          setManageEventsLoading(false);
+        }
+      };
+      fetchManageEvents();
+    }, [token, activeTab])
+  );
 
   // Enhanced responsive dimensions with safe area considerations
   const responsiveDimensions = {
@@ -77,86 +185,25 @@ const ShortlistScreen = ({ navigation }) => {
     },
   };
 
-  // Sample data for shortlisted events (using local assets)
+  // Sample data for shortlisted events (using local assets for the modal)
   const shortlistData = [
     {
       id: '1',
       genre: 'PERFORMANCE',
       budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'), // Local asset for event image
+      image: require('../assets/Images/fff.jpg'),
     },
     {
       id: '2',
       genre: 'ROCK',
       budget: '$50,000',
-      image: require('../assets/Images/ffff.jpg'), // Local asset for event image
+      image: require('../assets/Images/ffff.jpg'),
     },
     {
       id: '3',
       genre: 'PERFORMANCE',
       budget: '$50,000',
-      image: require('../assets/Images/shortlist1.png'), // Local asset for event image
-    },
-    // 10 more identical events for demo
-    {
-      id: '4',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '5',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '6',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '7',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '8',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '9',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '10',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '11',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '12',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
-    },
-    {
-      id: '13',
-      genre: 'PERFORMANCE',
-      budget: '$50,000',
-      image: require('../assets/Images/fff.jpg'),
+      image: require('../assets/Images/shortlist1.png'),
     },
   ];
 
@@ -192,30 +239,38 @@ const ShortlistScreen = ({ navigation }) => {
 
   // Render each shortlist item (for Shortlist tab)
   const renderShortlistItem = ({ item }) => {
-    const isShortlisted = shortlistedItems[item.id] || false;
+    const isShortlisted = shortlistedItems[item._id] || false;
+
+    console.log(`Attempting to render image for item ${item._id} with URI: ${item.profileImageUrl}`);
+
     return (
       <TouchableOpacity
         style={styles.eventCard}
-        onPress={() => navigation.navigate('HostPerfomanceDetails')}
+        onPress={() => {
+          toggleShortlist(item._id);
+          navigation.navigate('HostPerfomanceDetails');
+        }}
         activeOpacity={0.8}
       >
         <View style={styles.imageContainer}>
           <Image
-            source={item.image}
+            source={{ uri: item.profileImageUrl }}
             style={styles.eventImage}
             resizeMode="cover"
+            onLoad={() => console.log(`Image successfully loaded for item ${item._id}`)}
+            onError={(e) => console.error(`Failed to load image for item ${item._id}. URI: ${item.profileImageUrl}. Error:`, e.nativeEvent.error)}
           />
           {/* Overlay row at the bottom of the image */}
           <View style={styles.overlayRow}>
             <FluentIcon width={24} height={24} />
             <View style={[styles.overlayButton, styles.overlayButtonFirst]}>
-              <Text style={styles.overlayButtonText}>{item.genre}</Text>
+              <Text style={styles.overlayButtonText}>{(item.genre && item.genre[0])?.toUpperCase() || 'N/A'}</Text>
             </View>
             <View style={styles.overlayButton}>
-              <Text style={styles.overlayButtonText}>{item.budget}</Text>
+              <Text style={styles.overlayButtonText}>{`$${item.budget}`}</Text>
             </View>
             {isShortlisted ? (
-              <TouchableOpacity style={styles.overlayPlus} onPress={() => toggleShortlist(item.id)}>
+              <TouchableOpacity style={styles.overlayPlus} onPress={() => toggleShortlist(item._id)}>
                 <Feather name="minus" size={18} color="#fff" />
               </TouchableOpacity>
             ) : (
@@ -230,20 +285,22 @@ const ShortlistScreen = ({ navigation }) => {
   };
 
   // Render the Manage Event card (for Manage Event tab)
-  const renderManageEventCard = () => (
-    <View style={styles.manageEventCardContainer}>
+  const renderManageEventCard = (event) => (
+    <View style={styles.manageEventCardContainer} key={event._id}>
       <View style={styles.manageEventImageWrapper}>
         <Image
-          source={require('../assets/Images/fff.jpg')}
+          source={event.posterUrl ? { uri: event.posterUrl } : require('../assets/Images/fff.jpg')}
           style={styles.manageEventImage}
           resizeMode="cover"
         />
         <View style={styles.manageEventDateBadge}>
-          <Text style={styles.manageEventDateMonth}>May</Text>
-          <Text style={styles.manageEventDateDay}>20</Text>
+          <Text style={styles.manageEventDateMonth}>{event.formattedDate.split(' ')[0]}</Text>
+          <Text style={styles.manageEventDateDay}>{event.formattedDate.split(' ')[1]}</Text>
         </View>
       </View>
-      <Text style={styles.manageEventTitle}>Sounds of Celebration</Text>
+      <Text style={styles.manageEventTitle}>{event.eventName || 'Event Name'}</Text>
+      {/* Show event time below or wherever your UI expects */}
+      <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 4 }}>{event.formattedTime}</Text>
       <View style={styles.manageEventButtonRow}>
         <LinearGradient
           colors={["#B15CDE", "#7952FC"]}
@@ -251,18 +308,63 @@ const ShortlistScreen = ({ navigation }) => {
           end={{ x: 0, y: 0 }}
           style={styles.manageEventButtonPurple}
         >
-          <TouchableOpacity onPress={()=>navigation.navigate('HostManageEvent')}
+          <TouchableOpacity onPress={() => navigation.navigate('HostManageEvent')}
             style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}
           >
             <Text style={styles.manageEventButtonTextWhite}>Manage Event</Text>
           </TouchableOpacity>
         </LinearGradient>
-        <TouchableOpacity style={styles.manageEventTrashButton}>
+        <TouchableOpacity
+          style={styles.manageEventTrashButton}
+          onPress={async () => {
+            if (!event._id) return;
+            try {
+              setManageEventsLoading(true);
+              await axios.delete(
+                `http://10.0.2.2:3000/api/host/events/delete-event/${event._id}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                }
+              );
+              setManageEvents(prev => prev.filter(e => e._id !== event._id));
+              Alert.alert('Success', 'Event deleted successfully');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete event');
+            } finally {
+              setManageEventsLoading(false);
+            }
+          }}
+        >
           <Feather name="trash-2" size={dimensions.iconSize} color="#a95eff" />
         </TouchableOpacity>
       </View>
     </View>
   );
+
+  const fetchExistingEvents = async () => {
+    if (!token) return;
+    setExistingEventsLoading(true);
+    try {
+      const response = await axios.get('http://10.0.2.2:3000/api/host/events/get-all-events', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (response.data.success && Array.isArray(response.data.data)) {
+        setExistingEvents(response.data.data);
+      } else {
+        setExistingEvents([]);
+      }
+    } catch (error) {
+      setExistingEvents([]);
+    } finally {
+      setExistingEventsLoading(false);
+    }
+  };
 
   return (
     <View style={[
@@ -345,15 +447,27 @@ const ShortlistScreen = ({ navigation }) => {
         {/* Content based on tab */}
         {activeTab === 'Shortlist' ? (
           <View style={styles.listContainer}>
-            {shortlistData.map((item) => (
-              <View key={item.id}>
-                {renderShortlistItem({ item })}
-              </View>
-            ))}
+            {loading ? (
+              <ActivityIndicator size="large" color="#a95eff" style={{ marginTop: 20 }} />
+            ) : (
+              apiData.map((item) => (
+                <View key={item._id}>
+                  {renderShortlistItem({ item })}
+                </View>
+              ))
+            )}
           </View>
         ) : (
           <View style={styles.manageEventTabContent}>
-            {renderManageEventCard()}
+            {manageEventsLoading ? (
+              <ActivityIndicator size="large" color="#a95eff" style={{ marginTop: 20 }} />
+            ) : (
+              manageEvents.length > 0 ? (
+                manageEvents.map(event => renderManageEventCard(event))
+              ) : (
+                <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No events found.</Text>
+              )
+            )}
           </View>
         )}
       </ScrollView>
@@ -392,7 +506,14 @@ const ShortlistScreen = ({ navigation }) => {
               <Text style={styles.modalButtonTextWhite}>On Salary Basis</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.modalButton} onPress={() => { setAddOptionsModalVisible(false); setAddToExistingEventsModalVisible(true); }}>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setAddOptionsModalVisible(false);
+                setAddToExistingEventsModalVisible(true);
+                fetchExistingEvents();
+              }}
+            >
               <Text style={styles.modalButtonTextWhite}>Add To Existing Events</Text>
             </TouchableOpacity>
 
@@ -499,67 +620,26 @@ const ShortlistScreen = ({ navigation }) => {
               <Feather name="x" size={dimensions.iconSize} color="#000" />
             </TouchableOpacity>
             {/* Event List */}
-            <ScrollView 
-              contentContainerStyle={[
-                styles.existingEventListContainer,
-                {
-                  paddingHorizontal: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.lg, dimensions.spacing.lg),
-                  paddingTop: Math.max(responsiveDimensions.safeAreaTop + dimensions.spacing.xl, dimensions.spacing.xl),
-                }
-              ]}
-              showsVerticalScrollIndicator={false}
-            >
-              {shortlistData.map((item) => (
-                <View key={item.id} style={styles.existingEventCard}>
-                  <Image source={require('../assets/Images/fff.jpg')} style={styles.existingEventImage} />
-                  <View style={styles.existingEventDetails}>
-                    <Text style={styles.existingEventTitle}>Sounds of Celebration</Text>
-                    <Text style={styles.existingEventDescription}>Join us for an unforgettable evening filled with live music! Feel the beat and excitement!</Text>
-                    <MaskedView
-                      maskElement={
-                        <Text
-                          style={{
-                            fontFamily: 'Nunito Sans',
-                            fontSize: 10,
-                            fontStyle: 'normal',
-                            fontWeight: '400',
-                            lineHeight: 10,
-                            textAlign: 'center',
-                            backgroundColor: 'transparent',
-                           paddingRight:80,
-                          }}
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          May 20 | 08:30PM
-                        </Text>
-                      }
-                    >
-                      <LinearGradient
-                        colors={['#B15CDE', '#7952FC']}
-                        start={{ x: 1, y: 0 }}
-                        end={{ x: 0, y: 1 }}
-                        style={{ height: 21 }}
-                      >
-                        <Text
-                          style={{
-                            opacity: 0,
-                            fontFamily: 'Nunito Sans',
-                            fontSize: 10,
-                            fontStyle: 'normal',
-                            fontWeight: '400',
-                            lineHeight: 21,
-                            textAlign: 'center',
-                          }}
-                        >
-                          May 20 | 08:30PM
-                        </Text>
-                      </LinearGradient>
-                    </MaskedView>
+            {existingEventsLoading ? (
+              <ActivityIndicator size="large" color="#a95eff" style={{ marginTop: 20 }} />
+            ) : (
+              existingEvents.length > 0 ? (
+                existingEvents.map((item) => (
+                  <View key={item._id} style={styles.existingEventCard}>
+                    <Image source={item.posterUrl ? { uri: item.posterUrl } : require('../assets/Images/fff.jpg')} style={styles.existingEventImage} />
+                    <View style={styles.existingEventDetails}>
+                      <Text style={styles.existingEventTitle}>{item.eventName}</Text>
+                      <Text style={styles.existingEventDescription}>Join us for an unforgettable evening filled with live music! Feel the beat and excitement!</Text>
+                      <Text style={{ color: '#a95eff', fontSize: 10 }}>
+                        {item.eventDate && item.eventDate[0] ? new Date(item.eventDate[0]).toLocaleString('en-US', { month: 'short', day: '2-digit' }) : ''} | {item.eventTime}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              ))}
-            </ScrollView>
+                ))
+              ) : (
+                <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No events found.</Text>
+              )
+            )}
           </LinearGradient>
         </View>
       </Modal>

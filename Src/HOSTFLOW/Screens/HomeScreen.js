@@ -13,6 +13,7 @@ import {
   Animated,
   Platform,
   Easing,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -23,6 +24,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MiddleButton from '../assets/icons/MiddleButton';
 import NotificationIcon from '../assets/icons/NotificationIcon';
 import SignUpBackground from '../assets/Banners/SignUp';
+import { useSelector } from 'react-redux';
+import axios from 'axios';
+import { selectFullName, selectLocation } from '../Redux/slices/authSlice';
 
 const { width, height } = Dimensions.get('window');
 const isBigScreen = width >= 600;
@@ -61,32 +65,12 @@ const dimensions = {
   }
 };
 
-// Placeholder data for the event list
-const eventData = [
-  {
-    id: '1',
-    video: require('../assets/Videos/Video.mp4'),
-    genre: 'PERFORMANCE',
-    price: '$50,000',
-  },
-  {
-    id: '2',
-    video: require('../assets/Videos/Video.mp4'),
-    genre: 'PERFORMANCE',
-    price: '$30,000',
-  },
-  {
-    id: '3',
-    video: require('../assets/Videos/Video.mp4'),
-    genre: 'PERFORMANCE',
-    price: '$70,000',
-  },
-  // Add more placeholder events as needed
-];
-
 const HomeScreen = ({ navigation }) => {
   const [showFilter, setShowFilter] = React.useState(false);
   const insets = useSafeAreaInsets();
+  const token = useSelector(state => state.auth.token);
+  const fullName = useSelector(selectFullName);
+  const location = useSelector(selectLocation);
 
   // For selected pills in each section
   const [selected, setSelected] = React.useState({
@@ -95,6 +79,118 @@ const HomeScreen = ({ navigation }) => {
     instrument: 'Acoustic Guitar',
     genre: 'Soul Queen',
   });
+
+  const [artistData, setArtistData] = React.useState([]);
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    const fetchArtists = async () => {
+      try {
+        const response = await axios.get('http://10.0.2.2:3000/api/artist/get-all-artists', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (response.data.success) {
+          setArtistData(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching artists:', error);
+        setArtistData([]);
+      }
+    };
+    fetchArtists();
+  }, [token]);
+
+  const handleShortlist = async () => {
+    console.log('--- Shortlist Button Pressed ---');
+
+    if (!artistData || artistData.length === 0) {
+      console.log('No artist data available to shortlist.');
+      Alert.alert('No Artists', 'There are no artists to shortlist.');
+      return;
+    }
+    console.log(`Current artist index: ${currentIndex}`);
+
+    const artist = artistData[currentIndex];
+    if (!artist || !artist.artistId) {
+      console.log('Could not find artist or artistId at the current index.');
+      Alert.alert('Error', 'Could not find artist to shortlist.');
+      return;
+    }
+    console.log('Artist object to shortlist:', artist);
+
+    const artistId = artist.artistId;
+    const url = 'http://10.0.2.2:3000/api/host/shortlistArtist';
+    const body = { artistId };
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    };
+
+    console.log(`Preparing to shortlist artist with ID: ${artistId}`);
+    console.log('API Endpoint:', url);
+    console.log('Request Body:', JSON.stringify(body, null, 2));
+    console.log('Request Headers:', JSON.stringify(config.headers, null, 2));
+
+    try {
+      const response = await axios.post(url, body, config);
+
+      console.log('--- API Response Received ---');
+      console.log('Response Status:', response.status);
+      console.log('Response Data:', JSON.stringify(response.data, null, 2));
+
+      if (response.data.success) {
+        console.log('Successfully shortlisted artist.');
+        Alert.alert('Success', 'Artist shortlisted successfully!');
+      } else {
+        console.log(`API returned success=false. Message: ${response.data.message}`);
+        Alert.alert('Error', response.data.message || 'Could not shortlist the artist.');
+      }
+    } catch (error) {
+      // Check for "Artist already shortlisted." error
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message === 'Artist already shortlisted.'
+      ) {
+        Alert.alert('Already Shortlisted', 'Artist already in shortlist.');
+      } else {
+        console.log('--- API Call Failed ---');
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          console.error('Error Response Data:', JSON.stringify(error.response.data, null, 2));
+          console.error('Error Response Status:', error.response.status);
+          console.error('Error Response Headers:', JSON.stringify(error.response.headers, null, 2));
+        } else if (error.request) {
+          // The request was made but no response was received
+          console.error('Error Request:', error.request);
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          console.error('Error Message:', error.message);
+        }
+        console.error('Full Error Object:', error);
+        Alert.alert('Error', 'An error occurred while shortlisting. Please try again.');
+      }
+    }
+  };
+
+  const onViewableItemsChanged = React.useCallback(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      const newIndex = viewableItems[0].index;
+      if (newIndex !== null && newIndex !== undefined) {
+        setCurrentIndex(newIndex);
+      }
+    }
+  }, []);
+
+  const viewabilityConfig = React.useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
 
   const filterOptions = {
     filter: ['Near - Far', 'Far - Near', 'Today', 'This Week' ,'This Weekend','Next Weekend','1km-3km','3km-5km','5km+'],
@@ -254,6 +350,11 @@ const HomeScreen = ({ navigation }) => {
       extrapolate: 'clamp',
     });
 
+    // Use artist data for image, genre, and price
+    const imageSource = item.profileImageUrl ? { uri: item.profileImageUrl } : require('../assets/Videos/Video.mp4');
+    const genre = Array.isArray(item.genre) && item.genre.length > 0 ? item.genre[0] : 'PERFORMANCE';
+    const price = item.budget ? `$${item.budget}` : '$0';
+
     return (
       <Animated.View style={[
         styles.eventCard, 
@@ -264,20 +365,28 @@ const HomeScreen = ({ navigation }) => {
           height: 540,
         }
       ]}>
-        <TouchableOpacity onPress={() => navigation.navigate('HostPerfomanceDetails')} style={styles.eventCardTouchable}>
+        <TouchableOpacity onPress={() => {
+          console.log('Navigating to HostPerfomanceDetails with artistId:', item.artistId);
+          navigation.navigate('HostPerfomanceDetails');
+        }} style={styles.eventCardTouchable}>
           <View style={styles.videoContainer}>
-            <Video
-              source={item.video}
-              style={styles.eventVideo}
-              resizeMode="cover"
-              repeat={true}
-              muted={true}
-              paused={false}
-              playInBackground={false}
-              playWhenInactive={false}
-              onError={(error) => console.log('Video Error:', error)}
-              onLoad={(data) => console.log('Video Loaded:', data)}
-            />
+            {/* If image is a video, use Video component, else use Image */}
+            {item.profileImageUrl ? (
+              <Image source={imageSource} style={styles.eventVideo} resizeMode="cover" />
+            ) : (
+              <Video
+                source={require('../assets/Videos/Video.mp4')}
+                style={styles.eventVideo}
+                resizeMode="cover"
+                repeat={true}
+                muted={true}
+                paused={false}
+                playInBackground={false}
+                playWhenInactive={false}
+                onError={(error) => console.log('Video Error:', error)}
+                onLoad={(data) => console.log('Video Loaded:', data)}
+              />
+            )}
           </View>
 
         <LinearGradient
@@ -286,15 +395,15 @@ const HomeScreen = ({ navigation }) => {
         />
 
         <View style={styles.crowdGuaranteeContainer}>
-          <Text style={styles.crowdGuaranteeText}>Crowd Guarantee</Text>
+          <Text style={styles.crowdGuaranteeText}>Crowd Guarante</Text>
         </View>
 
         <View style={styles.cardBottomPills}>
           <View style={styles.pill}>
-            <Text style={styles.pillText}>{item.genre || 'PERFORMANCES'}</Text>
+            <Text style={styles.pillText}>{genre}</Text>
           </View>
           <View style={styles.pill}>
-            <Text style={styles.pillText}>{item.price || '$0'}</Text>
+            <Text style={styles.pillText}>{price}</Text>
           </View>
         </View>
         </TouchableOpacity>
@@ -399,8 +508,8 @@ const HomeScreen = ({ navigation }) => {
         }
       ]}>
         <View>
-          <Text style={styles.greeting}>Hello Brandon!</Text>
-          <Text style={styles.location}>📍 H-70, Sector 63, Noida</Text>
+          <Text style={styles.greeting}>Hello {fullName || 'User'}!</Text>
+          <Text style={styles.location}>📍 {location || 'Location'}</Text>
         </View>
         <TouchableOpacity 
           onPress={() => navigation.navigate('Notification')} 
@@ -473,9 +582,9 @@ const HomeScreen = ({ navigation }) => {
 
       {/* Horizontal Event List */}
       <Animated.FlatList
-        data={eventData}
+        data={artistData}
         renderItem={renderEventCard}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         horizontal
         showsHorizontalScrollIndicator={false}
         snapToInterval={snapToInterval}
@@ -495,6 +604,8 @@ const HomeScreen = ({ navigation }) => {
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
           { useNativeDriver: true }
         )}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         scrollEventThrottle={16}
       />
 
@@ -525,6 +636,7 @@ const HomeScreen = ({ navigation }) => {
         {/* New button with MiddleButton icon */}
         <TouchableOpacity
           style={[styles.middleIconButton, { backgroundColor: '#B15CDE', padding: 1 }]}
+          onPress={handleShortlist}
         >
           <View style={{ 
             width: 45,
@@ -954,3 +1066,4 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
+
