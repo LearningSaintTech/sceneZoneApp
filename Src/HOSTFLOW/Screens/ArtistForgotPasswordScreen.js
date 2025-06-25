@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Dimensions,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -15,6 +16,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import ForgotIcon from '../assets/icons/forgot';
+import api from '../Config/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -34,10 +36,51 @@ const responsiveDimensions = {
 
 const ArtistForgotPasswordScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const insets = useSafeAreaInsets();
 
-  const handleConfirm = () => {
-    navigation.navigate('ArtistCheckMailbox');
+  const handleConfirm = async () => {
+    try {
+      // Input validation
+      if (!email.trim()) {
+        Alert.alert('Error', 'Please enter your email address');
+        return;
+      }
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        Alert.alert('Error', 'Please enter a valid email address');
+        return;
+      }
+
+      setIsLoading(true);
+
+      const otpData = {
+        email: email.trim()
+      };
+
+      console.log("Sending Artist OTP Data:", otpData); // Debug log
+
+      const response = await api.post('/artist/email-sendOtp', otpData);
+
+      console.log("Artist OTP Response:", response.data); // Debug log
+
+      if (response.data) {
+        // Navigate to check mailbox screen
+        navigation.navigate('ArtistCheckMailbox', { email: email.trim() });
+      }
+    } catch (error) {
+      console.error("Artist OTP Error:", error.message);
+      console.error("Error Response:", error.response?.data);
+      
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to send OTP. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -84,6 +127,7 @@ const ArtistForgotPasswordScreen = ({ navigation }) => {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -103,6 +147,7 @@ const ArtistForgotPasswordScreen = ({ navigation }) => {
             }
           ]} 
           onPress={handleConfirm}
+          disabled={isLoading}
         >
           <LinearGradient 
             colors={['#B15CDE', '#7952FC']} 
@@ -110,10 +155,15 @@ const ArtistForgotPasswordScreen = ({ navigation }) => {
             end={{x: 1, y: 0}}
             style={[
               styles.confirmButtonGradient,
-              { borderRadius: responsiveDimensions.borderRadius }
+              { 
+                borderRadius: responsiveDimensions.borderRadius,
+                opacity: isLoading ? 0.7 : 1
+              }
             ]}
           >
-            <Text style={styles.confirmButtonText}>Confirm</Text>
+            <Text style={styles.confirmButtonText}>
+              {isLoading ? 'Sending...' : 'Confirm'}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
       </SafeAreaView>

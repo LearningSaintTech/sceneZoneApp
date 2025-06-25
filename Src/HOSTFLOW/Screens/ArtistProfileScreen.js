@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ImageBackground, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ImageBackground, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import LinearGradient from 'react-native-linear-gradient';
-import { useDispatch } from 'react-redux';
-import { logout } from '../Redux/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { logout, selectToken, selectUserData, selectLocation, selectFullName, selectMobileNumber } from '../Redux/slices/authSlice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   widthPercentageToDP as wp,
@@ -14,6 +14,7 @@ import {
 } from 'react-native-responsive-screen';
 import MaskedView from '@react-native-masked-view/masked-view';
 import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
+import api from '../Config/api';
 
 const { width } = Dimensions.get('window');
 
@@ -55,9 +56,74 @@ const design = {
 };
 
 const ArtistProfileScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState('profile');
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+
+  // Get data from Redux using selectors
+  const token = useSelector(selectToken);
+  const userData = useSelector(selectUserData);
+  const location = useSelector(selectLocation);
+  const fullName = useSelector(selectFullName);
+  const mobileNumber = useSelector(selectMobileNumber);
+
+  useEffect(() => {
+    console.log('Current Redux State:', {
+      token,
+      userData,
+      location,
+      fullName,
+      mobileNumber
+    });
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      if (!token) {
+        console.error('No token available in Redux store');
+        Alert.alert('Error', 'Authentication token not found. Please login again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Making API request with token:', token);
+
+      const response = await api.get('/artist/get-profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Profile API Response:', response.data);
+      
+      if (response.data.success) {
+        setProfileData(response.data.data);
+        setImageError(false); // Reset image error when new data is loaded
+      } else {
+        console.error('API returned success: false', response.data);
+        Alert.alert('Error', response.data.message || 'Failed to fetch profile data');
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error.message);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        Alert.alert('Error', error.response.data?.message || 'Failed to fetch profile data');
+      } else if (error.request) {
+        console.error('Error request:', error.request);
+        Alert.alert('Error', 'No response from server. Please check your internet connection.');
+      } else {
+        console.error('Error message:', error.message);
+        Alert.alert('Error', 'An unexpected error occurred');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     // Dispatch logout action to clear auth state
@@ -70,6 +136,14 @@ const ArtistProfileScreen = ({ navigation }) => {
     // Additional cleanup: ensure no cached navigation state
     // This prevents users from using back button to return to authenticated screens
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#8D6BFC" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -97,14 +171,28 @@ const ArtistProfileScreen = ({ navigation }) => {
         >
           <View style={styles.profileCardContent}>
             <View style={styles.profileImagePlaceholder}>
-              <Image 
-                source={require('../assets/Images/frame1.png')}
-                style={styles.profileImage}
-              />
+              {profileData?.profileImageUrl ? (
+                <Image 
+                  source={{ uri: profileData.profileImageUrl }}
+                  style={styles.profileImage}
+                  onError={(error) => {
+                    console.log('Image loading error:', error.nativeEvent);
+                    setImageError(true);
+                  }}
+                  onLoad={() => {
+                    console.log('Image loaded successfully');
+                  }}
+                />
+              ) : (
+                <Image 
+                  source={require('../assets/Images/frame1.png')}
+                  style={styles.profileImage}
+                />
+              )}
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.userName}>Kevin Richards</Text>
-              <Text style={styles.userContact}>contact@yourdomain.com</Text>
+              <Text style={styles.userName}>{profileData?.fullName || fullName || userData?.name || 'Loading...'}</Text>
+              <Text style={styles.userContact}>{profileData?.email || userData?.email || 'No email provided'}</Text>
             </View>
             {/* Placeholder for waveform or icon */}
             <View style={styles.iconPlaceholder} />
@@ -161,8 +249,6 @@ const ArtistProfileScreen = ({ navigation }) => {
       </ScrollView>
       <ArtistBottomNavBar
         navigation={navigation}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         insets={insets}
       />
     </View>
@@ -207,25 +293,37 @@ const styles = StyleSheet.create({
   },
   profileCardBackground: {
     marginVertical: design.spacing.lg,
-    borderRadius: design.borderRadius.md,
+    borderRadius: 16,
     overflow: 'hidden',
     padding: design.spacing.lg,
     minHeight: design.profileCardHeight,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 9.4,
+    elevation: 8, // For Android shadow
   },
   profileCardImage: {
-    borderRadius: design.borderRadius.md,
+    borderRadius: 16,
   },
   profileCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  
   },
   profileImagePlaceholder: {
     aspectRatio: 1,
-    width: wp('15%'), // 15% of screen width
+    width: wp('17%'), // Increased from 15% to 20% of screen width
     borderRadius: design.borderRadius.xl,
     overflow: 'hidden',
     marginRight: design.spacing.lg,
+    marginLeft:10,
+    borderWidth: 1,
+    borderColor: '#FFF',
   },
   profileImage: {
     flex: 1,
@@ -236,13 +334,13 @@ const styles = StyleSheet.create({
     paddingRight: design.spacing.md,
   },
   userName: {
-    fontSize: design.fontSize.header,
+    fontSize: wp('3.5%'), // Reduced from design.fontSize.header to 3.5% of screen width
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: design.spacing.xs,
   },
   userContact: {
-    fontSize: design.fontSize.body,
+    fontSize: wp('3%'), // Reduced from design.fontSize.body to 3% of screen width
     color: '#eee',
   },
   iconPlaceholder: {
@@ -308,6 +406,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     color: '#B15CDE',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

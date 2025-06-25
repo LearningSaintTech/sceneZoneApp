@@ -1,8 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
+import { useSelector } from 'react-redux';
+import { selectToken } from '../Redux/slices/authSlice';
+import api from '../Config/api';
 
 const notificationsData = [
   {
@@ -31,61 +34,42 @@ const notificationsData = [
   { id: '10', type: 'placeholder', text: 'Notifications' },
 ];
 
-const AVATAR = require('../assets/Images/frame1.png'); // Adjust path as needed
+const AVATAR = require('../assets/Images/frame1.png'); // Fallback avatar
 
 const ArtistNotificationScreen = ({ navigation }) => {
+  const token = useSelector(selectToken);
+  const [guestListRequests, setGuestListRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchGuestListRequests = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await api.get('/artist/get-guestList', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.data.success) {
+          setGuestListRequests(response.data.data);
+        } else {
+          setError(response.data.message || 'Failed to fetch guest list requests');
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to fetch guest list requests');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGuestListRequests();
+  }, [token]);
+
   const renderNotificationItem = ({ item }) => {
-    if (item.type === 'booking') {
-      return (
-        <View style={styles.notificationCard}>
-          <View style={styles.cardRowMain}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarShadow}>
-                <View style={styles.avatarBorder}>
-                  <View style={styles.avatarInner}>
-                    <Image source={AVATAR} style={{ width: 64, height: 64, borderRadius: 12 }} />
-                  </View>
-                </View>
-              </View>
-            </View>
-            <View style={styles.cardContentMain}>
-              <View style={styles.cardRow}>
-                <Text>
-                  <Text style={styles.budgetLabel}>Budget : </Text>
-                  <Text style={styles.budgetValue}>{item.budget}</Text>
-                </Text>
-                <Text style={styles.cardDate}>{item.date}</Text>
-              </View>
-              <Text style={styles.genreRow}>
-                <Text style={styles.genreLabel}>Genre : </Text>
-                <Text style={styles.genreValue}>{item.genre}</Text>
-              </Text>
-              <View style={styles.starRating}>
-                {[...Array(5)].map((_, i) => (
-                  <Icon
-                    key={i}
-                    name={i < item.rating ? 'star' : 'star-o'}
-                    size={16}
-                    color={i < item.rating ? '#ffc107' : '#aaa'}
-                    style={{ marginRight: 2 }}
-                  />
-                ))}
-              </View>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.acceptButton}>
-                  <LinearGradient colors={['#28a745', '#218838']} style={styles.buttonGradient}>
-                    <Text style={styles.buttonText}>Accept</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.rejectButton}>
-                  <Text style={[styles.buttonText, styles.rejectButtonText]}>Reject</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      );
-    } else if (item.type === 'guest_list') {
+    // Guest List Request Card
+    if (item.userId) {
+      const user = item.userId;
       return (
         <View style={styles.notificationCard}>
           <View style={styles.cardRowMain}>
@@ -101,24 +85,11 @@ const ArtistNotificationScreen = ({ navigation }) => {
             <View style={styles.cardContentMain}>
               <View style={styles.cardRow}>
                 <Text style={styles.guestListLabel}>Guest List Request</Text>
-                <Text style={styles.cardDate}>{item.date}</Text>
+                <Text style={styles.cardDate}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}</Text>
               </View>
-              <Text style={styles.guestUser}>{item.user}</Text>
-              <View style={styles.starRating}>
-                {[...Array(5)].map((_, i) => (
-                  <Icon
-                    key={i}
-                    name={i < item.rating ? 'star' : 'star-o'}
-                    size={16}
-                    color={i < item.rating ? '#ffc107' : '#aaa'}
-                    style={{ marginRight: 2 }}
-                  />
-                ))}
-              </View>
+              <Text style={styles.guestUser}>{user.fullName}</Text>
               <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.addButton}
-                  onPress={() => navigation.navigate('ArtistFormBooking')}
-                >
+                <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('ArtistFormBooking')}>
                   <LinearGradient colors={['#a95eff', '#b33bf6']} style={styles.buttonGradient}>
                     <Text style={styles.buttonText}>Add</Text>
                   </LinearGradient>
@@ -131,15 +102,43 @@ const ArtistNotificationScreen = ({ navigation }) => {
           </View>
         </View>
       );
-    } else if (item.type === 'placeholder') {
-      return (
-        <View style={styles.placeholderCard}>
-          <Text style={styles.placeholderText}>{item.text}</Text>
-        </View>
-      );
     }
     return null;
   };
+
+  // Host Request placeholder (static)
+  const renderHostRequestCard = () => (
+    <View style={styles.notificationCard}>
+      <View style={styles.cardRowMain}>
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatarShadow}>
+            <View style={styles.avatarBorder}>
+              <View style={styles.avatarInner}>
+                <Image source={AVATAR} style={{ width: 64, height: 64, borderRadius: 12 }} />
+              </View>
+            </View>
+          </View>
+        </View>
+        <View style={styles.cardContentMain}>
+          <View style={styles.cardRow}>
+            <Text style={styles.guestListLabel}>Host Request</Text>
+            <Text style={styles.cardDate}>{new Date().toLocaleDateString()}</Text>
+          </View>
+          <Text style={styles.guestUser}>Host Name</Text>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.acceptButton}>
+              <LinearGradient colors={['#28a745', '#218838']} style={styles.buttonGradient}>
+                <Text style={styles.buttonText}>Accept</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.rejectButton}>
+              <Text style={[styles.buttonText, styles.rejectButtonText]}>Reject</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -150,12 +149,27 @@ const ArtistNotificationScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Notification</Text>
         <View style={{ width: 24 }} />{/* Spacer */}
       </View>
-      <FlatList
-        data={notificationsData}
-        renderItem={renderNotificationItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-      />
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#a95eff" />
+        </View>
+      ) : error ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: '#fff', marginBottom: 10 }}>{error}</Text>
+          <TouchableOpacity onPress={() => setLoading(true)} style={{ padding: 10, borderWidth: 1, borderColor: '#a95eff', borderRadius: 8 }}>
+            <Text style={{ color: '#a95eff' }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={guestListRequests}
+          renderItem={renderNotificationItem}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={renderHostRequestCard}
+          ListEmptyComponent={<Text style={{ color: '#aaa', textAlign: 'center', marginTop: 40 }}>No guest list requests found.</Text>}
+        />
+      )}
     </SafeAreaView>
   );
 };

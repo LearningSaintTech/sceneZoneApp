@@ -43,7 +43,7 @@ const UserTicketScreen = ({ navigation }) => {
    const pastTickets = [
     {
       id: 1,
-      image: require('../assets/Images/wall.jpg'), // Placeholder image
+      image: require('../assets/Images/Cover.png'), // Placeholder image
       date: 'Aug\n15',
       title: 'Previous Concert 2024',
       ticketId: '#PAST987654',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MobileIcon from '../assets/icons/mobile';
 import LockIcon from '../assets/icons/lock';
 import api from '../Config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -69,6 +70,54 @@ const ArtistSigninScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
+  // Input refs for focus control
+  const mobileInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  // On mount, check AsyncStorage for saved credentials
+  useEffect(() => {
+    const loadRemembered = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('artistRememberMe');
+        if (saved) {
+          const { mobileNumber, password } = JSON.parse(saved);
+          setMobileNumber(mobileNumber);
+          setPassword(password);
+          setRememberMe(true);
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    };
+    loadRemembered();
+  }, []);
+
+  // Save or clear credentials when rememberMe changes
+  useEffect(() => {
+    const updateRemembered = async () => {
+      if (rememberMe) {
+        if (mobileNumber && password) {
+          await AsyncStorage.setItem('artistRememberMe', JSON.stringify({ mobileNumber, password }));
+        }
+      } else {
+        await AsyncStorage.removeItem('artistRememberMe');
+      }
+    };
+    updateRemembered();
+    // Only run when rememberMe changes, not on every keystroke
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rememberMe]);
+
+  // Also update storage if user changes credentials while rememberMe is checked
+  useEffect(() => {
+    const updateIfRemembered = async () => {
+      if (rememberMe && mobileNumber && password) {
+        await AsyncStorage.setItem('artistRememberMe', JSON.stringify({ mobileNumber, password }));
+      }
+    };
+    updateIfRemembered();
+  }, [mobileNumber, password]);
+
   const background = '#121212';
   const cardBg = '#000';
   const text = '#fff';
@@ -103,6 +152,13 @@ const ArtistSigninScreen = ({ navigation }) => {
         password: password.trim()
       };
 
+      // If rememberMe is checked, save credentials
+      if (rememberMe) {
+        await AsyncStorage.setItem('artistRememberMe', JSON.stringify({ mobileNumber, password }));
+      } else {
+        await AsyncStorage.removeItem('artistRememberMe');
+      }
+
       console.log("Artist Login Data:", loginData); // Debug log
 
       const response = await api.post('/artist/auth/loginFromPassword', loginData);
@@ -110,17 +166,47 @@ const ArtistSigninScreen = ({ navigation }) => {
       console.log("Artist Login Response:", response.data); // Debug log
 
       if (response.data) {
-        // Dispatch login action with user data
-        dispatch(loginArtist({
-          id: response.data.data.user.id || 'artist123',
-          name: response.data.data.user.fullName || 'Artist User',
-          email: response.data.data.user.email || 'artist@example.com',
-          phone: response.data.data.user.mobileNumber || mobileNumber,
-          token: response.data.data.token // Store the token from the response
-        }));
+        // Get token from response
+        const token = response.data.data.token;
         
-        // Navigate to CreateProfile
-        navigation.navigate('CreateProfile', { mobileNumber: mobileNumber });
+        // Fetch artist profile to get location
+        try {
+          const profileResponse = await api.get('/artist/get-profile', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          let location = null;
+          if (profileResponse.data.success && profileResponse.data.data) {
+            location = profileResponse.data.data.location;
+          }
+          
+          // Dispatch login action with user data including location
+          dispatch(loginArtist({
+            id: response.data.data.user.id || 'artist123',
+            name: response.data.data.user.fullName || 'Artist User',
+            email: response.data.data.user.email || 'artist@example.com',
+            phone: response.data.data.user.mobileNumber || mobileNumber,
+            location: location,
+            token: token
+          }));
+          
+          // Navigate to ArtistHomeScreen since profile exists
+          navigation.navigate('ArtistHome');
+        } catch (profileError) {
+          console.log("Profile check error:", profileError.response?.data);
+          // If profile check fails, dispatch without location and navigate to CreateProfile
+          dispatch(loginArtist({
+            id: response.data.data.user.id || 'artist123',
+            name: response.data.data.user.fullName || 'Artist User',
+            email: response.data.data.user.email || 'artist@example.com',
+            phone: response.data.data.user.mobileNumber || mobileNumber,
+            location: null,
+            token: token
+          }));
+          navigation.navigate('CreateProfile', { mobileNumber: mobileNumber });
+        }
       }
     } catch (error) {
       console.error("Artist Login Error:", error.message);
@@ -156,8 +242,8 @@ const ArtistSigninScreen = ({ navigation }) => {
       console.log("Artist OTP Login Response:", response.data); // Debug log
 
       if (response.data) {
-        // Navigate to CreateProfile
-        navigation.navigate('CreateProfile', { mobileNumber: mobileNumber });
+        // Navigate to OTP verification screen with mobile number
+        navigation.navigate('ArtistOtpVerificationScreen', { mobileNumber: mobileNumber });
       }
     } catch (error) {
       console.error("Artist OTP Login Error:", error.message);
@@ -208,6 +294,7 @@ const ArtistSigninScreen = ({ navigation }) => {
               keyboardType="phone-pad"
               value={mobileNumber}
               onChangeText={setMobileNumber}
+              ref={mobileInputRef}
             />
           </View>
 
@@ -222,6 +309,7 @@ const ArtistSigninScreen = ({ navigation }) => {
                 style={[styles.input, { color: text, flex: 1 }]}
                 value={password}
                 onChangeText={setPassword}
+                ref={passwordInputRef}
               />
               <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
                 <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={20} color={placeholder} />

@@ -35,7 +35,7 @@ import ArtistInboxScreen from './Src/HOSTFLOW/Screens/ArtistInbox';
 import ChatScreen from './Src/HOSTFLOW/Screens/Chat';
 
 //ARTIST SCREENS
-import ArtistProfileScreen from './Src/HOSTFLOW/Screens/ArtistProfile';
+import ArtistProfileScreen from './Src/HOSTFLOW/Screens/ArtistProfileScreen';
 import ArtistEditProfileScreen from './Src/HOSTFLOW/Screens/ArtistEditProfile';
 import ArtistGuestListScreen from './Src/HOSTFLOW/Screens/ArtistGuestList';
 import ArtistPaymentSettingsScreen from './Src/HOSTFLOW/Screens/ArtistPaymentSettings';

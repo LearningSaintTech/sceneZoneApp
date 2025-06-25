@@ -132,17 +132,52 @@ const ArtistOtpVerificationScreen = ({ navigation, route }) => {
       console.log("Artist OTP Verification Response:", response.data); // Debug log
 
       if (response.data) {
-        // Dispatch login action with user data
-        dispatch(loginArtist({
-          id: response.data.id || 'artist123',
-          name: response.data.name || 'Artist User',
-          email: response.data.email || 'artist@example.com',
-          phone: response.data.phone || mobileNumber,
-          token: response.data.token
-        }));
+        // Get token from the correct response structure
+        const token = response.data.data?.token || response.data.token;
         
-        // Navigate directly to ArtistVerifiedScreen
-        navigation.navigate('ArtistVerifiedScreen');
+        // Fetch artist profile to get location
+        try {
+          console.log("Checking profile with token:", token); // Debug log
+          const profileResponse = await api.get('/artist/get-profile', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          console.log("Profile check response:", profileResponse.data); // Debug log
+          
+          let location = null;
+          if (profileResponse.data.success && profileResponse.data.data) {
+            location = profileResponse.data.data.location;
+          }
+          
+          // Dispatch login action with user data including location
+          dispatch(loginArtist({
+            id: response.data.data?.user?.id || response.data.id || 'artist123',
+            name: response.data.data?.user?.fullName || response.data.name || 'Artist User',
+            email: response.data.data?.user?.email || response.data.email || 'artist@example.com',
+            phone: response.data.data?.user?.mobileNumber || response.data.phone || mobileNumber,
+            location: location,
+            token: token
+          }));
+          
+          // Navigate to ArtistHomeScreen since profile exists
+          console.log("Profile exists, navigating to ArtistHome"); // Debug log
+          navigation.navigate('ArtistHome');
+        } catch (profileError) {
+          console.log("Profile check error:", profileError.response?.data);
+          console.log("Profile check error status:", profileError.response?.status);
+          // If profile check fails, dispatch without location and navigate to CreateProfile
+          dispatch(loginArtist({
+            id: response.data.data?.user?.id || response.data.id || 'artist123',
+            name: response.data.data?.user?.fullName || response.data.name || 'Artist User',
+            email: response.data.data?.user?.email || response.data.email || 'artist@example.com',
+            phone: response.data.data?.user?.mobileNumber || response.data.phone || mobileNumber,
+            location: null,
+            token: token
+          }));
+          navigation.navigate('CreateProfile', { mobileNumber: mobileNumber });
+        }
       }
     } catch (error) {
       console.error("Artist OTP Verification Error:", error.message);

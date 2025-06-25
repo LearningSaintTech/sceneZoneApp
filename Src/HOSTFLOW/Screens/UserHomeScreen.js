@@ -800,7 +800,7 @@ const UserHomeScreen = ({ navigation, route }) => {
               onPress={() => handleFeatureNavigation('Comedy')}
             >
               <Image 
-                source={require('../assets/Images/Banner4.png')} 
+                source={require('../assets/Images/Banner4.jpg')} 
                 style={styles.categoryImage}
                 resizeMode="cover"
               />

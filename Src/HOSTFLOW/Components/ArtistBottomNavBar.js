@@ -4,15 +4,39 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import AppliedIcon from '../assets/icons/Applied';
 import InboxIcon from '../assets/icons/inbox';
 
-const ArtistBottomNavBar = ({ navigation, activeTab, setActiveTab, insets = { bottom: 20 } }) => {
+const ArtistBottomNavBar = ({ navigation, insets = { bottom: 20 } }) => {
+  // Get the current route name to determine active tab
+  const currentRoute = navigation.getState()?.routes[navigation.getState()?.index]?.name;
+  
+  // Map route names to tab names
+  const getActiveTab = () => {
+    switch (currentRoute) {
+      case 'ArtistHome':
+        return 'home';
+      case 'ArtistApplied':
+        return 'applied';
+      case 'ArtistInbox':
+        return 'inbox';
+      case 'ArtistProfile':
+        return 'profile';
+      default:
+        return 'home';
+    }
+  };
+
+  const activeTab = getActiveTab();
+
+  const handleTabPress = (tabName, routeName) => {
+    if (activeTab !== tabName) {
+      navigation.replace(routeName);
+    }
+  };
+
   return (
     <View style={[styles.bottomNavBar, { paddingBottom: Math.max(insets.bottom, 20) }]}> 
       <TouchableOpacity 
         style={[styles.navButton, activeTab === 'home' && styles.navButtonActive]} 
-        onPress={() => {
-          setActiveTab && setActiveTab('home');
-          navigation.navigate('ArtistHome');
-        }}
+        onPress={() => handleTabPress('home', 'ArtistHome')}
       >
         <Ionicons 
           name={activeTab === 'home' ? 'home' : 'home-outline'} 
@@ -24,10 +48,7 @@ const ArtistBottomNavBar = ({ navigation, activeTab, setActiveTab, insets = { bo
 
       <TouchableOpacity 
         style={[styles.navButton, activeTab === 'applied' && styles.navButtonActive]}
-        onPress={() => {
-          setActiveTab && setActiveTab('applied');
-          navigation.navigate('ArtistApplied');
-        }}
+        onPress={() => handleTabPress('applied', 'ArtistApplied')}
       >
         <AppliedIcon width={24} height={24} stroke={activeTab === 'applied' ? '#a95eff' : '#aaa'} />
         <Text style={[styles.navButtonText, activeTab === 'applied' && styles.navButtonTextActive]}>Applied</Text>
@@ -35,10 +56,7 @@ const ArtistBottomNavBar = ({ navigation, activeTab, setActiveTab, insets = { bo
 
       <TouchableOpacity 
         style={[styles.navButton, activeTab === 'inbox' && styles.navButtonActive]}
-        onPress={() => {
-          setActiveTab && setActiveTab('inbox');
-          navigation.navigate('ArtistInbox');
-        }}
+        onPress={() => handleTabPress('inbox', 'ArtistInbox')}
       >
         <InboxIcon width={24} height={24} stroke={activeTab === 'inbox' ? '#a95eff' : '#aaa'} />
         <Text style={[styles.navButtonText, activeTab === 'inbox' && styles.navButtonTextActive]}>Inbox</Text>
@@ -46,10 +64,7 @@ const ArtistBottomNavBar = ({ navigation, activeTab, setActiveTab, insets = { bo
 
       <TouchableOpacity 
         style={[styles.navButton, activeTab === 'profile' && styles.navButtonActive]}
-        onPress={() => {
-          setActiveTab && setActiveTab('profile');
-          navigation.navigate('ArtistProfile');
-        }}
+        onPress={() => handleTabPress('profile', 'ArtistProfile')}
       >
         <Ionicons 
           name={activeTab === 'profile' ? 'person' : 'person-outline'} 
