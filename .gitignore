@@ -1,0 +1,22 @@
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Android build files
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/app/build 2/
+/android/app/.cxx/
+*.apk
+*.so
+
+# iOS build files
+/ios/build/
+/ios/Pods/
+
+# Node modules
+/node_modules/
+
+# Ruby vendor files
+/vendor/
