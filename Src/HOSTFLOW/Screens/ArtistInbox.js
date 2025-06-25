@@ -55,7 +55,6 @@ const messagesData = [
 const ArtistInboxScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
   const [isNegotiationEnabled, setIsNegotiationEnabled] = useState(false);
-  const [activeTab, setActiveTab] = useState('inbox');
   const insets = useSafeAreaInsets();
 
   const renderMessageItem = ({ item }) => (
@@ -110,8 +109,6 @@ const ArtistInboxScreen = ({ navigation }) => {
       />
       <ArtistBottomNavBar
         navigation={navigation}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         insets={insets}
       />
     </SafeAreaView>

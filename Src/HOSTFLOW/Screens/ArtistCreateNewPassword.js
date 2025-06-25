@@ -12,16 +12,18 @@ import {
   Modal,
   Image,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import MailboxIcon from '../assets/icons/mailbox';
+import api from '../Config/api';
 
 const { width, height } = Dimensions.get('window');
 
-const ArtistCreateNewPassword = ({ navigation }) => {
+const ArtistCreateNewPassword = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
 
   const [password, setPassword] = useState('');
@@ -30,12 +32,39 @@ const ArtistCreateNewPassword = ({ navigation }) => {
   const [showPass2, setShowPass2] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const handleResetPassword = () => {
-    setShowSuccessModal(true);
-    setTimeout(() => {
-      setShowSuccessModal(false);
-      navigation.navigate('ArtistHome'); // or ArtistHome, adjust as needed
-    }, 2000);
+  // Get email from navigation params
+  const email = route?.params?.email || '';
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Email is missing.');
+      return;
+    }
+    if (!password || !confirmPassword) {
+      Alert.alert('Error', 'Please enter and confirm your new password.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
+    try {
+      const response = await api.post('/artist/set-newpassword', {
+        email,
+        password,
+      });
+      if (response.data.success) {
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          navigation.navigate('ArtistHome');
+        }, 2000);
+      } else {
+        Alert.alert('Error', response.data.message || 'Failed to reset password');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to reset password');
+    }
   };
 
   return (
@@ -55,7 +84,7 @@ const ArtistCreateNewPassword = ({ navigation }) => {
           style={{ flex: 1 }}
         >
           <ScrollView
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 30 }]}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: 40, paddingTop: 80 }]}
             showsVerticalScrollIndicator={false}
           >
             {/* Central Icon */}
@@ -99,8 +128,9 @@ const ArtistCreateNewPassword = ({ navigation }) => {
                 <Icon name={showPass2 ? 'eye' : 'eye-off'} size={20} color="#aaa" />
               </TouchableOpacity>
             </View>
-
-            {/* Confirm Button */}
+          </ScrollView>
+          {/* Fixed Confirm Button at Bottom */}
+          <View style={styles.bottomButtonContainer}>
             <TouchableOpacity style={styles.fixedButton} onPress={handleResetPassword}>
               <LinearGradient 
                 colors={['#B15CDE', '#7952FC']} 
@@ -111,7 +141,7 @@ const ArtistCreateNewPassword = ({ navigation }) => {
                 <Text style={styles.buttonText}>Confirm Reset Password</Text>
               </LinearGradient>
             </TouchableOpacity>
-          </ScrollView>
+          </View>
         </KeyboardAvoidingView>
 
         {/* ✅ Success Modal */}
@@ -204,18 +234,27 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     color: '#fff',
   },
-  fixedButton: {
+  bottomButtonContainer: {
     position: 'absolute',
-    width: 361,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    backgroundColor: 'transparent',
+  },
+  fixedButton: {
+    display: 'flex',
+    width: '100%',
     height: 52,
-    top: 750,
-    left: 16,
+    paddingHorizontal: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 10,
+    flexShrink: 0,
     borderRadius: 14,
-    paddingRight: 16,
-    paddingLeft: 16,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 0,
   },
   buttonGradient: {
     width: '100%',

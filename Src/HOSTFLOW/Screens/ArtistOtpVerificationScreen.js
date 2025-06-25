@@ -8,6 +8,7 @@ import {
   StyleSheet,
   SafeAreaView,
   Dimensions,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useDispatch } from 'react-redux';
@@ -16,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SignUpBackground from '../assets/Banners/SignUp';
 import OtpIcon from '../assets/icons/otp';
 import LinearGradient from 'react-native-linear-gradient';
+import api from '../Config/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,14 +54,18 @@ const dimensions = {
   iconSize: Math.max(width * 0.06, 20),
   otpBoxSize: Math.max(width * 0.12, 48),
   imageSize: Math.max(width * 0.25, 100),
-  modalImageSize: Math.max(width * 0.2, 80),
 };
 
-const ArtistOtpVerificationScreen = ({ navigation }) => {
+const ArtistOtpVerificationScreen = ({ navigation, route }) => {
   const [otp, setOtp] = useState(['', '', '', '']);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const inputs = useRef([]);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+
+  // Get mobile number from navigation params
+  const mobileNumber = route.params?.mobileNumber;
 
   // Enhanced responsive dimensions with safe area considerations
   const responsiveDimensions = {
@@ -71,16 +77,6 @@ const ArtistOtpVerificationScreen = ({ navigation }) => {
     containerPadding: {
       horizontal: Math.max(insets.left + dimensions.spacing.md, dimensions.spacing.md),
       vertical: Math.max(insets.top + dimensions.spacing.sm, dimensions.spacing.sm),
-    },
-    // Modal specific responsive dimensions
-    modalPadding: {
-      horizontal: Math.max(width * 0.08, 20) + Math.max(insets.left, insets.right),
-      vertical: Math.max(height * 0.1, 40) + Math.max(insets.top, insets.bottom),
-    },
-    modalWidth: Math.min(width - (Math.max(width * 0.16, 40) + Math.max(insets.left + insets.right, 0)), isTablet ? 400 : 320),
-    modalContentPadding: {
-      horizontal: Math.max(width * 0.06, 20),
-      vertical: Math.max(height * 0.025, 16),
     },
   };
 
@@ -114,8 +110,120 @@ const ArtistOtpVerificationScreen = ({ navigation }) => {
     }
   };
 
-  const handleVerify = () => {
-    navigation.navigate('ArtistVerifiedScreen');
+  const handleVerify = async () => {
+    try {
+      // Validate OTP
+      if (otp.some(digit => !digit)) {
+        Alert.alert('Error', 'Please enter complete OTP');
+        return;
+      }
+
+      setIsLoading(true);
+      
+      const otpData = {
+        mobileNumber: mobileNumber,
+        code: otp.join('')
+      };
+
+      console.log("Verifying Artist OTP:", otpData); // Debug log
+
+      const response = await api.post('/artist/auth/verify-otp', otpData);
+
+      console.log("Artist OTP Verification Response:", response.data); // Debug log
+
+      if (response.data) {
+        // Get token from the correct response structure
+        const token = response.data.data?.token || response.data.token;
+        
+        // Fetch artist profile to get location
+        try {
+          console.log("Checking profile with token:", token); // Debug log
+          const profileResponse = await api.get('/artist/get-profile', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          console.log("Profile check response:", profileResponse.data); // Debug log
+          
+          let location = null;
+          if (profileResponse.data.success && profileResponse.data.data) {
+            location = profileResponse.data.data.location;
+          }
+          
+          // Dispatch login action with user data including location
+          dispatch(loginArtist({
+            id: response.data.data?.user?.id || response.data.id || 'artist123',
+            name: response.data.data?.user?.fullName || response.data.name || 'Artist User',
+            email: response.data.data?.user?.email || response.data.email || 'artist@example.com',
+            phone: response.data.data?.user?.mobileNumber || response.data.phone || mobileNumber,
+            location: location,
+            token: token
+          }));
+          
+          // Navigate to ArtistHomeScreen since profile exists
+          console.log("Profile exists, navigating to ArtistHome"); // Debug log
+          navigation.navigate('ArtistHome');
+        } catch (profileError) {
+          console.log("Profile check error:", profileError.response?.data);
+          console.log("Profile check error status:", profileError.response?.status);
+          // If profile check fails, dispatch without location and navigate to CreateProfile
+          dispatch(loginArtist({
+            id: response.data.data?.user?.id || response.data.id || 'artist123',
+            name: response.data.data?.user?.fullName || response.data.name || 'Artist User',
+            email: response.data.data?.user?.email || response.data.email || 'artist@example.com',
+            phone: response.data.data?.user?.mobileNumber || response.data.phone || mobileNumber,
+            location: null,
+            token: token
+          }));
+          navigation.navigate('CreateProfile', { mobileNumber: mobileNumber });
+        }
+      }
+    } catch (error) {
+      console.error("Artist OTP Verification Error:", error.message);
+      console.error("Error Response:", error.response?.data);
+      
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to verify OTP. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      setIsResending(true);
+      
+      const resendData = {
+        mobileNumber: mobileNumber
+      };
+
+      console.log("Resending Artist OTP:", resendData); // Debug log
+
+      const response = await api.post('/artist/auth/resend-otp', resendData);
+
+      console.log("Resend Artist OTP Response:", response.data); // Debug log
+
+      if (response.data) {
+        Alert.alert('Success', 'OTP has been resent successfully!');
+        // Clear existing OTP
+        setOtp(['', '', '', '']);
+        // Focus on first input
+        inputs.current[0]?.focus();
+      }
+    } catch (error) {
+      console.error("Resend Artist OTP Error:", error.message);
+      console.error("Error Response:", error.response?.data);
+      
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to resend OTP. Please try again.'
+      );
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return (
@@ -183,19 +291,27 @@ const ArtistOtpVerificationScreen = ({ navigation }) => {
             ))}
           </View>
 
-          <TouchableOpacity onPress={handleVerify}>
+          <TouchableOpacity onPress={handleVerify} disabled={isLoading}>
             <LinearGradient 
               colors={['#B15CDE', '#7952FC']} 
               start={{x: 1, y: 0}}
               end={{x: 0, y: 0}}
-              style={styles.primaryButton}
+              style={[styles.primaryButton, isLoading && { opacity: 0.7 }]}
             >
-              <Text style={styles.primaryButtonText}>Verify</Text>
+              <Text style={styles.primaryButtonText}>
+                {isLoading ? 'Verifying...' : 'Verify'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.resendButton}>
-            <Text style={styles.resendText}>Resend OTP</Text>
+          <TouchableOpacity 
+            style={[styles.resendButton, isResending && { opacity: 0.7 }]} 
+            onPress={handleResendOtp}
+            disabled={isResending}
+          >
+            <Text style={styles.resendText}>
+              {isResending ? 'Resending...' : 'Resend OTP'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

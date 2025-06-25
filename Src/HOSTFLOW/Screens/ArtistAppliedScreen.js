@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
+import { removeAppliedEvent } from '../Redux/slices/appliedSlice';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons'; // Assuming Ionicons for trash icon
 import FontAwesome from 'react-native-vector-icons/FontAwesome'; // Assuming FontAwesome for star icon
 import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import LinearGradient from 'react-native-linear-gradient';
+import AppliedIcon from '../assets/icons/Applied';
 
 const { width, height } = Dimensions.get('window');
 
@@ -43,51 +46,20 @@ const dimensions = {
   headerHeight: Math.max(height * 0.08, 60),
 };
 
-const appliedRequestsData = [
-  {
-    id: '1',
-    location: 'Noida',
-    budget: '$400-$500',
-    time: '09:30 AM',
-    genres: ['Drums', 'Violin', 'Saxophone', 'Harp', 'Ukulele'],
-    rating: 4,
-    status: 'pending',
-    image: require('../assets/Images/fff.jpg'),
-  },
-  {
-    id: '2',
-    location: 'Delhi',
-    budget: '$400-$500',
-    time: '09:30 AM',
-    genres: ['Drums', 'Violin', 'Saxophone', 'Harp', 'Ukulele'],
-    rating: 4,
-    status: 'canceled',
-    image: require('../assets/Images/fff.jpg'),
-  },
-  {
-    id: '3',
-    location: 'Sounds of Celebration',
-    budget: '$400-$500',
-    time: '09:30 AM',
-    genres: ['Drums', 'Violin', 'Saxophone', 'Harp', 'Ukulele'],
-    rating: 4,
-    status: 'approved',
-    image: require('../assets/Images/fff.jpg'),
-  },
-  // Add more cards as needed
-];
-
 const ArtistAppliedScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('applied');
   const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
+  const appliedEvents = useSelector(state => state.applied.appliedEvents);
 
   const renderAppliedItem = ({ item }) => {
     return (
       <View style={styles.card}>
         <View style={styles.cardImageContainer}>
+          <Image source={item.image} style={styles.cardImage} />
           <View style={styles.dateBox}>
-            <Text style={styles.dateText}>Aug</Text>
-            <Text style={styles.dateText}>15</Text>
+            <Text style={styles.dateText}>{item.dateMonth}</Text>
+            <Text style={styles.dateText}>{item.dateDay}</Text>
           </View>
           <TouchableOpacity style={styles.heartIcon}>
              <Icon name="heart" size={Math.max(dimensions.iconSize * 0.8, 18)} color="#fff" />
@@ -139,7 +111,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
               end={{ x: 1, y: 0.5 }}
               style={styles.deleteButtonGradient}
             >
-              <TouchableOpacity style={styles.deleteButton}>
+              <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
                 <Ionicons name="trash-outline" size={22} color="#fff" />
               </TouchableOpacity>
             </LinearGradient>
@@ -149,23 +121,117 @@ const ArtistAppliedScreen = ({ navigation }) => {
     );
   };
 
+  const handleDelete = (id) => {
+    Alert.alert(
+      'Delete Event',
+      'Are you sure you want to delete this event?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            dispatch(removeAppliedEvent(id));
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Applied</Text>
         <View style={{ width: dimensions.iconSize }} />
       </View>
+      {/* Tab Buttons for Applied and Saved */}
+      <View style={styles.tabHeader}>
+        {activeTab === 'applied' ? (
+          <LinearGradient
+            colors={['#B15CDE', '#7952FC']}
+            start={{ x: 1, y: 0 }}
+            end={{ x: 0, y: 0 }}
+            style={[styles.tabButton, styles.activeTabButton]}
+          >
+            <TouchableOpacity
+              style={styles.tabTouchable}
+              onPress={() => setActiveTab('applied')}
+              activeOpacity={1}
+            >
+              <Text style={styles.tabButtonTextActive}>Applied</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        ) : (
+          <TouchableOpacity
+            style={[styles.tabButton, styles.inactiveTabButton]}
+            onPress={() => setActiveTab('applied')}
+          >
+            <Text style={styles.tabButtonTextInactive}>Applied</Text>
+          </TouchableOpacity>
+        )}
+
+        {activeTab === 'saved' ? (
+          <LinearGradient
+            colors={['#B15CDE', '#7952FC']}
+            start={{ x: 1, y: 0 }}
+            end={{ x: 0, y: 0 }}
+            style={[styles.tabButton, styles.activeTabButton]}
+          >
+            <TouchableOpacity
+              style={styles.tabTouchable}
+              onPress={() => setActiveTab('saved')}
+              activeOpacity={1}
+            >
+              <Text style={styles.tabButtonTextActive}>Saved</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        ) : (
+          <TouchableOpacity
+            style={[styles.tabButton, styles.inactiveTabButton]}
+            onPress={() => setActiveTab('saved')}
+          >
+            <Text style={styles.tabButtonTextInactive}>Saved</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       <FlatList
-        data={appliedRequestsData}
+        data={appliedEvents}
         renderItem={renderAppliedItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          activeTab === 'applied' ? (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconContainer}>
+                <AppliedIcon width={60} height={60} />
+              </View>
+              <Text style={styles.emptyTitle}>No Applied Events</Text>
+              <TouchableOpacity 
+                style={styles.exploreButton}
+                onPress={() => navigation.navigate('ArtistHome')}
+              >
+                <LinearGradient
+                  colors={['#B15CDE', '#7952FC']}
+                  start={{x: 1, y: 0}}
+                  end={{x: 0, y: 0}}
+                  style={styles.exploreButtonGradient}
+                >
+                  <Text style={styles.exploreButtonText}>Explore Events</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View />
+          )
+        }
       />
       <ArtistBottomNavBar
         navigation={navigation}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         insets={insets}
       />
     </View>
@@ -217,14 +283,18 @@ const styles = StyleSheet.create({
     height: dimensions.cardImageHeight,
     backgroundColor: '#333',
     justifyContent: 'flex-end',
-    padding: dimensions.cardPadding,
     position: 'relative',
     borderRadius: 20,
     overflow: 'hidden',
-    marginLeft:13,
-    marginTop:20,
-   
+    marginLeft: 13,
+    marginTop: 20,
     marginBottom: 18,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    resizeMode: 'cover',
   },
   cardContent: {
     padding: dimensions.cardPadding,
@@ -403,6 +473,102 @@ const styles = StyleSheet.create({
     minHeight: Math.max(width * 0.08, 32),
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyIconContainer: {
+    marginBottom: dimensions.spacing.md,
+  },
+  emptyTitle: {
+    fontSize: dimensions.fontSize.title,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: dimensions.spacing.sm,
+  },
+  emptySubtitle: {
+    fontSize: dimensions.fontSize.body,
+    color: '#aaa',
+  },
+  exploreButton: {
+    display: 'flex',
+    width: 361,
+    height: 52,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
+    borderRadius: 14,
+    marginTop: dimensions.spacing.lg,
+  },
+  exploreButtonGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 14,
+  },
+  exploreButtonText: {
+    color: '#fff',
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontStyle: 'normal',
+    fontWeight: '500',
+    lineHeight: 20,
+    fontFeatureSettings: "'salt' on",
+  },
+  tabHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: dimensions.spacing.lg,
+    marginTop: dimensions.spacing.md,
+    marginBottom: dimensions.spacing.md,
+    gap: 12, // gap between buttons
+  },
+  tabButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 0,
+    shadowColor: 'rgba(177, 92, 222, 0.15)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  activeTabButton: {
+    borderWidth: 0,
+  },
+  inactiveTabButton: {
+    borderWidth: 1,
+    borderColor: '#34344A',
+    backgroundColor: '#1A1A1F',
+  },
+  tabTouchable: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabButtonTextActive: {
+    color: '#FFF',
+    fontFamily: 'Nunito Sans',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 21,
+  },
+  tabButtonTextInactive: {
+    color: '#B15CDE',
+    fontFamily: 'Nunito Sans',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 21,
   },
 });
 

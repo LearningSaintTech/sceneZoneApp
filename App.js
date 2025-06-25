@@ -35,7 +35,11 @@ import ArtistInboxScreen from './Src/HOSTFLOW/Screens/ArtistInbox';
 import ChatScreen from './Src/HOSTFLOW/Screens/Chat';
 
 //ARTIST SCREENS
+<<<<<<< HEAD
 import ArtistProfileScreen from './Src/HOSTFLOW/Screens/ArtistProfile';
+=======
+import ArtistProfileScreen from './Src/HOSTFLOW/Screens/ArtistProfileScreen';
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
 import ArtistEditProfileScreen from './Src/HOSTFLOW/Screens/ArtistEditProfile';
 import ArtistGuestListScreen from './Src/HOSTFLOW/Screens/ArtistGuestList';
 import ArtistPaymentSettingsScreen from './Src/HOSTFLOW/Screens/ArtistPaymentSettings';
@@ -115,34 +119,33 @@ if (!Array.prototype.findLastIndex) {
 }
 
 export default function App() {
-
-
-
-  const [isAppInBackground, setIsAppInBackground] = React.useState(false);
-  const [showSplash, setShowSplash] = React.useState(true);
+  // const [isAppInBackground, setIsAppInBackground] = React.useState(false);
+  // const [showSplash, setShowSplash] = React.useState(true);
   const navigationRef = React.useRef();
 
-  // React.useEffect(() => {
-  //   const handleAppStateChange = (nextAppState) => {
-  //     if (nextAppState === 'background' || nextAppState === 'inactive') {
-  //       setIsAppInBackground(true);
-  //     } else if (nextAppState === 'active' && isAppInBackground) {
-  //       // App came to foreground, show splash screen
-  //       setShowSplash(true);
-  //       setIsAppInBackground(false);
-  //       // Reset navigation to splash screen
-  //       if (navigationRef.current) {
-  //         navigationRef.current.reset({
-  //           index: 0,
-  //           routes: [{ name: 'Splash' }],
-  //         });
-  //       }
-  //     }
-  //   };
+  /*
+  React.useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        setIsAppInBackground(true);
+      } else if (nextAppState === 'active' && isAppInBackground) {
+        // App came to foreground, show splash screen
+        setShowSplash(true);
+        setIsAppInBackground(false);
+        // Reset navigation to splash screen
+        if (navigationRef.current) {
+          navigationRef.current.reset({
+            index: 0,
+            routes: [{ name: 'Splash' }],
+          });
+        }
+      }
+    };
 
-  //   const subscription = AppState.addEventListener('change', handleAppStateChange);
-  //   return () => subscription?.remove();
-  // }, [isAppInBackground]);
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [isAppInBackground]);
+  */
 
   return (
     <Provider store={store}>
@@ -165,9 +168,6 @@ export default function App() {
                 animationDuration: 300,
               }}
             />
-
-
-            
             <Stack.Screen 
               name="Signup" 
               component={SignUpScreen}
@@ -223,8 +223,6 @@ export default function App() {
             <Stack.Screen name="GuestList" component={GuestListScreen} />
             <Stack.Screen name="ShortList" component={ShortListScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
-
-
             <Stack.Screen name="UserNotificationScreen" component={UserNotificationScreen} />
             <Stack.Screen name="UserProfileScreen" component={UserProfileScreen} />
             <Stack.Screen name="UserEditProfileScreen" component={UserEditProfileScreen} />

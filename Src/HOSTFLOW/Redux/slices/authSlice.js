@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // import { createSlice } from '@reduxjs/toolkit';
 
 // const initialState = {
@@ -77,11 +78,14 @@
 
 
 
+=======
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   isLoggedIn: false,
   userType: null, // 'user', 'host', 'artist'
+<<<<<<< HEAD
   
   
   userData: {
@@ -101,6 +105,22 @@ const initialState = {
 };
 
 const authSlice = createSlice({
+=======
+  userData: {
+    id: null,
+    name: null,
+    email: null,
+    phone: null,
+    location: null,
+    role: null,
+    mobileNumber: null,
+    fullName: null
+  },
+  token: null,
+};
+
+const authSlice = createSlice({                                                   
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   name: 'auth',
   initialState,
   reducers: {
@@ -109,7 +129,11 @@ const authSlice = createSlice({
       state.userType = 'user';
       state.userData = {
         ...state.userData,
+<<<<<<< HEAD
         ...action.payload, // Spread payload to update userData fields
+=======
+        ...action.payload
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
       };
       state.token = action.payload.token || null;
     },
@@ -118,7 +142,11 @@ const authSlice = createSlice({
       state.userType = 'host';
       state.userData = {
         ...state.userData,
+<<<<<<< HEAD
         ...action.payload,
+=======
+        ...action.payload
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
       };
       state.token = action.payload.token || null;
     },
@@ -127,7 +155,11 @@ const authSlice = createSlice({
       state.userType = 'artist';
       state.userData = {
         ...state.userData,
+<<<<<<< HEAD
         ...action.payload,
+=======
+        ...action.payload
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
       };
       state.token = action.payload.token || null;
     },
@@ -148,6 +180,7 @@ export const selectLocation = (state) => state.auth.userData.location;
 export const selectFullName = (state) => state.auth.userData.fullName;
 export const selectMobileNumber = (state) => state.auth.userData.mobileNumber;
 export const selectRole = (state) => state.auth.userData.role;
+<<<<<<< HEAD
 export const selectUserId = (state) => state.auth.userData.id; // Fixed to access userData.id
 export const selectUserName = (state) => state.auth.userData.name; // Fixed to access userData.name
 export const selectUserPhone = (state) => state.auth.userData.phone; // Fixed to access userData.phone
@@ -155,3 +188,7 @@ export const selectUserRole = (state) => state.auth.userData.role; // Fixed to a
 export const selectUserEmail = (state) => state.auth.userData.email; // Added for email access
 
 export default authSlice.reducer;
+=======
+
+export default authSlice.reducer; 
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9

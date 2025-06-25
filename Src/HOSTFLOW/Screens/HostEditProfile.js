@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { selectToken, selectUserData } from '../Redux/slices/authSlice';
 import api from '../Config/api';
-import * as ImagePicker from 'react-native-image-picker';
+//import * as ImagePicker from 'react-native-image-picker';
 
 const { width, height } = Dimensions.get('window');
 

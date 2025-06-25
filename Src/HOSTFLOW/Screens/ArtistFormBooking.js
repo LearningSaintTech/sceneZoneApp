@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
+import Ticket from '../assets/icons/Ticket'; // Adjust the path if needed
 
 const guestLevelsData = [
   {
@@ -39,7 +41,7 @@ const ArtistFormBookingScreen = ({ navigation }) => {
       disabled={!item.isAvailable}
     >
       <View style={styles.guestLevelIcon}>
-        <Ionicons name="ticket" size={24} color="#a95eff" />{/* Placeholder icon */}
+        <Ticket width={24} height={24} />
       </View>
       <View style={styles.guestLevelContent}>
         <Text style={styles.guestLevelTitle}>{item.level}</Text>
@@ -65,13 +67,16 @@ const ArtistFormBookingScreen = ({ navigation }) => {
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Image Placeholder */}
-        <View style={styles.imagePlaceholder}>
-          {/* <Image source={...} style={styles.eventImage} /> */}
+        <ImageBackground
+          source={require('../assets/Images/Cover.png')} // Replace with your image path
+          style={styles.imagePlaceholder}
+          imageStyle={{ borderRadius: 16, resizeMode: 'cover' }}
+        >
           <View style={styles.dateOverlay}>
             <Text style={styles.dateText}>May</Text>
             <Text style={styles.dateText}>20</Text>
           </View>
-        </View>
+        </ImageBackground>
 
         <View style={styles.contentContainer}>
           <Text style={styles.eventTitle}>Sounds of Celebration</Text>
@@ -84,12 +89,19 @@ const ArtistFormBookingScreen = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      <TouchableOpacity
+      <LinearGradient
+        colors={['#B15CDE', '#7952FC']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
         style={styles.continueButton}
-        onPress={() => { /* Handle continue action */ }}
       >
-        <Text style={styles.continueButtonText}>Continue</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.continueButtonInner}
+          onPress={() => { /* Handle continue action */ }}
+        >
+          <Text style={styles.continueButtonText}>Continue</Text>
+        </TouchableOpacity>
+      </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -103,22 +115,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: 393,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    paddingVertical: 20,
+    gap: 16,
+    backgroundColor: '#121212',
+    borderBottomWidth: 0,
+    shadowColor: '#683bfc',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+    marginRight:190,
   },
   imagePlaceholder: {
-    width: '100%',
-    height: 200, // Adjust height as needed
-    backgroundColor: '#333', // Placeholder background
-    justifyContent: 'flex-end',
-    padding: 16,
+    flexDirection: 'row',
+    height: 140,
+    paddingTop: 8,
+    paddingRight: 313,
+    paddingBottom: 92,
+    paddingLeft: 8,
+    alignItems: 'center',
+    flexShrink: 0,
+    alignSelf: 'stretch',
+    backgroundColor: '#333',
+    position: 'relative',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   dateOverlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -139,10 +167,16 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   eventTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
+    color: '#FCFCFD',
+    textAlign: 'center',
+    fontFamily: 'Inter',
+    fontSize: 20,
+    fontStyle: 'normal',
+    fontWeight: '600',
+    lineHeight: 24,
+    fontFeatureSettings: "'salt' on",
     marginBottom: 16,
+    marginRight:100,
   },
   divider: {
     height: 1,
@@ -150,7 +184,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 12,
@@ -174,7 +208,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   guestLevelTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 4,
@@ -207,17 +241,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#a95eff',
   },
   continueButton: {
-    backgroundColor: '#a95eff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
+    width: 331,
+    height: 52,
+    paddingHorizontal: 16,
     justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
+    borderRadius: 14,
+    alignSelf: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  continueButtonInner: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
   },
   continueButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#fff',
   },
 });

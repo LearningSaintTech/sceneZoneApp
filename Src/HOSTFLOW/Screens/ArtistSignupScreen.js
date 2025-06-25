@@ -13,19 +13,27 @@ import {
   Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/Ionicons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import GoogleIcon from '../assets/icons/Google';
 import AppleIcon from '../assets/icons/Apple';
 import SignUpBackground from '../assets/Banners/SignUp';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FullNameIcon from '../assets/icons/fullname';
 import MobileIcon from '../assets/icons/mobile';
+import LocationIcon from '../assets/icons/location';
 import LockIcon from '../assets/icons/lock';
+import api from '../Config/api';
+import { useDispatch } from 'react-redux';
+import { loginArtist } from '../Redux/slices/authSlice';
 
 const { width, height } = Dimensions.get('window');
 
 const ArtistSignupScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+
   const insets = useSafeAreaInsets();
 
   // Responsive padding based on screen size
@@ -38,37 +46,94 @@ const ArtistSignupScreen = ({ navigation }) => {
 
   const [fullName, setFullName] = useState('');
   const [mobile, setMobile] = useState('');
+  const [location, setLocation] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignUp = () => {
-    // Validate inputs
-    if (!fullName.trim() || !mobile.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const handleSignUp = async () => {
+    console.log("Artist Sign Up button pressed"); // Debug: Confirm button press
+
+    // Input validation
+    if (!fullName.trim()) {
+      Alert.alert('Error', 'Please enter your full name');
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+    if (!mobile.trim() || isNaN(mobile) || mobile.length < 10) {
+      Alert.alert('Error', 'Please enter a valid mobile number (at least 10 digits)');
       return;
     }
 
-    setLoading(true);
+    if (!location.trim()) {
+      Alert.alert('Error', 'Please enter your location');
+      return;
+    }
 
-    // Simulate signup process
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert('Success', 'Account created successfully!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            navigation.navigate('ArtistSigninScreen');
+    if (!password.trim()) {
+      Alert.alert('Error', 'Please enter a password');
+      return;
+    }
+
+    const signupData = {
+      fullName: fullName.trim(),
+      mobileNumber: parseInt(mobile),
+      password: password.trim(),
+      isRemember: rememberMe,
+      location: location.trim(),
+    };
+
+    console.log("Artist Signup Data:", signupData); // Debug: Inspect data being sent
+
+    try {
+      setIsLoading(true);
+
+      const response = await api.post('/artist/auth/signup', signupData);
+
+      console.log("API Response artist:", response.data); // Debug: Log API response
+
+      if (response.data) {
+        // Store user data in Redux with all required fields
+        dispatch(loginArtist({
+          id: response.data.data?.id || 'artist123',
+          name: fullName.trim(),
+          fullName: fullName.trim(),
+          email: response.data.data?.email || '',
+          phone: mobile,
+          mobileNumber: parseInt(mobile),
+          location: location.trim(),
+          role: 'artist',
+          token: response.data.data?.token || null
+        }));
+
+        // Log the Redux state after dispatch
+        console.log("Artist data stored in Redux:", {
+          fullName: fullName.trim(),
+          mobileNumber: parseInt(mobile),
+          location: location.trim(),
+          role: 'artist'
+        });
+
+        Alert.alert('Success', 'Artist account created successfully!', [
+          { 
+            text: 'OK', 
+            onPress: () => navigation.navigate('ArtistOtpVerificationScreen', { 
+              mobileNumber: mobile
+            }) 
           },
-        },
-      ]);
-    }, 2000);
+        ]);
+      }
+    } catch (error) {
+      console.error("Artist Signup Error:", error.message);
+      console.error("Error Response:", error.response?.data);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to sign up. Please check your network or try again later.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -124,6 +189,17 @@ const ArtistSignupScreen = ({ navigation }) => {
             />
           </View>
 
+          <View style={styles.inputContainer}>
+            <LocationIcon width={20} height={20} style={styles.icon} />
+            <TextInput
+              style={[styles.input, { color: '#fff' }]}
+              placeholder="Location"
+              placeholderTextColor="#aaa"
+              value={location}
+              onChangeText={setLocation}
+            />
+          </View>
+
           <View style={[styles.inputContainer, styles.passwordContainer]}>
             <LockIcon width={20} height={20} style={styles.icon} />
             <TextInput
@@ -135,7 +211,7 @@ const ArtistSignupScreen = ({ navigation }) => {
               onChangeText={setPassword}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <LockIcon width={20} height={20} style={styles.icon} />
+              <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#aaa" />
             </TouchableOpacity>
           </View>
 
@@ -148,15 +224,15 @@ const ArtistSignupScreen = ({ navigation }) => {
             <Text style={{ color: '#fff' }}> Remember me</Text>
           </View>
 
-          <TouchableOpacity onPress={handleSignUp} disabled={loading}>
+          <TouchableOpacity onPress={handleSignUp} disabled={isLoading}>
             <LinearGradient 
               colors={['#B15CDE', '#7952FC']} 
               start={{x: 1, y: 0}}
               end={{x: 0, y: 0}}
-              style={[styles.signupButton, loading && styles.signupButtonDisabled]}
+              style={[styles.signupButton, isLoading && { opacity: 0.7 }]}
             >
               <Text style={styles.signupButtonText}>
-                {loading ? 'Creating Account...' : 'Sign Up'}
+                {isLoading ? 'Signing Up...' : 'Sign Up'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -324,9 +400,6 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#A020F0',
     fontWeight: '700',
-  },
-  signupButtonDisabled: {
-    backgroundColor: '#555',
   },
 });
 

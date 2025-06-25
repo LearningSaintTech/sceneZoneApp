@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -283,11 +284,58 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
+=======
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import { useDispatch } from 'react-redux';
+import { loginUser } from '../Redux/slices/authSlice';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SignUpBackground from '../assets/Banners/SignUp';
+
+const { width, height } = Dimensions.get('window');
+
+const UserCreateProfileScreen = ({ navigation }) => {
+  const [fullName, setFullName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
+
+  const handleContinue = () => {
+    // Dispatch login action for user
+    dispatch(loginUser({
+      id: 'user123',
+      name: fullName || 'Kevin Richards',
+      email: email || 'user@example.com',
+      phone: phoneNumber || '+91 412-123-4215'
+    }));
+    
+    // Navigate to UserHome
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'UserHome',
+          params: { isLoggedIn: true }
+        }
+      ]
+    });
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   };
 
   return (
     <View style={styles.container}>
+<<<<<<< HEAD
       <SignUpBackground
+=======
+      <SignUpBackground 
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
         style={styles.backgroundSvg}
         width={width}
         height={height}
@@ -301,14 +349,20 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
         </View>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
+<<<<<<< HEAD
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+=======
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
         >
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollViewContent}
             keyboardShouldPersistTaps="handled"
           >
+<<<<<<< HEAD
             <View style={styles.profileImageContainer}>
               <Image
                 source={
@@ -322,10 +376,23 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
                 style={styles.cameraIconContainer}
                 onPress={handleImagePicker}
               >
+=======
+            {/* Profile Image and Camera Icon */}
+            <View style={styles.profileImageContainer}>
+              <Image
+                source={require('../assets/Images/frame1.png')}
+                style={styles.profileImage}
+              />
+              <TouchableOpacity style={styles.cameraIconContainer}>
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
                 <Ionicons name="camera" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
 
+<<<<<<< HEAD
+=======
+            {/* Input Fields */}
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
             <Text style={styles.label}>Full name</Text>
             <View style={styles.fullNameInputContainer}>
               <TextInput
@@ -338,6 +405,7 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
             </View>
 
             <Text style={styles.label}>Date of Birth</Text>
+<<<<<<< HEAD
             <TouchableOpacity
               style={styles.input}
               onPress={showDatePickerModal}
@@ -379,6 +447,21 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
             )}
+=======
+            <View style={styles.input}>
+              <View style={styles.iconWrapper}>
+                <Ionicons name="calendar-outline" size={20} color="#aaa" />
+              </View>
+              <TextInput
+                placeholder="DD/MM/YYYY"
+                placeholderTextColor="#aaa"
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+                keyboardType="numeric"
+                style={{ flex: 1, color: '#fff', fontSize: 16 }}
+              />
+            </View>
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
 
             <Text style={styles.label}>Phone number</Text>
             <View style={styles.input}>
@@ -386,16 +469,25 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
                 <Ionicons name="call-outline" size={20} color="#aaa" />
               </View>
               <TextInput
+<<<<<<< HEAD
                 placeholder="1234567890"
+=======
+                placeholder="412-123-4215"
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
                 placeholderTextColor="#aaa"
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
                 keyboardType="phone-pad"
+<<<<<<< HEAD
                 style={{ flex: 1, color: "#fff", fontSize: 16 }}
+=======
+                style={{ flex: 1, color: '#fff', fontSize: 16 }}
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
               />
             </View>
 
             <Text style={styles.label}>Email</Text>
+<<<<<<< HEAD
             <View style={styles.input}>
               <View style={styles.iconWrapper}>
                 <Ionicons name="mail-outline" size={20} color="#aaa" />
@@ -412,11 +504,25 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
             </View>
 
             <Text style={styles.label}>Location</Text>
+=======
+            <TextInput
+              style={styles.input}
+              placeholder="scenezone@gmail.com"
+              placeholderTextColor="#aaa"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.label}>Address</Text>
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
             <View style={styles.input}>
               <View style={styles.iconWrapper}>
                 <Ionicons name="location-outline" size={20} color="#aaa" />
               </View>
               <TextInput
+<<<<<<< HEAD
                 placeholder="City, Country"
                 placeholderTextColor="#aaa"
                 value={location}
@@ -445,6 +551,25 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
                     ? "Update"
                     : "Continue"}
                 </Text>
+=======
+                placeholder="Location"
+                placeholderTextColor="#aaa"
+                value={address}
+                onChangeText={setAddress}
+                style={{ flex: 1, color: '#fff', fontSize: 16 }}
+              />
+            </View>
+          </ScrollView>
+          <View style={[styles.buttonContainer, { paddingBottom: insets.bottom + 16 }]}>
+            <TouchableOpacity onPress={handleContinue}>
+              <LinearGradient
+                colors={['#B15CDE', '#7952FC']}
+                start={{x: 1, y: 0}}
+                end={{x: 0, y: 0}}
+                style={styles.continueButton}
+              >
+                <Text style={styles.continueButtonText}>Continue</Text>
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -457,6 +582,7 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+<<<<<<< HEAD
     backgroundColor: "#121212",
   },
   backgroundSvg: {
@@ -483,6 +609,34 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#fff",
+=======
+    backgroundColor: '#121212',
+  },
+  backgroundSvg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     marginLeft: 16,
   },
   scrollView: {
@@ -491,23 +645,37 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     paddingHorizontal: 16,
     paddingTop: 20,
+<<<<<<< HEAD
     paddingBottom: 100,
   },
   buttonContainer: {
     backgroundColor: "transparent",
     borderTopWidth: 1,
     borderTopColor: "#333",
+=======
+    paddingBottom: 100, // Space for fixed button
+  },
+  buttonContainer: {
+    backgroundColor: 'transparent',
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     paddingHorizontal: 16,
     paddingTop: 16,
   },
   profileImageContainer: {
+<<<<<<< HEAD
     alignItems: "center",
+=======
+    alignItems: 'center',
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     marginBottom: 30,
   },
   profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
+<<<<<<< HEAD
     backgroundColor: "#333",
   },
   cameraIconContainer: {
@@ -524,10 +692,29 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     color: "#aaa",
+=======
+    backgroundColor: '#333', // Placeholder background
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#a95eff',
+    borderRadius: 20,
+    padding: 8,
+    borderWidth: 2,
+    borderColor: '#000',
+    marginRight:120,
+  },
+  label: {
+    fontSize: 14,
+    color: '#aaa',
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     marginBottom: 8,
     marginTop: 10,
   },
   input: {
+<<<<<<< HEAD
     flexDirection: "row",
     alignItems: "center",
     height: 48,
@@ -541,11 +728,28 @@ const styles = StyleSheet.create({
   dateText: {
     flex: 1,
     fontSize: 16,
+=======
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 0,
+    color: '#fff',
+    borderRadius: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#24242D',
+    backgroundColor: '#121212',
+    alignSelf: 'stretch',
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   },
   iconWrapper: {
     marginRight: 12,
     width: 20,
     height: 20,
+<<<<<<< HEAD
     justifyContent: "center",
     alignItems: "center",
   },
@@ -564,10 +768,41 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     lineHeight: 21,
     textAlign: "center",
+=======
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  flagIcon: {
+    width: 24,
+    height: 16,
+    marginRight: 5,
+  },
+  continueButton: {
+    display: 'flex',
+    width: 361,
+    height: 52,
+    padding: 0,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
+    borderRadius: 14,
+  },
+  continueButtonText: {
+    color: '#FFF',
+    fontFamily: 'Nunito Sans',
+    fontSize: 14,
+    fontStyle: 'normal',
+    fontWeight: '500',
+    lineHeight: 21,
+    textAlign: 'center',
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   },
   fullNameInputContainer: {
     borderRadius: 12,
     borderWidth: 1,
+<<<<<<< HEAD
     borderColor: "#8D6BFC",
     backgroundColor: "#121212",
     marginBottom: 20,
@@ -595,3 +830,20 @@ const styles = StyleSheet.create({
 });
 
 export default UserCreateProfileScreen;
+=======
+    borderColor: '#8D6BFC',
+    backgroundColor: '#121212',
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    height: 48,
+    justifyContent: 'center',
+  },
+  fullNameInput: {
+    color: '#fff',
+    fontSize: 16,
+    flex: 1,
+  },
+});
+
+export default UserCreateProfileScreen; 
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9

@@ -96,7 +96,7 @@ const CreateNewPasswordScreen = ({ navigation, route }) => {
             <MailboxIcon width={53} height={52} />
           </View>
           
-          <Text style={styles.title}>Create New Password </Text>
+          <Text style={styles.title}>Create New Password</Text>
           <Text style={styles.subtitle}>
             Create new strong password for updating (*********@gmail.com)
           </Text>

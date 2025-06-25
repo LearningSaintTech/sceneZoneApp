@@ -1359,6 +1359,33 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+<<<<<<< HEAD
+=======
+  - react-native-image-picker (7.2.3):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   - react-native-safe-area-context (5.4.1):
     - DoubleConversion
     - glog
@@ -1483,7 +1510,11 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+<<<<<<< HEAD
   - react-native-video (6.14.1):
+=======
+  - react-native-video (6.15.0):
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1498,7 +1529,11 @@ PODS:
     - React-hermes
     - React-ImageManager
     - React-jsi
+<<<<<<< HEAD
     - react-native-video/Video (= 6.14.1)
+=======
+    - react-native-video/Video (= 6.15.0)
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -1508,7 +1543,11 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+<<<<<<< HEAD
   - react-native-video/Fabric (6.14.1):
+=======
+  - react-native-video/Fabric (6.15.0):
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1532,7 +1571,11 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+<<<<<<< HEAD
   - react-native-video/Video (6.14.1):
+=======
+  - react-native-video/Video (6.15.0):
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1930,7 +1973,112 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+<<<<<<< HEAD
   - RNGestureHandler (2.25.0):
+=======
+  - RNDateTimePicker (8.4.2):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
+  - RNGestureHandler (2.26.0):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
+  - RNImageCropPicker (0.50.1):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-RCTImage
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - RNImageCropPicker/QBImagePickerController (= 0.50.1)
+    - TOCropViewController (~> 2.7.4)
+    - Yoga
+  - RNImageCropPicker/QBImagePickerController (0.50.1):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-RCTImage
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - TOCropViewController (~> 2.7.4)
+    - Yoga
+  - RNPermissions (5.4.1):
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2203,6 +2351,10 @@ PODS:
     - ReactCommon/turbomodule/core
     - Yoga
   - SocketRocket (0.7.1)
+<<<<<<< HEAD
+=======
+  - TOCropViewController (2.7.4)
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2248,6 +2400,10 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - "react-native-blur (from `../node_modules/@react-native-community/blur`)"
+<<<<<<< HEAD
+=======
+  - react-native-image-picker (from `../node_modules/react-native-image-picker`)
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-slider (from `../node_modules/@react-native-community/slider`)"
   - react-native-video (from `../node_modules/react-native-video`)
@@ -2285,7 +2441,14 @@ DEPENDENCIES:
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - "RNCCheckbox (from `../node_modules/@react-native-community/checkbox`)"
   - "RNCMaskedView (from `../node_modules/@react-native-masked-view/masked-view`)"
+<<<<<<< HEAD
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
+=======
+  - "RNDateTimePicker (from `../node_modules/@react-native-community/datetimepicker`)"
+  - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
+  - RNImageCropPicker (from `../node_modules/react-native-image-crop-picker`)
+  - RNPermissions (from `../node_modules/react-native-permissions`)
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
@@ -2296,6 +2459,10 @@ SPEC REPOS:
   trunk:
     - BEMCheckBox
     - SocketRocket
+<<<<<<< HEAD
+=======
+    - TOCropViewController
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
 
 EXTERNAL SOURCES:
   boost:
@@ -2379,6 +2546,11 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-blur:
     :path: "../node_modules/@react-native-community/blur"
+<<<<<<< HEAD
+=======
+  react-native-image-picker:
+    :path: "../node_modules/react-native-image-picker"
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-slider:
@@ -2453,8 +2625,19 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/checkbox"
   RNCMaskedView:
     :path: "../node_modules/@react-native-masked-view/masked-view"
+<<<<<<< HEAD
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
+=======
+  RNDateTimePicker:
+    :path: "../node_modules/@react-native-community/datetimepicker"
+  RNGestureHandler:
+    :path: "../node_modules/react-native-gesture-handler"
+  RNImageCropPicker:
+    :path: "../node_modules/react-native-image-crop-picker"
+  RNPermissions:
+    :path: "../node_modules/react-native-permissions"
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   RNReanimated:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
@@ -2508,9 +2691,16 @@ SPEC CHECKSUMS:
   React-Mapbuffer: c3f4b608e4a59dd2f6a416ef4d47a14400194468
   React-microtasksnativemodule: 054f34e9b82f02bd40f09cebd4083828b5b2beb6
   react-native-blur: 06d0f9906ecd6cde3a42de16c6cd829a2bf0710c
+<<<<<<< HEAD
   react-native-safe-area-context: 5594ec631ede9c311c5c0efa244228eff845ce88
   react-native-slider: bbaef403486de7d0ecb35ea7d4f3f236609c15c7
   react-native-video: 83c69342ee367aa83b37850001bb195d8b9dd695
+=======
+  react-native-image-picker: 8a3f16000e794f5381a7fe47bb48fd8d06741e47
+  react-native-safe-area-context: 5594ec631ede9c311c5c0efa244228eff845ce88
+  react-native-slider: bbaef403486de7d0ecb35ea7d4f3f236609c15c7
+  react-native-video: e6aef2c94e367fbf34ecd7a255116c3d256355aa
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   React-NativeModulesApple: 2c4377e139522c3d73f5df582e4f051a838ff25e
   React-oscompat: ef5df1c734f19b8003e149317d041b8ce1f7d29c
   React-perflogger: 9a151e0b4c933c9205fd648c246506a83f31395d
@@ -2545,12 +2735,23 @@ SPEC CHECKSUMS:
   RNCAsyncStorage: a1c8cc8a99c32de1244a9cf707bf9d83d0de0f71
   RNCCheckbox: 33b44487ca8008394ce658cc32b26eab04f426ef
   RNCMaskedView: ae521efb1c6c2b183ae0f8479487db03c826184c
+<<<<<<< HEAD
   RNGestureHandler: ebef699ea17e7c0006c1074e1e423ead60ce0121
+=======
+  RNDateTimePicker: 76170c3e1545fa4abe11253758f76ed401541012
+  RNGestureHandler: c7986dd1eb909e329882af067c05db0702a659b3
+  RNImageCropPicker: fba5c4b600fbee6e036d591b3b1f97f2f3efea54
+  RNPermissions: 91cbb1391e2e7002f85d4b2f55d5b81cbc554b7c
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   RNReanimated: 722d67dfde539bfe29b572878f4bc805f727726b
   RNScreens: 482e9707f9826230810c92e765751af53826d509
   RNSVG: 8a1054afe490b5d63b9792d7ae3c1fde8c05cdd0
   RNVectorIcons: 941a39b5d3b9d8cf8ac2e2fc09b07bfafbcf9796
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
+<<<<<<< HEAD
+=======
+  TOCropViewController: 80b8985ad794298fb69d3341de183f33d1853654
+>>>>>>> 6420727b7d1343cd37d1c1cfbbbdf7a59805d6e9
   Yoga: c758bfb934100bb4bf9cbaccb52557cee35e8bdf
 
 PODFILE CHECKSUM: 9f62f476bdbdb68b7e9994f6e5ee9a8f1b1b78f4
