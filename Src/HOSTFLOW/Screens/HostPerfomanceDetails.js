@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import LinearGradient from 'react-native-linear-gradient';
 import PlayIcon from '../assets/icons/play';
 import { useSelector } from 'react-redux';
 
@@ -29,13 +28,13 @@ const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    console.log('useEffect triggered. artistId:', artistId, 'token:', token);
-    const fetchPerformanceData = async () => {
+    console.log('zaibaaaaa heree is the id check artistId:', artistId, 'token:', token);
+    const fetchArtistProfile = async () => {
       setLoading(true);
       setError(null);
       try {
         const API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
-        const url = `${API_BASE}/api/artist/get-Artist-Performance/${artistId}`;
+        const url = `${API_BASE}/api/artist/get-profile/${artistId}`;
         console.log('Fetching from URL:', url);
         console.log('Using token:', token);
         const response = await fetch(url, {
@@ -49,12 +48,16 @@ const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
         const result = await response.json();
         console.log('Raw API response data:', JSON.stringify(result.data, null, 2));
         if (result.success) {
-          const normalizedData = result.data.map((item) => ({
-            ...item,
-            genre: Array.isArray(item.genre) ? item.genre : [],
-          }));
-          setPerformanceData(normalizedData);
-          console.log('Normalized performance data:', normalizedData);
+          // Use performanceUrlId array for performances
+          const performances = Array.isArray(result.data.performanceUrlId)
+            ? result.data.performanceUrlId.map((item) => ({
+                ...item,
+                genre: item.genre ? [item.genre] : [],
+                avgRating: result.data.Rating || 0,
+              }))
+            : [];
+          setPerformanceData(performances);
+          console.log('Normalized performance data:', performances);
         } else {
           setPerformanceData([]);
           setError(result.message || 'Failed to fetch performances');
@@ -70,7 +73,7 @@ const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
       }
     };
     if (artistId && token) {
-      fetchPerformanceData();
+      fetchArtistProfile();
     } else {
       console.log('artistId or token missing. artistId:', artistId, 'token:', token);
       setLoading(false);
@@ -115,23 +118,26 @@ const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
     <View key={idx} style={{ alignItems: 'center', width: '100%' }}>
       <View style={styles.performanceCard}>
         <View style={styles.imageContainer}>
+          {/* If videoUrl exists, show play button, else fallback image */}
           <Image
             source={require('../assets/Images/perf1.png')}
             style={styles.performanceImage}
             resizeMode="contain"
           />
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={() => {
-              if (item.videoUrl) {
-                Linking.openURL(item.videoUrl).catch(() =>
-                  Alert.alert('Error', 'Unable to open video URL')
-                );
-              }
-            }}
-          >
-            <PlayIcon width={44} height={44} />
-          </TouchableOpacity>
+          {item.videoUrl && (
+            <TouchableOpacity
+              style={styles.playButton}
+              onPress={() => {
+                if (item.videoUrl) {
+                  Linking.openURL(item.videoUrl).catch(() =>
+                    Alert.alert('Error', 'Unable to open video URL')
+                  );
+                }
+              }}
+            >
+              <PlayIcon width={44} height={44} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       <Text style={styles.performanceTitle}>{item.venueName}</Text>

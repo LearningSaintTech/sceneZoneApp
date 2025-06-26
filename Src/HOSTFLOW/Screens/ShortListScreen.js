@@ -248,7 +248,8 @@ const ShortlistScreen = ({ navigation }) => {
         style={styles.eventCard}
         onPress={() => {
           toggleShortlist(item._id);
-          navigation.navigate('HostPerfomanceDetails');
+          console.log(' HostPerfomanceDetails with artistId:', item.artistId);
+          navigation.navigate('HostPerfomanceDetails', { artistId: item.artistId });
         }}
         activeOpacity={0.8}
       >
