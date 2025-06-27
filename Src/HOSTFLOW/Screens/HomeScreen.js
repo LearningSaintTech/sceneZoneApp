@@ -71,7 +71,7 @@ const HomeScreen = ({ navigation }) => {
   const token = useSelector(state => state.auth.token);
   const fullName = useSelector(selectFullName);
   const location = useSelector(selectLocation);
-
+console.log("token",token)
   // For selected pills in each section
   const [selected, setSelected] = React.useState({
     filter: 'Today',

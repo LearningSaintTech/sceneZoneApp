@@ -286,58 +286,63 @@ const UserSigninScreen = ({ navigation }) => {
   const handleSignIn = async () => {
     try {
       // Input validation
-      if (
-        !mobileNumber.trim() ||
-        isNaN(mobileNumber) ||
-        mobileNumber.length < 10
-      ) {
-        Alert.alert(
-          "Error",
-          "Please enter a valid mobile number (at least 10 digits)"
-        );
+      if (!mobileNumber.trim() || isNaN(mobileNumber) || mobileNumber.length < 10) {
+        Alert.alert("Error", "Please enter a valid mobile number (at least 10 digits)");
         return;
       }
       if (!password.trim()) {
         Alert.alert("Error", "Please enter your password");
         return;
       }
-
+  
       setIsLoading(true);
-
-      
-const loginData = {
-  mobileNumber: Number(mobileNumber.trim()), // <-- FIXED
-  password: password.trim(),
-};
-
-
+  
+      const loginData = {
+        mobileNumber: Number(mobileNumber.trim()),
+        password: password.trim(),
+      };
+  
       console.log("Login Data:", loginData);
-
-      const response = await api.post(
-        "/user/auth/loginFromPassword",
-        loginData
-      );
-
+  
+      const response = await api.post("/user/auth/loginFromPassword", loginData);
+  
       console.log("Login Response:", response.data);
-
-      if (response.data) {
+  
+      if (response.data && response.data.success) {
+        // Get token from response headers
+        const token = response.headers["authorization"]?.replace("Bearer ", "");
+  
+        if (!token) {
+          console.warn("No token found in response headers");
+          Alert.alert("Error", "Authentication failed: No token received.");
+          return;
+        }
+  
+        console.log("Sign-in successful, dispatching login action with token:", token);
+  
+        // Dispatch login action with user data
         dispatch(
           loginUser({
-            fullName: response.data.data.user.fullName || "",
-            mobileNumber: response.data.data.user.mobileNumber || "",
+            id: response.data.data.user._id || response.data.data.user.id,
+            fullName: response.data.data.user.fullName || "User",
+            mobileNumber: response.data.data.user.mobileNumber || mobileNumber,
+            email: response.data.data.user.email || null,
+            phone: response.data.data.user.mobileNumber || mobileNumber,
+            location: null,
             role: response.data.data.user.role || "user",
-            token: response.data.data.token || "",
+            token: token, // Include the token here
           })
         );
-      }
-
-      if (response.data) {
+  
+        // Navigate to UserHome
         navigation.navigate("UserHome", { mobileNumber: mobileNumber });
+      } else {
+        Alert.alert("Error", "Authentication failed: Invalid response from server.");
       }
     } catch (error) {
       console.error("Login Error:", error.message);
       console.error("Error Response:", error.response?.data);
-
+  
       Alert.alert(
         "Error",
         error.response?.data?.message ||

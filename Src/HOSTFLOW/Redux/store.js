@@ -12,9 +12,15 @@ const rootReducer = combineReducers({
 
 export const store = configureStore({
   reducer: rootReducer,
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
+  middleware: (getDefaultMiddleware) => {
+    console.log('Configuring store with middleware');
+    const middleware = getDefaultMiddleware({
       serializableCheck: false,
       immutableCheck: false,
-    }),
-}); 
+    });
+    console.log('Store configured with middleware:', middleware);
+    return middleware;
+  },
+});
+
+console.log('Store initialized:', store.getState());

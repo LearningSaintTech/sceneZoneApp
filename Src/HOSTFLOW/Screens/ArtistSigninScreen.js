@@ -429,38 +429,44 @@ const ArtistSigninScreen = ({ navigation }) => {
         Alert.alert('Error', 'Please enter a valid mobile number (at least 10 digits)');
         return;
       }
-
+  
       if (!password.trim()) {
         Alert.alert('Error', 'Please enter your password');
         return;
       }
-
+  
       setIsLoading(true);
-
+  
       const loginData = {
         mobileNumber: parseInt(mobileNumber),
-        password: password.trim()
+        password: password.trim(),
       };
-
+  
       // If rememberMe is checked, save credentials
       if (rememberMe) {
         await AsyncStorage.setItem('artistRememberMe', JSON.stringify({ mobileNumber, password }));
       } else {
         await AsyncStorage.removeItem('artistRememberMe');
       }
-
+  
       console.log("Artist Login Data:", loginData); // Debug log
-
+  
       const response = await api.post('/artist/auth/loginFromPassword', loginData);
-
+  
       console.log("Artist Login Response:", response.data); // Debug log
-
-      if (response.data) {
-        // Get token from response
-        const token = response.data.data.token;
-        
-        console.log("Sign-in successful, dispatching login action");
-        
+  
+      if (response.data && response.data.success) {
+        // Get token from response headers
+        const token = response.headers['authorization']?.replace('Bearer ', '');
+  
+        if (!token) {
+          console.warn("No token found in response headers");
+          Alert.alert('Error', 'Authentication failed: No token received.');
+          return;
+        }
+  
+        console.log("Sign-in successful, dispatching login action with token:", token);
+  
         // Dispatch login action with user data
         dispatch(loginArtist({
           id: response.data.data.user._id || response.data.data.user.id,
@@ -469,16 +475,17 @@ const ArtistSigninScreen = ({ navigation }) => {
           phone: response.data.data.user.mobileNumber || mobileNumber,
           mobileNumber: mobileNumber,
           location: null,
-          token: token
+          role: response.data.data.user.role || 'artist',
+          token: token, // Include the token here
         }));
-        
+  
         // Navigate directly to ArtistHome
         navigation.navigate('ArtistHome');
       }
     } catch (error) {
       console.error("Artist Login Error:", error.message);
       console.error("Error Response:", error.response?.data);
-      
+  
       Alert.alert(
         'Error',
         error.response?.data?.message || 'Failed to sign in. Please check your credentials and try again.'
@@ -510,6 +517,21 @@ const ArtistSigninScreen = ({ navigation }) => {
 
       if (response.data) {
         // Navigate to OTP verification screen with mobile number
+        if (response.data.success) {
+          const userData = response.data.data.user;
+         const token = response.headers['authorization']?.replace('Bearer ', '');
+     
+         console.log('handleVerify - User Data:', userData);
+         console.log('handleVerify - Token:', token);
+     
+         dispatch(loginArtist({
+           ...userData,
+           token,
+         }));
+         
+         navigation.navigate('MainTabs', { mobileNumber: mobileNumber });
+     
+       }
         navigation.navigate('ArtistOtpVerificationScreen', { mobileNumber: mobileNumber });
       }
     } catch (error) {

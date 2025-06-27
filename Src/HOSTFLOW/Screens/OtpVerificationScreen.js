@@ -67,7 +67,7 @@ const OtpVerificationScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
 
   // Get mobile number from navigation params
-  const mobileNumber = route.params?.mobileNumber ;
+  const mobileNumber = route.params?.mobileNumber;
 
   // Enhanced responsive dimensions with safe area considerations
   const responsiveDimensions = {
@@ -80,7 +80,6 @@ const OtpVerificationScreen = ({ navigation, route }) => {
       horizontal: Math.max(insets.left + dimensions.spacing.md, dimensions.spacing.md),
       vertical: Math.max(insets.top + dimensions.spacing.sm, dimensions.spacing.sm),
     },
-    // Modal specific responsive dimensions
     modalPadding: {
       horizontal: Math.max(width * 0.08, 20) + Math.max(insets.left, insets.right),
       vertical: Math.max(height * 0.1, 40) + Math.max(insets.top, insets.bottom),
@@ -93,6 +92,7 @@ const OtpVerificationScreen = ({ navigation, route }) => {
   };
 
   const handleChange = (text, index) => {
+    console.log(`handleChange - Index: ${index}, Text: ${text}`);
     const newOtp = [...otp];
     if (text.length > 1) {
       const chars = text.split('').slice(0, 4);
@@ -102,6 +102,7 @@ const OtpVerificationScreen = ({ navigation, route }) => {
       });
       setOtp(newOtp);
       inputs.current[chars.length - 1]?.focus();
+      console.log('handleChange - New OTP:', newOtp);
       return;
     }
     newOtp[index] = text;
@@ -109,15 +110,18 @@ const OtpVerificationScreen = ({ navigation, route }) => {
     if (text && index < 3) {
       inputs.current[index + 1].focus();
     }
+    console.log('handleChange - New OTP:', newOtp);
   };
 
   const handleKeyPress = (e, index) => {
+    console.log(`handleKeyPress - Key: ${e.nativeEvent.key}, Index: ${index}`);
     if (e.nativeEvent.key === 'Backspace') {
       if (otp[index] === '' && index > 0) {
         inputs.current[index - 1].focus();
         const newOtp = [...otp];
         newOtp[index - 1] = '';
         setOtp(newOtp);
+        console.log('handleKeyPress - New OTP:', newOtp);
       }
     }
   };
@@ -127,6 +131,7 @@ const OtpVerificationScreen = ({ navigation, route }) => {
       // Validate OTP
       if (otp.some(digit => !digit)) {
         Alert.alert('Error', 'Please enter complete OTP');
+        console.log('handleVerify - Incomplete OTP:', otp);
         return;
       }
 
@@ -137,18 +142,25 @@ const OtpVerificationScreen = ({ navigation, route }) => {
         code: otp.join('')
       };
 
-      console.log("Verifying OTP:", otpData); // Debug log
+      console.log("Verifying OTP:", otpData);
 
       const response = await api.post('/host/auth/verify-otp', otpData);
 
-      console.log("OTP Verification Response:", response.data); // Debug log
+      console.log("OTP Verification Response:", response.data);
 
       if (response.data.success) {
         setShowSuccess(true);
-        // Dispatch login action with user data
-        dispatch(loginHost(response.data.data));
+        const userData = response.data.data.user;
+        const token = response.headers['authorization']?.replace('Bearer ', '');
+
+        console.log('handleVerify - User Data:', userData);
+        console.log('handleVerify - Token:', token);
+
+        dispatch(loginHost({
+          ...userData,
+          token,
+        }));
         
-        // Navigate after a short delay to show success modal
         setTimeout(() => {
           navigation.navigate('HostVerifiedScreen');
         }, 1500);
@@ -174,17 +186,15 @@ const OtpVerificationScreen = ({ navigation, route }) => {
         mobileNumber: mobileNumber
       };
 
-      console.log("Resending OTP:", resendData); // Debug log
+      console.log("Resending OTP:", resendData);
 
       const response = await api.post('/host/auth/resend-otp', resendData);
 
-      console.log("Resend OTP Response:", response.data); // Debug log
+      console.log("Resend OTP Response:", response.data);
 
       if (response.data) {
         Alert.alert('Success', 'OTP has been resent successfully!');
-        // Clear existing OTP
         setOtp(['', '', '', '']);
-        // Focus on first input
         inputs.current[0]?.focus();
       }
     } catch (error) {
@@ -290,7 +300,6 @@ const OtpVerificationScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Modal for Success Popup */}
       <Modal transparent visible={showSuccess} animationType="fade" statusBarTranslucent>
         <View style={[
           styles.modalContainer,
@@ -387,7 +396,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emailVerifyText: {
-    
     fontFamily: 'Nunito Sans',
     fontWeight: '400',
     fontSize: 12,
@@ -481,8 +489,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     color: 'rgba(198, 197, 237, 1)',
   },
-
-  // Modal styles
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',

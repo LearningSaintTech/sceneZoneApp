@@ -1,147 +1,3 @@
-// import React, { useState } from 'react';
-// import {
-//   View,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   StyleSheet,
-//   SafeAreaView,
-//   useColorScheme,
-//   Dimensions,
-// } from 'react-native';
-// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-// import Feather from 'react-native-vector-icons/Feather';
-
-// const { width } = Dimensions.get('window');
-
-// const ArtistForgotPasswordScreen = ({ navigation }) => {
-//   const [email, setEmail] = useState('');
-
-//   // Force dark mode appearance
-//   const background = '#000';
-//   const cardBg = '#1a1a1a';
-//   const text = '#fff';
-//   const placeholder = '#aaa';
-//   const border = '#333';
-
-//   return (
-//     <SafeAreaView style={[styles.container, { backgroundColor: background }]}>
-//       {/* Back Arrow */}
-//       <TouchableOpacity style={styles.backIcon} onPress={() => navigation.goBack()}>
-//         <Feather name="arrow-left" size={24} color={text} />
-//       </TouchableOpacity>
-
-//       <View style={styles.content}>
-//         {/* Top Icon */}
-//         <View style={styles.iconCircle}>
-//           <Icon name="lock-question" size={26} color="#fff" />
-//         </View>
-
-//         <Text style={[styles.title, { color: text }]}>Forgot Your Password?</Text>
-//         <Text style={[styles.subtitle, { color: placeholder }]}>
-//           Please enter your artist account email address to send the OTP verification to reset your password
-//         </Text>
-
-//         {/* Email Input */}
-//         <View style={[styles.inputContainer, { backgroundColor: cardBg, borderColor: border }]}>
-//           <Icon name="email-outline" size={20} color={placeholder} style={styles.inputIcon} />
-//           <TextInput
-//             placeholder="Enter your email"
-//             placeholderTextColor={placeholder}
-//             style={[styles.input, { color: text }]}
-//             value={email}
-//             onChangeText={setEmail}
-//             keyboardType="email-address"
-//             autoCapitalize="none"
-//           />
-//         </View>
-
-//         {/* Confirm Button */}
-//         <TouchableOpacity onPress={() => navigation.navigate('CheckMailBox')} style={styles.primaryButton}>
-//           <Text style={styles.primaryButtonText}>Confirm</Text>
-//         </TouchableOpacity>
-//       </View>
-//     </SafeAreaView>
-//   );
-// };
-
-// const boxWidth = width * 0.9;
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#000',
-//   },
-//   backIcon: {
-//     paddingHorizontal: 20,
-//     paddingTop: 10,
-//   },
-//   content: {
-//     padding: 24,
-//     alignItems: 'center',
-//   },
-//   iconCircle: {
-//     backgroundColor: '#a95eff',
-//     padding: 14,
-//     borderRadius: 50,
-//     marginBottom: 24,
-//   },
-//   title: {
-//     fontSize: 24,
-//     fontWeight: '700',
-//     marginBottom: 12,
-//     textAlign: 'center',
-//   },
-//   subtitle: {
-//     fontSize: 14,
-//     marginBottom: 30,
-//     textAlign: 'center',
-//   },
-//   inputContainer: {
-//     flexDirection: 'row',
-//     borderWidth: 1,
-//     borderRadius: 10,
-//     paddingHorizontal: 14,
-//     alignItems: 'center',
-//     height: 50,
-//     width: boxWidth,
-//     marginBottom: 24,
-//   },
-//   inputIcon: {
-//     marginRight: 10,
-//   },
-//   input: {
-//     fontSize: 16,
-//     flex: 1,
-//   },
-//   primaryButton: {
-//     width: boxWidth,
-//     paddingVertical: 14,
-//     borderRadius: 10,
-//     alignItems: 'center',
-//     backgroundColor: '#a95eff',
-//   },
-//   primaryButtonText: {
-//     color: '#fff',
-//     fontWeight: '600',
-//     fontSize: 16,
-//   },
-// });
-
-// export default ArtistForgotPasswordScreen; 
-
-
-
-
-
-
-
-
-
-//  anirudh code is here :
-
-
-
 import React, { useState } from 'react';
 import {
   View,
@@ -169,59 +25,76 @@ const isTablet = width >= 768;
 const isSmallPhone = width < 350;
 
 const responsiveDimensions = {
-  buttonWidth: Math.min(width - 32, Math.max(width * 0.9, 300)), // 90% of screen width, min 300px, max screen width - 32px
-  buttonHeight: Math.max(height * 0.065, 48), // 6.5% of screen height, min 48px
-  buttonMargin: Math.max(width * 0.04, 16), // 4% of screen width, min 16px
-  buttonBottom: Math.max(height * 0.08, 60), // 8% of screen height, min 60px
-  borderRadius: Math.max(width * 0.035, 12), // 3.5% of screen width, min 12px
-  paddingHorizontal: Math.max(width * 0.04, 16), // 4% of screen width, min 16px
-  paddingRight: Math.max(width * 0.12, 50), // 12% of screen width, min 50px
+  buttonWidth: Math.min(width - 32, Math.max(width * 0.9, 300)),
+  buttonHeight: Math.max(height * 0.065, 48),
+  buttonMargin: Math.max(width * 0.04, 16),
+  buttonBottom: Math.max(height * 0.08, 60),
+  borderRadius: Math.max(width * 0.035, 12),
+  paddingHorizontal: Math.max(width * 0.04, 16),
+  paddingRight: Math.max(width * 0.12, 50),
 };
 
 const ArtistForgotPasswordScreen = ({ navigation }) => {
+  const [inputType, setInputType] = useState('email'); // 'email' or 'mobile'
   const [email, setEmail] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const insets = useSafeAreaInsets();
 
   const handleConfirm = async () => {
     try {
       // Input validation
-      if (!email.trim()) {
-        Alert.alert('Error', 'Please enter your email address');
-        return;
-      }
-
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        Alert.alert('Error', 'Please enter a valid email address');
-        return;
+      if (inputType === 'email') {
+        if (!email.trim()) {
+          Alert.alert('Error', 'Please enter your email address');
+          console.log('[ArtistForgotPasswordScreen] Validation failed: Email is empty');
+          return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email.trim())) {
+          Alert.alert('Error', 'Please enter a valid email address');
+          console.log('[ArtistForgotPasswordScreen] Validation failed: Invalid email format', email);
+          return;
+        }
+      } else {
+        if (!mobileNumber.trim()) {
+          Alert.alert('Error', 'Please enter your mobile number');
+          console.log('[ArtistForgotPasswordScreen] Validation failed: Mobile number is empty');
+          return;
+        }
+        const mobileRegex = /^[0-9]{10}$/;
+        if (!mobileRegex.test(mobileNumber.trim())) {
+          Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+          console.log('[ArtistForgotPasswordScreen] Validation failed: Invalid mobile number format', mobileNumber);
+          return;
+        }
       }
 
       setIsLoading(true);
 
-      const otpData = {
-        email: email.trim()
-      };
+      const otpData = inputType === 'email' ? { email: email.trim() } : { mobileNumber: mobileNumber.trim() };
+      console.log('[ArtistForgotPasswordScreen] Sending OTP request:', { endpoint: '/artist/email-number-send-otp', data: otpData });
 
-      console.log("Sending Artist OTP Data:", otpData); // Debug log
+      const response = await api.post('/artist/email-number-send-otp', otpData);
 
-      const response = await api.post('/artist/email-sendOtp', otpData);
-
-      console.log("Artist OTP Response:", response.data); // Debug log
+      console.log('[ArtistForgotPasswordScreen] OTP response:', response.data);
 
       if (response.data) {
-        // Navigate to check mailbox screen
-        navigation.navigate('ArtistCheckMailbox', { email: email.trim() });
+        console.log('[ArtistForgotPasswordScreen] OTP sent successfully, navigating to ArtistCheckMailbox');
+        navigation.navigate('ArtistCheckMailbox', {
+          inputType,
+          value: inputType === 'email' ? email.trim() : mobileNumber.trim(),
+        });
+      } else {
+        console.log('[ArtistForgotPasswordScreen] OTP request failed:', response.data.message);
+        Alert.alert('Error', response.data.message || 'Failed to send OTP');
       }
     } catch (error) {
-      console.error("Artist OTP Error:", error.message);
-      console.error("Error Response:", error.response?.data);
-      
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to send OTP. Please try again.'
-      );
+      console.error('[ArtistForgotPasswordScreen] OTP request error:', {
+        message: error.message,
+        response: error.response?.data,
+      });
+      Alert.alert('Error', error.response?.data?.message || 'Failed to send OTP. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -229,47 +102,69 @@ const ArtistForgotPasswordScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <SignUpBackground 
-        style={styles.backgroundSvg}
-        width={width}
-        height={height}
-      />
+      <SignUpBackground style={styles.backgroundSvg} width={width} height={height} />
       <SafeAreaView style={styles.overlay}>
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
-          <View style={[styles.header, { paddingTop: insets.top + 20 }]}> 
+          <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Icon name="arrow-left" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.contentArea}>
-            {/* Central Icon */}
             <View style={styles.iconContainer}>
               <ForgotIcon width={53} height={52} />
             </View>
 
             <Text style={styles.title}>Forgot Your Password?</Text>
             <Text style={styles.description}>
-              Please enter your artist account email address to send the OTP
+              Please enter your {inputType === 'email' ? 'email address' : 'mobile number'} to send the OTP
               verification to reset your password
             </Text>
 
-            {/* Email Input */}
-            <View style={[
-              styles.inputContainer,
-              {
-                width: responsiveDimensions.buttonWidth,
-                alignSelf: 'center', // Center the input container
-              }
-            ]}>
-              <Ionicons name="mail-outline" size={20} color="#aaa" style={styles.inputIcon} />
+            {/* Toggle between Email and Mobile */}
+            <View style={[styles.toggleContainer, { width: responsiveDimensions.buttonWidth, alignSelf: 'center' }]}>
+              <TouchableOpacity
+                style={[styles.toggleButton, inputType === 'email' ? styles.toggleButtonActive : null]}
+                onPress={() => {
+                  setInputType('email');
+                  setMobileNumber('');
+                  console.log('[ArtistForgotPasswordScreen] Switched input type to email');
+                }}
+              >
+                <Text style={[styles.toggleText, inputType === 'email' ? styles.toggleTextActive : null]}>
+                  Email
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleButton, inputType === 'mobile' ? styles.toggleButtonActive : null]}
+                onPress={() => {
+                  setInputType('mobile');
+                  setEmail('');
+                  console.log('[ArtistForgotPasswordScreen] Switched input type to mobile');
+                }}
+              >
+                <Text style={[styles.toggleText, inputType === 'mobile' ? styles.toggleTextActive : null]}>
+                  Mobile
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Input Field */}
+            <View style={[styles.inputContainer, { width: responsiveDimensions.buttonWidth, alignSelf: 'center' }]}>
+              <Ionicons
+                name={inputType === 'email' ? 'mail-outline' : 'call-outline'}
+                size={20}
+                color="#aaa"
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
-                placeholder="artist@email.com"
+                placeholder={inputType === 'email' ? 'artist@email.com' : '9876543210'}
                 placeholderTextColor="#aaa"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
+                value={inputType === 'email' ? email : mobileNumber}
+                onChangeText={inputType === 'email' ? setEmail : setMobileNumber}
+                keyboardType={inputType === 'email' ? 'email-address' : 'phone-pad'}
                 autoCapitalize="none"
                 editable={!isLoading}
               />
@@ -277,37 +172,28 @@ const ArtistForgotPasswordScreen = ({ navigation }) => {
           </View>
         </ScrollView>
 
-        {/* Confirm Button - Responsive for all devices */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.confirmButton, 
-            { 
+            styles.confirmButton,
+            {
               bottom: insets.bottom + responsiveDimensions.buttonBottom,
               width: responsiveDimensions.buttonWidth,
               height: responsiveDimensions.buttonHeight,
-              left: (width - responsiveDimensions.buttonWidth) / 2, // Center the button
+              left: (width - responsiveDimensions.buttonWidth) / 2,
               borderRadius: responsiveDimensions.borderRadius,
               paddingHorizontal: responsiveDimensions.paddingHorizontal,
-            }
-          ]} 
+            },
+          ]}
           onPress={handleConfirm}
           disabled={isLoading}
         >
-          <LinearGradient 
-            colors={['#B15CDE', '#7952FC']} 
-            start={{x: 0, y: 0}}
-            end={{x: 1, y: 0}}
-            style={[
-              styles.confirmButtonGradient,
-              { 
-                borderRadius: responsiveDimensions.borderRadius,
-                opacity: isLoading ? 0.7 : 1
-              }
-            ]}
+          <LinearGradient
+            colors={['#B15CDE', '#7952FC']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.confirmButtonGradient, { borderRadius: responsiveDimensions.borderRadius, opacity: isLoading ? 0.7 : 1 }]}
           >
-            <Text style={styles.confirmButtonText}>
-              {isLoading ? 'Sending...' : 'Confirm'}
-            </Text>
+            <Text style={styles.confirmButtonText}>{isLoading ? 'Sending...' : 'Confirm'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </SafeAreaView>
@@ -316,7 +202,7 @@ const ArtistForgotPasswordScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
+  container: {
     flex: 1,
     backgroundColor: '#121212',
   },
@@ -334,11 +220,9 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingBottom: 100, // Add padding at the bottom to prevent button from covering content
+    paddingBottom: 100,
   },
-  header: {
-    // paddingTop will be set dynamically with safe area insets
-  },
+  header: {},
   contentArea: {
     flex: 1,
     justifyContent: 'flex-start',
@@ -365,8 +249,31 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     paddingHorizontal: 20,
   },
+  toggleContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 4,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#8D6BFC',
+  },
+  toggleText: {
+    color: '#aaa',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  toggleTextActive: {
+    color: '#fff',
+  },
   inputContainer: {
-    // width is set dynamically to match button width
     height: 48,
     gap: 12,
     borderRadius: 12,
@@ -417,4 +324,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ArtistForgotPasswordScreen; 
+export default ArtistForgotPasswordScreen;

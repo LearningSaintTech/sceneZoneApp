@@ -78,19 +78,21 @@ const SignInScreen = ({ navigation }) => {
 
       console.log("Login Response:", response.data); // Debug log
 
-      if (response.data) {
-        // Dispatch login action with user data
-        dispatch(loginHost({
-          id: response.data.data.user.id || 'host123',
-          name: response.data.data.user.fullName || 'Kevin Richards',
-          email: response.data.data.user.email || 'host@example.com',
-          phone: response.data.data.user.mobileNumber || '+91 412-123-4215',
-          token: response.data.data.token // Store the token from the response
-        }));
-        
-        // Navigate to OTP verification screen
-        navigation.navigate('MainTabs', { mobileNumber: mobileNumber });
-      }
+      if (response.data.success) {
+        const userData = response.data.data.user;
+       const token = response.headers['authorization']?.replace('Bearer ', '');
+   
+       console.log('handleVerify - User Data:', userData);
+       console.log('handleVerify - Token:', token);
+   
+       dispatch(loginHost({
+         ...userData,
+         token,
+       }));
+       
+       navigation.navigate('MainTabs', { mobileNumber: mobileNumber });
+   
+     }
     } catch (error) {
       console.error("Login Error:", error.message);
       console.error("Error Response:", error.response?.data);
@@ -225,7 +227,7 @@ const SignInScreen = ({ navigation }) => {
                 </TouchableOpacity>
                 <Text style={[styles.rememberText, { color: text }]}> Remember me</Text>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('ForgotPasswordScreen')}>
+              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
                 <Text style={styles.forgot}>Forgot Password</Text>
               </TouchableOpacity>
             </View>
