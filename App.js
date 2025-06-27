@@ -33,7 +33,7 @@ import ArtistAppliedScreen from './Src/HOSTFLOW/Screens/ArtistAppliedScreen';
 import ArtistFormBookingScreen from './Src/HOSTFLOW/Screens/ArtistFormBooking';
 import ArtistInboxScreen from './Src/HOSTFLOW/Screens/ArtistInbox';
 import ChatScreen from './Src/HOSTFLOW/Screens/Chat';
-import ArtistProfileScreen from './Src/HOSTFLOW/Screens/ArtistProfile';
+import ArtistProfileScreen from './Src/HOSTFLOW/Screens/ArtistProfileScreen';
 import ArtistEditProfileScreen from './Src/HOSTFLOW/Screens/ArtistEditProfile';
 import ArtistGuestListScreen from './Src/HOSTFLOW/Screens/ArtistGuestList';
 import ArtistPaymentSettingsScreen from './Src/HOSTFLOW/Screens/ArtistPaymentSettings';
@@ -83,6 +83,12 @@ import ArtistUpload from './Src/HOSTFLOW/Screens/ArtistUpload';
 import HomeScreen from './Src/HOSTFLOW/Screens/HomeScreen';
 import HostVerifiedScreen from './Src/HOSTFLOW/Screens/HostVerifiedScreen';
 import HostAddPayment from './Src/HOSTFLOW/Screens/HostAddPayment';
+import UserBottomTabNavigator from './Src/HOSTFLOW/Components/UserBottomTabNavigator';
+import UserVerifiedScreen from './Src/HOSTFLOW/Screens/UserVerified';
+import ArtistForgotPasswordScreen from './Src/HOSTFLOW/Screens/ArtistForgotPasswordScreen';
+
+import ArtistCheckMailbox from './Src/HOSTFLOW/Screens/ArtistCheckMailBox';
+import ArtistCreateNewPassword from './Src/HOSTFLOW/Screens/ArtistCreateNewPassword';
 
 // Socket.IO Context
 export const SocketContext = React.createContext();
@@ -226,6 +232,10 @@ export default function App() {
                   animationDuration: 300,
                 }}
               />
+
+<Stack.Screen name="ArtistForgotPasswordScreen" component={ArtistForgotPasswordScreen} />
+
+              <Stack.Screen name="UserTabs" component={UserBottomTabNavigator} />
               <Stack.Screen name="ArtistSigninScreen" component={ArtistSigninScreen} />
               <Stack.Screen name="OtpVerify" component={OtpVerificationScreen} />
               <Stack.Screen name="ArtistOtpVerificationScreen" component={ArtistOtpVerificationScreen} />
@@ -251,7 +261,7 @@ export default function App() {
               <Stack.Screen name="CheckMailBox" component={CheckMailboxScreen} />
               <Stack.Screen name="CreateNewPassword" component={CreateNewPasswordScreen} />
               <Stack.Screen name="UserOtpReset" component={UserOtpResetScreen} />
-              <Stack.Screen name="UserHome" component={UserHomeScreen} />
+              {/* <Stack.Screen name="UserHome" component={UserHomeScreen} /> */}
               <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
               <Stack.Screen name="Notification" component={NotificationScreen} />
               <Stack.Screen name="Explore" component={ExploreEventScreen} />
@@ -298,6 +308,16 @@ export default function App() {
               <Stack.Screen name="HostVerifiedScreen" component={HostVerifiedScreen} />
               <Stack.Screen name="HostAddPayment" component={HostAddPayment} />
               <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
+              
+
+              <Stack.Screen name="UserHome" component={UserBottomTabNavigator} />
+
+              <Stack.Screen name="UserVerifiedScreen" component={UserVerifiedScreen} />
+
+              <Stack.Screen name="ArtistCheckMailbox" component={ArtistCheckMailbox} />
+
+              <Stack.Screen name="ArtistCreateNewPassword" component={ArtistCreateNewPassword} />
+
             </Stack.Navigator>
           </NavigationContainer>
         </SocketContext.Provider>

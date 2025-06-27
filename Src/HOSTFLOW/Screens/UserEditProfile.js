@@ -1,4 +1,247 @@
-import React, { useState } from 'react';
+// import React, { useState } from 'react';
+// import {
+//   View,
+//   Text,
+//   StyleSheet,
+//   SafeAreaView,
+//   ScrollView,
+//   TouchableOpacity,
+//   Image,
+//   TextInput,
+//   Platform,
+// } from 'react-native';
+// import Ionicons from 'react-native-vector-icons/Ionicons';
+// import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+// import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// const UserEditProfileScreen = ({ navigation }) => {
+//   const insets = useSafeAreaInsets();
+  
+//   const [fullName, setFullName] = useState('Franklin Clinton');
+//   const [email, setEmail] = useState('franklinclinton@gmail.com');
+//   const [location, setLocation] = useState('Noida');
+//   const [phoneNumber, setPhoneNumber] = useState('123456789');
+
+//   return (
+//     <SafeAreaView style={[
+//       styles.container,
+//       {
+//         paddingBottom: Math.max(insets.bottom, 20),
+//       }
+//     ]}>
+//       {/* Header */}
+//       <View style={[
+//         styles.header,
+//         {
+//           paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 10 : 20),
+//         }
+//       ]}>
+//         <TouchableOpacity onPress={() => navigation.goBack()}>
+//           <Ionicons name="arrow-back" size={24} color="#fff" />
+//         </TouchableOpacity>
+//         <View>
+//           <Text style={styles.headerTitle}>Edit Profile</Text>
+//         </View>
+//         <Text style={styles.headerSpacer}> </Text>
+//       </View>
+
+//       <ScrollView contentContainerStyle={[
+//         styles.scrollViewContent,
+//         {
+//           paddingTop: Platform.OS === 'ios' ? 10 : 20,
+//         }
+//       ]}>
+//         {/* Profile Image Section */}
+//         <View style={styles.profileImageContainer}>
+//           <Image
+//             source={require('../assets/Images/frame1.png')} // User Avatar
+//             style={styles.profileImage}
+//           />
+//           <TouchableOpacity style={styles.cameraIconContainer}>
+//             <MaterialIcons name="camera-alt" size={20} color="#fff" />
+//           </TouchableOpacity>
+//         </View>
+
+//         {/* Input Fields */}
+//         <View style={styles.inputContainer}>
+//           <Text style={styles.inputLabel}>Full name</Text>
+//           <TextInput
+//             style={styles.input}
+//             value={fullName}
+//             onChangeText={setFullName}
+//             placeholder="Full Name"
+//             placeholderTextColor="#888"
+//           />
+//         </View>
+
+//         <View style={styles.inputContainer}>
+//           <Text style={styles.inputLabel}>Email</Text>
+//           <TextInput
+//             style={styles.input}
+//             value={email}
+//             onChangeText={setEmail}
+//             placeholder="Email"
+//             placeholderTextColor="#888"
+//             keyboardType="email-address"
+//           />
+//         </View>
+
+//         <View style={styles.inputContainer}>
+//           <Text style={styles.inputLabel}>Location</Text>
+//           <TextInput
+//             style={styles.input}
+//             value={location}
+//             onChangeText={setLocation}
+//             placeholder="Location"
+//             placeholderTextColor="#888"
+//           />
+//         </View>
+
+//         {/* Phone Number Input */}
+//         <View style={styles.inputContainer}>
+//           <Text style={styles.inputLabel}>Phone number</Text>
+//           <View style={styles.phoneInputContainer}>
+//             {/* Country Code Picker Placeholder */}
+//             <View style={styles.countryCodePicker}>
+//               <Text style={styles.countryCodeText}>📞</Text>
+//               <MaterialIcons name="keyboard-arrow-down" size={20} color="#fff" />
+//             </View>
+//             <TextInput
+//               style={styles.phoneInput}
+//               value={phoneNumber}
+//               onChangeText={setPhoneNumber}
+//               placeholder="Phone Number"
+//               placeholderTextColor="#888"
+//               keyboardType="phone-pad"
+//             />
+//           </View>
+//         </View>
+//       </ScrollView>
+
+//       {/* Save Changes Button */}
+//       <TouchableOpacity style={styles.saveButton}>
+//         <Text style={styles.saveButtonText}>Save Changes</Text>
+//       </TouchableOpacity>
+//     </SafeAreaView>
+//   );
+// };
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: '#000',
+//   },
+//   header: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     justifyContent: 'space-between',
+//     paddingHorizontal: 16,
+//     paddingVertical: 12,
+//     borderBottomWidth: 1,
+//     borderColor: '#333',
+//   },
+//   headerTitle: {
+//     fontSize: 18,
+//     fontWeight: 'bold',
+//     color: '#fff',
+//   },
+//   headerSpacer: {
+//     width: 24,
+//   },
+//   scrollViewContent: {
+//     paddingHorizontal: 16,
+//     paddingBottom: 100, // Add padding at the bottom for the button
+//   },
+//   profileImageContainer: {
+//     alignItems: 'center',
+//     marginBottom: 30,
+//   },
+//   profileImage: {
+//     width: 100,
+//     height: 100,
+//     borderRadius: 50,
+//     backgroundColor: '#ddd', // Placeholder background
+//   },
+//   cameraIconContainer: {
+//     position: 'absolute',
+//     bottom: 5,
+//     right: 5,
+//     backgroundColor: '#a95eff', // Purple background
+//     borderRadius: 15,
+//     padding: 6,
+//     borderWidth: 2,
+//     borderColor: '#000', // Border to match the image
+//   },
+//   inputContainer: {
+//     marginBottom: 20,
+//   },
+//   inputLabel: {
+//     fontSize: 14,
+//     color: '#aaa',
+//     marginBottom: 5,
+//   },
+//   input: {
+//     backgroundColor: '#1a1a1a', // Dark input background
+//     color: '#fff',
+//     paddingVertical: 12,
+//     paddingHorizontal: 15,
+//     borderRadius: 10,
+//     fontSize: 16,
+//   },
+//   phoneInputContainer: {
+//     flexDirection: 'row',
+//     backgroundColor: '#1a1a1a', // Dark input background
+//     borderRadius: 10,
+//     alignItems: 'center',
+//   },
+//   countryCodePicker: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     paddingHorizontal: 15,
+//     borderRightWidth: 1,
+//     borderColor: '#333',
+//     paddingVertical: 12,
+//   },
+//   phoneInput: {
+//     flex: 1,
+//     color: '#fff',
+//     paddingVertical: 12,
+//     paddingHorizontal: 15,
+//     fontSize: 16,
+//   },
+//   countryCodeText: {
+//     color: '#fff',
+//     marginRight: 5,
+//   },
+//   saveButton: {
+//     marginHorizontal: 16,
+//     marginTop: 20,
+//     marginBottom: 20,
+//     borderRadius: 10,
+//     backgroundColor: '#B15CDE',
+//     paddingVertical: 15,
+//     alignItems: 'center',
+//   },
+//   saveButtonText: {
+//     fontSize: 18,
+//     fontWeight: 'bold',
+//     color: '#fff',
+//   },
+// });
+
+// export default UserEditProfileScreen; 
+
+
+
+
+
+
+//  code by sonu :::
+
+
+
+
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,62 +252,366 @@ import {
   Image,
   TextInput,
   Platform,
-} from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  Dimensions,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import LinearGradient from "react-native-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  selectToken,
+  selectUserData,
+  loginUser,
+} from "../Redux/slices/authSlice";
+import api from "../Config/api";
+import * as ImagePicker from "react-native-image-picker";
+
+const { width, height } = Dimensions.get("window");
+
+const dimensions = {
+  spacing: {
+    xs: Math.max(width * 0.01, 4),
+    sm: Math.max(width * 0.02, 8),
+    md: Math.max(width * 0.03, 12),
+    lg: Math.max(width * 0.04, 16),
+    xl: Math.max(width * 0.05, 20),
+    xxl: Math.max(width * 0.06, 24),
+  },
+  fontSize: {
+    small: Math.max(width * 0.03, 12),
+    body: Math.max(width * 0.035, 14),
+    title: Math.max(width * 0.04, 16),
+    header: Math.max(width * 0.045, 18),
+  },
+  borderRadius: {
+    sm: Math.max(width * 0.015, 6),
+    md: Math.max(width * 0.025, 10),
+    lg: Math.max(width * 0.04, 15),
+    xl: Math.max(width * 0.06, 20),
+  },
+  buttonHeight: Math.max(height * 0.06, 44),
+  inputHeight: Math.max(height * 0.055, 40),
+  iconSize: Math.max(width * 0.06, 20),
+  profileImageSize: Math.max(width * 0.25, 100),
+};
 
 const UserEditProfileScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const token = useSelector(selectToken);
+  const userData = useSelector(selectUserData);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [location, setLocation] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [profileImage, setProfileImage] = useState(null);
+  const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
-  
-  const [fullName, setFullName] = useState('Franklin Clinton');
-  const [email, setEmail] = useState('franklinclinton@gmail.com');
-  const [location, setLocation] = useState('Noida');
-  const [phoneNumber, setPhoneNumber] = useState('123456789');
+
+  console.log("UserEditProfileScreen mounted", userData);
+
+  useEffect(() => {
+    if (!token) {
+      Alert.alert("Error", "Session expired. Please log in again.");
+      navigation.navigate("UserSignin");
+      return;
+    }
+    setFullName(userData?.fullName || userData?.name || "");
+    setEmail(userData?.email || "");
+    setLocation(userData?.address || userData?.location || "");
+    setPhoneNumber(userData?.mobileNumber ? String(userData.mobileNumber) : "");
+    setProfileImage(
+      userData?.profileImageUrl ? { uri: userData.profileImageUrl } : null
+    );
+    fetchProfileData();
+  }, [token]);
+
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/user/get-profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response?.data?.success) {
+        const data = response?.data?.data;
+        setFullName(data.fullName || data.name || "");
+        setEmail(data.email || "");
+        setLocation(data.address || data.location || "");
+        setPhoneNumber(data.mobileNumber ? String(data.mobileNumber) : "");
+        setProfileImage(
+          data?.profileImageUrl ? { uri: data.profileImageUrl } : null
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          response.data.message || "Failed to fetch profile data"
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      Alert.alert(
+        "Error",
+        error.response?.data?.message || "Failed to fetch profile data"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validateInputs = () => {
+    if (!fullName.trim()) {
+      Alert.alert("Error", "Full name is required");
+      return false;
+    }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return false;
+    }
+    if (phoneNumber && !/^\d{10}$/.test(phoneNumber)) {
+      Alert.alert("Error", "Please enter a valid 10-digit phone number");
+      return false;
+    }
+    return true;
+  };
+
+  const validateImage = (image) => {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (image.fileSize > maxSize) {
+      Alert.alert("Error", "Image size must be less than 5MB");
+      return false;
+    }
+    if (!["image/jpeg", "image/png"].includes(image.type)) {
+      Alert.alert("Error", "Only JPEG and PNG images are supported");
+      return false;
+    }
+    return true;
+  };
+
+  const handleImagePicker = () => {
+    Alert.alert("Choose Image Source", "Select image from", [
+      { text: "Camera", onPress: launchCamera },
+      { text: "Gallery", onPress: launchGallery },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const launchCamera = () => {
+    ImagePicker.launchCamera(
+      {
+        mediaType: "photo",
+        quality: 0.8,
+        includeBase64: false, // Removed includeBase64 to reduce memory usage
+      },
+      (response) => {
+        if (response.didCancel) return;
+        if (response.errorCode) {
+          Alert.alert(
+            "Error",
+            response.errorMessage || "Failed to capture image"
+          );
+          return;
+        }
+        if (validateImage(response.assets[0])) {
+          setProfileImage(response.assets[0]);
+        }
+      }
+    );
+  };
+
+  const launchGallery = () => {
+    ImagePicker.launchImageLibrary(
+      {
+        mediaType: "photo",
+        quality: 0.8,
+        includeBase64: false, // Removed includeBase64 to reduce memory usage
+      },
+      (response) => {
+        if (response.didCancel) return;
+        if (response.errorCode) {
+          Alert.alert(
+            "Error",
+            response.errorMessage || "Failed to select image"
+          );
+          return;
+        }
+        if (validateImage(response.assets[0])) {
+          setProfileImage(response.assets[0]);
+        }
+      }
+    );
+  };
+
+  const handleSaveChanges = async () => {
+    if (!validateInputs()) return;
+
+    // Store previous data outside try block
+    const previousData = {
+      fullName,
+      email,
+      location,
+      phoneNumber,
+      profileImage,
+    };
+
+    try {
+      setLoading(true);
+
+      const formData = new FormData();
+      formData.append("fullName", fullName);
+      formData.append("email", email);
+      formData.append("address", location);
+      formData.append("mobileNumber", phoneNumber);
+
+      if (
+        profileImage &&
+        profileImage.uri &&
+        !profileImage.uri.startsWith("http")
+      ) {
+        if (!validateImage(profileImage)) {
+          setLoading(false);
+          return;
+        }
+        formData.append("profileImageUrl", {
+          uri: profileImage.uri,
+          type: profileImage.type || "image/jpeg",
+          name: profileImage.fileName || "profile.jpg",
+        });
+      }
+
+      const response = await api.patch("/user/update-profile", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (response.data.success) {
+        dispatch(
+          loginUser({
+            id: userData?.id || response.data.data?._id,
+            name: fullName,
+            fullName: fullName,
+            email: email,
+            phone: phoneNumber,
+            mobileNumber: phoneNumber,
+            address: location,
+            role: userData?.role,
+            profileImageUrl:
+              response.data.data?.profileImageUrl || userData?.profileImageUrl,
+            token: token,
+          })
+        );
+
+        Alert.alert("Success", "Profile updated successfully");
+        navigation.navigate("UserProfileScreen");
+      } else {
+        throw new Error(response.data.message || "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      // Revert to previous data
+      setFullName(previousData.fullName);
+      setEmail(previousData.email);
+      setLocation(previousData.location);
+      setPhoneNumber(previousData.phoneNumber);
+      setProfileImage(previousData.profileImage);
+
+      let errorMessage = "Failed to update profile";
+      if (error.response) {
+        if (error.response.status === 401) {
+          errorMessage = "Session expired. Please log in again.";
+          navigation.navigate("UserSignin");
+        } else if (error.response.status === 413) {
+          errorMessage = "Image size too large. Please choose a smaller image.";
+        } else {
+          errorMessage = error.response.data?.message || errorMessage;
+        }
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && !fullName) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <ActivityIndicator size="large" color="#a95eff" />
+      </View>
+    );
+  }
 
   return (
-    <SafeAreaView style={[
-      styles.container,
-      {
-        paddingBottom: Math.max(insets.bottom, 20),
-      }
-    ]}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={[
-        styles.header,
-        {
-          paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 10 : 20),
-        }
-      ]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top + 10, 20),
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={dimensions.iconSize} color="#fff" />
         </TouchableOpacity>
-        <View>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-        </View>
-        <Text style={styles.headerSpacer}> </Text>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <View style={{ width: dimensions.iconSize }} />
       </View>
 
-      <ScrollView contentContainerStyle={[
-        styles.scrollViewContent,
-        {
-          paddingTop: Platform.OS === 'ios' ? 10 : 20,
-        }
-      ]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollViewContent,
+          {
+            paddingBottom: Math.max(insets.bottom + 120, 140),
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile Image Section */}
-        <View style={styles.profileImageContainer}>
+        <View
+          style={[
+            styles.profileImageContainer,
+            {
+              marginTop: Math.max(dimensions.spacing.xl, 15),
+            },
+          ]}
+        >
           <Image
-            source={require('../assets/Images/frame1.png')} // User Avatar
+            source={
+              profileImage
+                ? { uri: profileImage.uri }
+                : require("../assets/Images/frame1.png")
+            }
             style={styles.profileImage}
           />
-          <TouchableOpacity style={styles.cameraIconContainer}>
-            <MaterialIcons name="camera-alt" size={20} color="#fff" />
+          <TouchableOpacity
+            style={styles.cameraIconContainer}
+            onPress={handleImagePicker}
+          >
+            <MaterialIcons name="camera-alt" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
 
         {/* Input Fields */}
         <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Full name</Text>
+          <Text style={styles.inputLabel}>Full name </Text>
           <TextInput
             style={styles.input}
             value={fullName}
@@ -77,19 +624,20 @@ const UserEditProfileScreen = ({ navigation }) => {
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Email</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: "#24242D" }]}
             value={email}
             onChangeText={setEmail}
             placeholder="Email"
             placeholderTextColor="#888"
             keyboardType="email-address"
+            autoCapitalize="none"
           />
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Location</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: "#24242D" }]}
             value={location}
             onChangeText={setLocation}
             placeholder="Location"
@@ -101,10 +649,13 @@ const UserEditProfileScreen = ({ navigation }) => {
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Phone number</Text>
           <View style={styles.phoneInputContainer}>
-            {/* Country Code Picker Placeholder */}
             <View style={styles.countryCodePicker}>
-              <Text style={styles.countryCodeText}>📞</Text>
-              <MaterialIcons name="keyboard-arrow-down" size={20} color="#fff" />
+              <Text style={styles.countryCodeText}>+91</Text>
+              <MaterialIcons
+                name="keyboard-arrow-down"
+                size={dimensions.iconSize}
+                color="#fff"
+              />
             </View>
             <TextInput
               style={styles.phoneInput}
@@ -119,8 +670,38 @@ const UserEditProfileScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Save Changes Button */}
-      <TouchableOpacity style={styles.saveButton}>
-        <Text style={styles.saveButtonText}>Save Changes</Text>
+      <TouchableOpacity
+        style={[
+          styles.saveButton,
+          {
+            marginBottom: Math.max(insets.bottom + 20, 30),
+          },
+        ]}
+        activeOpacity={0.85}
+        onPress={handleSaveChanges}
+        disabled={loading}
+      >
+        <LinearGradient
+          colors={["#B15CDE", "#7952FC"]}
+          start={{ x: 1, y: 0 }}
+          end={{ x: 0, y: 0 }}
+          style={{
+            flex: 1,
+            width: "100%",
+            height: "100%",
+            justifyContent: "center",
+            alignItems: "center",
+            borderRadius: 14,
+            flexDirection: "row",
+            gap: 10,
+          }}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          )}
+        </LinearGradient>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -129,104 +710,146 @@ const UserEditProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#121212",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: 393,
+    alignSelf: "center",
+    paddingVertical: 20,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: "#121212",
     borderBottomWidth: 1,
-    borderColor: '#333',
+    borderBottomColor: "#C6C5ED",
+    shadowColor: "rgba(104, 59, 252, 0.05)",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  backButton: {
+    padding: dimensions.spacing.sm,
+    borderRadius: dimensions.borderRadius.md,
+    minWidth: dimensions.iconSize + 8,
+    minHeight: dimensions.iconSize + 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  headerSpacer: {
-    width: 24,
+    fontSize: dimensions.fontSize.header,
+    fontWeight: "bold",
+    color: "#fff",
+    marginLeft: 16,
+    flex: 1,
+    textAlign: "center",
+    marginRight: 170,
   },
   scrollViewContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100, // Add padding at the bottom for the button
+    paddingHorizontal: dimensions.spacing.lg,
+    paddingTop: dimensions.spacing.xl,
   },
   profileImageContainer: {
-    alignItems: 'center',
-    marginBottom: 30,
+    alignItems: "center",
+    marginBottom: dimensions.spacing.xxl,
+    justifyContent: "center",
+    position: "relative",
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#ddd', // Placeholder background
+    width: dimensions.profileImageSize,
+    height: dimensions.profileImageSize,
+    borderRadius: dimensions.profileImageSize / 2,
+    backgroundColor: "#ddd",
   },
   cameraIconContainer: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: '#a95eff', // Purple background
-    borderRadius: 15,
-    padding: 6,
-    borderWidth: 2,
-    borderColor: '#000', // Border to match the image
+    marginRight: 110,
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    backgroundColor: "#B15CDE",
+    borderRadius: 32,
+    width: 38,
+    height: 38,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 0,
+    zIndex: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: dimensions.spacing.xl,
   },
   inputLabel: {
-    fontSize: 14,
-    color: '#aaa',
-    marginBottom: 5,
+    color: "#7A7A90",
+    fontFamily: "Nunito Sans",
+    fontSize: 12,
+    fontStyle: "normal",
+    fontWeight: "400",
+    lineHeight: 18,
+    marginBottom: dimensions.spacing.sm,
   },
   input: {
-    backgroundColor: '#1a1a1a', // Dark input background
-    color: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    fontSize: 16,
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#8D6BFC",
+    backgroundColor: "#121212",
+    color: "#fff",
+    fontSize: dimensions.fontSize.title,
   },
   phoneInputContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#1a1a1a', // Dark input background
-    borderRadius: 10,
-    alignItems: 'center',
+    flexDirection: "row",
+    backgroundColor: "#1a1a1a",
+    borderRadius: dimensions.borderRadius.md,
+    alignItems: "center",
+    minHeight: dimensions.inputHeight,
   },
   countryCodePicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: dimensions.spacing.lg,
     borderRightWidth: 1,
-    borderColor: '#333',
-    paddingVertical: 12,
+    borderColor: "#333",
+    paddingVertical: Math.max(dimensions.spacing.md, 12),
+    minHeight: dimensions.inputHeight,
+    justifyContent: "center",
+  },
+  countryCodeText: {
+    color: "#fff",
+    marginRight: dimensions.spacing.xs,
+    fontSize: dimensions.fontSize.title,
+    fontWeight: "500",
   },
   phoneInput: {
     flex: 1,
-    color: '#fff',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    fontSize: 16,
-  },
-  countryCodeText: {
-    color: '#fff',
-    marginRight: 5,
+    color: "#fff",
+    paddingVertical: Math.max(dimensions.spacing.md, 12),
+    paddingHorizontal: dimensions.spacing.lg,
+    fontSize: dimensions.fontSize.title,
+    minHeight: dimensions.inputHeight,
   },
   saveButton: {
-    marginHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 20,
-    borderRadius: 10,
-    backgroundColor: '#B15CDE',
-    paddingVertical: 15,
-    alignItems: 'center',
+    width: "90%",
+    maxWidth: 361,
+    height: 52,
+    borderRadius: 14,
+    overflow: "hidden",
+    alignSelf: "center",
+    marginTop: dimensions.spacing.xl,
   },
   saveButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    color: "#FFF",
+    textAlign: "center",
+    fontFamily: "Nunito Sans",
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 21,
   },
 });
-
-export default UserEditProfileScreen; 
+export default UserEditProfileScreen;
