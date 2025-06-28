@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Switch,
   ScrollView,
   Dimensions,
   Share,
@@ -21,23 +20,40 @@ import LikedIcon from '../assets/icons/liked';
 
 const { width } = Dimensions.get('window');
 
-const EventDashboardScreen = ({ navigation }) => {
-  const [isGuestListEnabled, setIsGuestListEnabled] = useState(false);
-  const [soundSystemAvailable, setSoundSystemAvailable] = useState(true);
-  const [isEventActive, setIsEventActive] = useState(true); // New state for event status
+const EventDashboardScreen = ({ navigation, route }) => {
+  const [isGuestListEnabled, setIsGuestListEnabled] = useState(
+    route.params?.eventData?.eventGuestEnabled || false
+  );
+  const [soundSystemAvailable, setSoundSystemAvailable] = useState(
+    route.params?.eventData?.isSoundSystem || true
+  );
+  const [isEventActive, setIsEventActive] = useState(
+    route.params?.eventData?.status === 'pending' || route.params?.eventData?.status === 'active'
+  );
   const insets = useSafeAreaInsets();
+  const eventData = route.params?.eventData; // Extract eventData from route.params
 
   const textColor = '#fff';
   const subColor = '#ccc';
+
+  // Format date for display
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Invalid Date';
+    const date = new Date(dateStr);
+    return date instanceof Date && !isNaN(date)
+      ? `${date.toLocaleString('en-US', { month: 'short' })} ${date.getDate()}`
+      : 'Invalid Date';
+  };
 
   // Share event functionality
   const onShare = async () => {
     try {
       const result = await Share.share({
-        message:
-          'Check out this event: Sounds of Celebration on May 20 at Yogyakarta! 🎶',
-        url: 'https://example.com/event/sounds-of-celebration', // Replace with actual event URL
-        title: 'Sounds of Celebration',
+        message: `Check out this event: ${eventData?.eventName || 'Summer Beatcxvcbvsggggffffff'} on ${
+          eventData?.eventDateTime?.[0] ? formatDate(eventData.eventDateTime[0]) : 'Jul 1'
+        } at ${eventData?.venue || 'Central Park, New York'}! 🎶`,
+        url: eventData?.guestLinkUrl || eventData?.posterUrl || 'https://example.com/event/summer-beat',
+        title: eventData?.eventName || 'Summer Beatcxvcbvsggggffffff',
       });
       if (result.action === Share.sharedAction) {
         if (result.activityType) {
@@ -76,7 +92,6 @@ const EventDashboardScreen = ({ navigation }) => {
           position: 'absolute',
           left: value ? 36 - 14.5 - 2 : 2,
           top: 2.75,
-          // For smooth animation, you can use Animated.View in a real app
         }}
       />
     </TouchableOpacity>
@@ -93,21 +108,30 @@ const EventDashboardScreen = ({ navigation }) => {
         }}
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: 20 }]}> 
+        <View style={[styles.header, { paddingTop: 20 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Feather name="arrow-left" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">Event Dashboard</Text>
+          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+            Event Dashboard
+          </Text>
+          <TouchableOpacity onPress={onShare}>
+            <Feather name="share-2" size={22} color="#fff" />
+          </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollViewContent}> 
+        <ScrollView contentContainerStyle={styles.scrollViewContent}>
           {/* Profile Card and Stats Cards Row */}
           <View style={styles.topCardsRow}>
             {/* Left Column: Profile Card + Event Card */}
             <View style={styles.leftColumn}>
               <View style={styles.profileCardNew}>
                 <Image
-                  source={require('../assets/Images/frame1.png')}
+                  source={
+                    eventData?.hostId?.hostProfileImageUrl
+                      ? { uri: eventData.hostId.hostProfileImageUrl }
+                      : require('../assets/Images/frame1.png')
+                  }
                   style={styles.profileImageFill}
                   resizeMode="cover"
                 />
@@ -116,13 +140,21 @@ const EventDashboardScreen = ({ navigation }) => {
                   style={styles.profileGradientOverlay}
                 />
                 <View style={styles.profileTextOverlay}>
-                  <Text style={styles.profileGreetingNew}>Hello Brandon!</Text>
-                  <Text style={styles.profileLocationNew}>H-70, Sector 63, Noida</Text>
+                  <Text style={styles.profileGreetingNew}>
+                    Hello {eventData?.hostId?.fullName || 'Host'}!
+                  </Text>
+                  <Text style={styles.profileLocationNew}>
+                    {eventData?.venue || 'Central Park, New York'}
+                  </Text>
                 </View>
               </View>
               <View style={styles.eventCardNew}>
                 <Image
-                  source={require('../assets/Images/evendas.jpg')}
+                  source={
+                    eventData?.posterUrl
+                      ? { uri: eventData.posterUrl }
+                      : require('../assets/Images/evendas.jpg')
+                  }
                   style={styles.eventImageNew}
                   resizeMode="cover"
                 />
@@ -131,8 +163,12 @@ const EventDashboardScreen = ({ navigation }) => {
                   style={styles.eventGradientOverlay}
                 />
                 <View style={styles.eventCardContent}>
-                  <Text style={styles.eventTitleNew}>Sounds of Celebration</Text>
-                  <Text style={styles.eventLocationNew}>H-70, Sector 63, Noida</Text>
+                  <Text style={styles.eventTitleNew}>
+                    {eventData?.eventName || 'Summer Beatcxvcbvsggggffffff'}
+                  </Text>
+                  <Text style={styles.eventLocationNew}>
+                    {eventData?.venue || 'Central Park, New York'}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -143,29 +179,45 @@ const EventDashboardScreen = ({ navigation }) => {
                   <RegisteredIcon style={styles.statIcon} />
                   <Text style={styles.statLabel}>Registered</Text>
                 </View>
-                <Text style={styles.statValue}>1.2k</Text>
+                <Text style={styles.statValue}>
+                  {eventData?.totalRegistered || '0'}
+                </Text>
               </View>
               <View style={styles.statCard}>
                 <View style={styles.statLabelRow}>
                   <ViewedIcon style={styles.statIcon} />
                   <Text style={styles.statLabel}>Viewed</Text>
                 </View>
-                <Text style={styles.statValue}>12.6k</Text>
+                <Text style={styles.statValue}>
+                  {eventData?.totalViewed || '0'}
+                </Text>
               </View>
               <View style={[styles.statCard, { marginBottom: 16 }]}>
                 <View style={styles.statLabelRow}>
                   <LikedIcon style={styles.statIcon} />
                   <Text style={styles.statLabel}>Liked</Text>
                 </View>
-                <Text style={styles.statValue}>752</Text>
+                <Text style={styles.statValue}>
+                  {eventData?.totalLikes || '0'}
+                </Text>
               </View>
             </View>
           </View>
 
           {/* Toggle Switch for Guest List */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+            }}
+          >
             <Text style={styles.toggleLabelNew}>Enable Guest List</Text>
-            <CustomToggle value={isGuestListEnabled} onValueChange={setIsGuestListEnabled} />
+            <CustomToggle
+              value={isGuestListEnabled}
+              onValueChange={setIsGuestListEnabled}
+            />
           </View>
           {isGuestListEnabled && (
             <TouchableOpacity
@@ -183,6 +235,7 @@ const EventDashboardScreen = ({ navigation }) => {
   );
 };
 
+// Styles (unchanged from the original)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -201,7 +254,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
     shadowRadius: 12,
-    elevation: 8, // for Android shadow
+    elevation: 8,
   },
   headerTitle: {
     color: '#C6C5ED',
@@ -209,7 +262,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 24,
-    paddingRight:230,
+    paddingRight: 230,
     overflow: 'hidden',
   },
   scrollViewContent: {
@@ -228,7 +281,7 @@ const styles = StyleSheet.create({
     width: 173,
     height: 264,
     borderRadius: 16,
-    backgroundColor: '#121212', // fallback color
+    backgroundColor: '#121212',
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -255,7 +308,6 @@ const styles = StyleSheet.create({
   profileGreetingNew: {
     color: '#27FEF0',
     fontSize: 16,
-   // fontFamily: Poppins,
     fontWeight: '600',
     marginBottom: 4,
     textShadowColor: 'rgba(0,0,0,0.7)',
@@ -265,7 +317,7 @@ const styles = StyleSheet.create({
   profileLocationNew: {
     color: '#fff',
     fontSize: 9,
-    paddingLeft:10,
+    paddingLeft: 10,
     textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -286,12 +338,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#34344A',
     backgroundColor: '#0D0D0D',
-    marginBottom: 25, // for gap between cards
+    marginBottom: 25,
     shadowColor: 'rgba(177, 92, 222, 0.10)',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
     shadowRadius: 32,
-    elevation: 8, // for Android shadow
+    elevation: 8,
   },
   statLabelRow: {
     flexDirection: 'row',
@@ -311,7 +363,6 @@ const styles = StyleSheet.create({
     color: '#a95eff',
     fontSize: 32,
     fontWeight: '700',
-    
   },
   eventCardNew: {
     width: 173,
@@ -319,13 +370,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#34344A',
-    backgroundColor: '#121212', // fallback color
+    backgroundColor: '#121212',
     marginBottom: 16,
     shadowColor: 'rgba(177, 92, 222, 0.10)',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
     shadowRadius: 32,
-    elevation: 8, // for Android shadow
+    elevation: 8,
     overflow: 'hidden',
   },
   eventImageNew: {
@@ -353,7 +404,7 @@ const styles = StyleSheet.create({
   eventLocationNew: {
     color: '#fff',
     fontSize: 9,
-    paddingLeft:14,
+    paddingLeft: 14,
   },
   toggleLabelNew: {
     color: '#C6C5ED',
