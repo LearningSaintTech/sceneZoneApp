@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -8,78 +8,34 @@ import {
   Image,
   Platform,
   ScrollView,
-  ActivityIndicator,
-  Alert,
   Linking,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import PlayIcon from '../assets/icons/play';
-import { useSelector } from 'react-redux';
 
 const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
-  const artistId = route?.params?.artistId;
-  console.log('HostPerfomanceDetailsScreen artistId:', artistId);
+  const artist = route?.params?.artist;
+  console.log('HostPerfomanceDetailsScreen artist:', artist);
 
-  const token = useSelector(state => state.auth.token);
-
-  const [performanceData, setPerformanceData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    console.log('zaibaaaaa heree is the id check artistId:', artistId, 'token:', token);
-    const fetchArtistProfile = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
-        const url = `${API_BASE}/api/artist/get-profile/${artistId}`;
-        console.log('Fetching from URL:', url);
-        console.log('Using token:', token);
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        console.log('Fetch response status:', response.status);
-        const result = await response.json();
-        console.log('Raw API response data:', JSON.stringify(result.data, null, 2));
-        if (result.success) {
-          // Use performanceUrlId array for performances
-          const performances = Array.isArray(result.data.performanceUrlId)
-            ? result.data.performanceUrlId.map((item) => ({
-                ...item,
-                genre: item.genre ? [item.genre] : [],
-                avgRating: result.data.Rating || 0,
-              }))
-            : [];
-          setPerformanceData(performances);
-          console.log('Normalized performance data:', performances);
-        } else {
-          setPerformanceData([]);
-          setError(result.message || 'Failed to fetch performances');
-          console.log('API error:', result.message || 'Failed to fetch performances');
-        }
-      } catch (err) {
-        setPerformanceData([]);
-        setError('Network error');
-        console.log('Network error:', err);
-      } finally {
-        setLoading(false);
-        console.log('Loading set to false');
-      }
-    };
-    if (artistId && token) {
-      fetchArtistProfile();
-    } else {
-      console.log('artistId or token missing. artistId:', artistId, 'token:', token);
-      setLoading(false);
-      setError('Missing artist ID or token');
-    }
-  }, [artistId, token]);
+  if (!artist) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Feather name="arrow-left" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={2} ellipsizeMode="tail">
+            Performance
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: 'red', marginTop: 40 }}>No artist data provided</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const renderPills = (items) => {
     const genres = Array.isArray(items) ? items : [];
@@ -100,11 +56,12 @@ const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
 
   const renderStars = (rating) => {
     const stars = [];
+    const avgRating = rating || 0;
     for (let i = 0; i < 5; i++) {
       stars.push(
         <Ionicons
           key={i}
-          name={i < rating ? 'star' : 'star-outline'}
+          name={i < avgRating ? 'star' : 'star-outline'}
           size={16}
           color={'#ffc107'}
           style={styles.starIcon}
@@ -118,31 +75,38 @@ const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
     <View key={idx} style={{ alignItems: 'center', width: '100%' }}>
       <View style={styles.performanceCard}>
         <View style={styles.imageContainer}>
-          {/* If videoUrl exists, show play button, else fallback image */}
-          <Image
-            source={require('../assets/Images/perf1.png')}
-            style={styles.performanceImage}
-            resizeMode="contain"
-          />
-          {item.videoUrl && (
-            <TouchableOpacity
-              style={styles.playButton}
-              onPress={() => {
-                if (item.videoUrl) {
-                  Linking.openURL(item.videoUrl).catch(() =>
-                    Alert.alert('Error', 'Unable to open video URL')
-                  );
-                }
-              }}
-            >
-              <PlayIcon width={44} height={44} />
-            </TouchableOpacity>
+          {item.videoUrl ? (
+            <>
+              <Image
+                source={{ uri: artist.profileImageUrl || 'https://via.placeholder.com/345x230' }}
+                style={styles.performanceImage}
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                style={styles.playButton}
+                onPress={() => {
+                  if (item.videoUrl) {
+                    Linking.openURL(item.videoUrl).catch(() =>
+                      Alert.alert('Error', 'Unable to open video URL')
+                    );
+                  }
+                }}
+              >
+                <PlayIcon width={44} height={44} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Image
+              source={{ uri: artist.profileImageUrl || 'https://via.placeholder.com/345x230' }}
+              style={styles.performanceImage}
+              resizeMode="cover"
+            />
           )}
         </View>
       </View>
       <Text style={styles.performanceTitle}>{item.venueName}</Text>
-      <View style={styles.pillRow}>{renderPills(item.genre)}</View>
-      <View style={styles.starRow}>{renderStars(item.avgRating)}</View>
+      <View style={styles.pillRow}>{renderPills([item.genre])}</View>
+      <View style={styles.starRow}>{renderStars(artist.Rating)}</View>
     </View>
   );
 
@@ -152,31 +116,43 @@ const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={2} ellipsizeMode="tail">Performance</Text>
+        <Text style={styles.headerTitle} numberOfLines={2} ellipsizeMode="tail">
+          {artist.artistType || 'Performance'}
+        </Text>
         <View style={{ width: 24 }} />
       </View>
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#B15CDE" />
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        {/* Artist Profile Section */}
+        <View style={styles.artistProfileContainer}>
+          <Image
+            source={{ uri: artist.profileImageUrl || 'https://via.placeholder.com/100' }}
+            style={styles.artistImage}
+          />
+          <View style={styles.artistInfo}>
+            <Text style={styles.artistName}>{artist.email.split('@')[0]}</Text>
+            <Text style={styles.artistDetails}>
+              {artist.artistType} • {artist.artistSubType} • {artist.instrument}
+            </Text>
+            <Text style={styles.artistDetails}>Budget: ${artist.budget}</Text>
+            <Text style={styles.artistDetails}>Location: {artist.address}</Text>
+            {artist.isCrowdGuarantee && (
+              <Text style={styles.crowdGuaranteeText}>Crowd Guarantee</Text>
+            )}
+          </View>
         </View>
-      ) : error ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: 'red', marginTop: 40 }}>{error}</Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
-          {performanceData.length === 0 ? (
-            <Text style={{ color: '#fff', marginTop: 40 }}>No performances found.</Text>
-          ) : (
-            performanceData.map(renderPerformanceCard)
-          )}
-        </ScrollView>
-      )}
+
+        {/* Performances Section */}
+        <Text style={styles.sectionTitle}>Performances</Text>
+        {artist.performanceUrlId && artist.performanceUrlId.length > 0 ? (
+          artist.performanceUrlId.map(renderPerformanceCard)
+        ) : (
+          <Text style={{ color: '#fff', marginTop: 20 }}>No performances found.</Text>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
-// Styles remain unchanged
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -184,13 +160,9 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 30 : 0,
   },
   header: {
-    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    width: 393,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingVertical: 20,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#C6C5ED',
@@ -204,7 +176,6 @@ const styles = StyleSheet.create({
     color: '#C6C5ED',
     fontFamily: 'Nunito Sans',
     fontSize: 14,
-    fontStyle: 'normal',
     fontWeight: '700',
     lineHeight: 24,
     flexShrink: 1,
@@ -216,8 +187,54 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     alignItems: 'center',
   },
+  artistProfileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+    width: '100%',
+  },
+  artistImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginRight: 16,
+  },
+  artistInfo: {
+    flex: 1,
+  },
+  artistName: {
+    color: '#FCFCFD',
+    fontFamily: 'Inter',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  artistDetails: {
+    color: '#E4E4E7',
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  crowdGuaranteeText: {
+    color: '#a95eff',
+    fontFamily: 'Inter',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  sectionTitle: {
+    color: '#FCFCFD',
+    fontFamily: 'Inter',
+    fontSize: 16,
+    fontWeight: '600',
+    alignSelf: 'flex-start',
+    marginTop: 16,
+    marginBottom: 16,
+    width: '100%',
+  },
   performanceCard: {
-    display: 'flex',
     width: 345,
     height: 230,
     justifyContent: 'center',
@@ -239,7 +256,6 @@ const styles = StyleSheet.create({
   performanceImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'contain',
   },
   playButton: {
     position: 'absolute',
@@ -259,7 +275,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   pill: {
-    display: 'flex',
     backgroundColor: 'transparent',
     borderRadius: 6,
     borderWidth: 1,
@@ -272,7 +287,6 @@ const styles = StyleSheet.create({
     color: '#E4E4E7',
     fontFamily: 'Inter',
     fontSize: 10,
-    fontStyle: 'normal',
     fontWeight: '500',
     lineHeight: 16,
   },
@@ -285,20 +299,16 @@ const styles = StyleSheet.create({
   },
   performanceTitle: {
     color: '#FCFCFD',
-    textAlign: 'left',
     fontFamily: 'Inter',
     fontSize: 16,
-    fontStyle: 'normal',
     fontWeight: '600',
     lineHeight: 24,
     marginTop: 16,
     marginBottom: 8,
-    letterSpacing: 0.2,
     alignSelf: 'flex-start',
     width: '100%',
   },
   pillRow: {
-    display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'center',
     width: '100%',

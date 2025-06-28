@@ -111,12 +111,15 @@ const ExploreEventScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <View style={styles.dashboardButtonWrapper}>
-              <TouchableOpacity style={styles.dashboardButton} onPress={() => navigation.navigate('Event')}>
-                <EventDashIcon width={20} height={20} style={{ marginRight: 12 }} />
-                <Text style={styles.dashboardButtonText} numberOfLines={1} ellipsizeMode="tail">
-                  Event Dashboard
-                </Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+  style={styles.dashboardButton}
+  onPress={() => navigation.navigate('Event', { eventData })} // Pass eventData here
+>
+  <EventDashIcon width={20} height={20} style={{ marginRight: 12 }} />
+  <Text style={styles.dashboardButtonText} numberOfLines={1} ellipsizeMode="tail">
+    Event Dashboard
+  </Text>
+</TouchableOpacity>
             </View>
           </View>
           <TouchableOpacity style={styles.iconCircle}>
@@ -242,7 +245,7 @@ const ExploreEventScreen = ({ navigation, route }) => {
         {/* About Event */}
         <Text style={styles.sectionTitleNew}>About this event:</Text>
         <Text style={styles.aboutTextNew}>
-          {eventData ? eventData.description : 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur nec lorem a justo pulvinar suscipit.'}
+          {eventData ? eventData.about : 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur nec lorem a justo pulvinar suscipit.'}
         </Text>
       </ScrollView>
     </View>

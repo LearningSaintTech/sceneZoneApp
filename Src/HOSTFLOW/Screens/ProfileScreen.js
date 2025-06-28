@@ -10,7 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 const settings = [
   { icon: 'user', label: 'Edit Profile', nav: 'HostEditProfile' },
   { icon: 'star', label: 'Ticket Settings', nav: 'HostTicketSetting' },
-  { icon: 'shield', label: 'Account Security', nav: 'HostAccountSecurity' },
+  { icon: 'shield', label: 'Account Security', nav: 'HostAccountSecurity' }, 
   { icon: 'credit-card', label: 'Payment Settings', nav: 'hostPaymentSetting' },
   { icon: 'settings', label: 'General Settings', nav: 'HostGeneralSetting' },
   { icon: 'message-square', label: 'Help Centre', nav: 'HostHelpCentre' },
@@ -30,13 +30,14 @@ const ProfileScreen = ({ navigation }) => {
 
   useFocusEffect(
     React.useCallback(() => {
-      console.log('Profile screen focused, fetching data.');
+      console.log('ProfileScreen: useFocusEffect triggered');
       fetchProfile();
     }, [])
   );
 
   useEffect(() => {
-    console.log('Current Redux State:', {
+    console.log('ProfileScreen: useEffect triggered on mount');
+    console.log('ProfileScreen: Current Redux State:', {
       token,
       userData,
       location,
@@ -47,16 +48,17 @@ const ProfileScreen = ({ navigation }) => {
   }, []);
 
   const fetchProfile = async () => {
+    console.log('ProfileScreen: fetchProfile called');
     setLoading(true);
     try {
       if (!token) {
-        console.error('No token available in Redux store');
+        console.error('ProfileScreen: No token available in Redux store');
         Alert.alert('Error', 'Authentication token not found. Please login again.');
         setLoading(false);
         return;
       }
 
-      console.log('Making API request with token:', token);
+      console.log('ProfileScreen: Making API request with token:', token);
 
       const response = await api.get('/host/get-profile', {
         headers: {
@@ -65,41 +67,50 @@ const ProfileScreen = ({ navigation }) => {
         }
       });
       
-      console.log('Profile API Response:', response.data);
+      console.log('ProfileScreen: Profile API Response:', response.data);
       
       if (response.data.success) {
+        console.log('ProfileScreen: API call successful, setting profileData:', response.data.data);
         setProfileData(response.data.data);
       } else {
-        console.error('API returned success: false', response.data);
+        console.error('ProfileScreen: API returned success: false', response.data);
         Alert.alert('Error', response.data.message || 'Failed to fetch profile data');
       }
     } catch (error) {
-      console.error('Error fetching profile:', error.message);
+      console.error('ProfileScreen: Error fetching profile:', error.message);
       if (error.response) {
-        console.error('Error response data:', error.response.data);
-        console.error('Error response status:', error.response.status);
+        console.error('ProfileScreen: Error response data:', error.response.data);
+        console.error('ProfileScreen: Error response status:', error.response.status);
         Alert.alert('Error', error.response.data?.message || 'Failed to fetch profile data');
       } else if (error.request) {
-        console.error('Error request:', error.request);
+        console.error('ProfileScreen: Error request:', error.request);
         Alert.alert('Error', 'No response from server. Please check your internet connection.');
       } else {
-        console.error('Error message:', error.message);
+        console.error('ProfileScreen: Error message:', error.message);
         Alert.alert('Error', 'An unexpected error occurred');
       }
     } finally {
+      console.log('ProfileScreen: fetchProfile completed, setting loading to false');
       setLoading(false);
     }
   };
 
   const handleLogout = () => {
+    console.log('ProfileScreen: handleLogout called');
     dispatch(logout());
+    console.log('ProfileScreen: Dispatched logout action');
     navigation.reset({
       index: 0,
       routes: [{ name: 'Onboard1' }],
     });
+    console.log('ProfileScreen: Navigated to Onboard1');
   };
 
+  console.log('ProfileScreen: Rendering with profileData:', profileData);
+  console.log('ProfileScreen: Loading state:', loading);
+
   if (loading) {
+    console.log('ProfileScreen: Rendering loading state');
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color="#8D6BFC" />
@@ -107,6 +118,7 @@ const ProfileScreen = ({ navigation }) => {
     );
   }
 
+  console.log('ProfileScreen: Rendering main UI');
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -142,6 +154,7 @@ const ProfileScreen = ({ navigation }) => {
               style={styles.settingsRow}
               activeOpacity={0.7}
               onPress={() => {
+                console.log(`ProfileScreen: Navigating to ${item.nav}`);
                 if (item.nav) navigation.navigate(item.nav);
               }}
             >

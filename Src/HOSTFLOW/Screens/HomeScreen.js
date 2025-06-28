@@ -71,7 +71,8 @@ const HomeScreen = ({ navigation }) => {
   const token = useSelector(state => state.auth.token);
   const fullName = useSelector(selectFullName);
   const location = useSelector(selectLocation);
-console.log("token",token)
+  console.log("token", token);
+
   // For selected pills in each section
   const [selected, setSelected] = React.useState({
     filter: 'Today',
@@ -81,8 +82,10 @@ console.log("token",token)
   });
 
   const [artistData, setArtistData] = React.useState([]);
+  const [filteredArtistData, setFilteredArtistData] = React.useState([]);
   const [currentIndex, setCurrentIndex] = React.useState(0);
 
+  // Fetch artists and initialize filtered data
   React.useEffect(() => {
     const fetchArtists = async () => {
       try {
@@ -94,26 +97,102 @@ console.log("token",token)
         });
         if (response.data.success) {
           setArtistData(response.data.data);
+          setFilteredArtistData(response.data.data); // Initialize filtered data
         }
       } catch (error) {
         console.error('Error fetching artists:', error);
         setArtistData([]);
+        setFilteredArtistData([]);
       }
     };
     fetchArtists();
   }, [token]);
 
+  // Apply filters whenever selected or artistData changes
+  React.useEffect(() => {
+    const applyFilters = () => {
+      let filtered = [...artistData];
+
+      // Filter by instrument
+      if (selected.instrument !== 'Acoustic Guitar') { // Default is Acoustic Guitar, so only filter if different
+        filtered = filtered.filter(artist => artist.instrument === selected.instrument);
+      }
+
+      // Filter by type (genre)
+      if (selected.genre !== 'Soul Queen') { // Default is Soul Queen, so only filter if different
+        filtered = filtered.filter(artist => artist.artistType === selected.genre);
+      }
+
+      // Filter by price
+      switch (selected.price) {
+        case 'Low - High':
+          filtered = filtered.sort((a, b) => a.budget - b.budget);
+          break;
+        case 'High - Low':
+          filtered = filtered.sort((a, b) => b.budget - a.budget);
+          break;
+        case 'Tickets under ₹1000':
+          filtered = filtered.filter(artist => artist.budget < 1000);
+          break;
+        case '₹1000-₹2000':
+          filtered = filtered.filter(artist => artist.budget >= 1000 && artist.budget <= 2000);
+          break;
+        case '₹2000-₹3000':
+          filtered = filtered.filter(artist => artist.budget >= 2000 && artist.budget <= 3000);
+          break;
+        case '₹3000+':
+          filtered = filtered.filter(artist => artist.budget > 3000);
+          break;
+        default:
+          break;
+      }
+
+      // Filter by distance/time (simplified, as actual distance/time logic requires additional data)
+      switch (selected.filter) {
+        case 'Near - Far':
+          // Assuming address can be used for sorting (requires geolocation for actual implementation)
+          filtered = filtered.sort((a, b) => a.address.localeCompare(b.address));
+          break;
+        case 'Far - Near':
+          filtered = filtered.sort((a, b) => b.address.localeCompare(a.address));
+          break;
+        case '1km-3km':
+          // Placeholder: Actual distance filtering requires geolocation
+          filtered = filtered.filter(artist => artist.address.includes('City')); // Example condition
+          break;
+        case '3km-5km':
+          filtered = filtered.filter(artist => !artist.address.includes('City')); // Example condition
+          break;
+        case '5km+':
+          filtered = filtered.filter(artist => !artist.address.includes('City')); // Example condition
+          break;
+        case 'Today':
+        case 'This Week':
+        case 'This Weekend':
+        case 'Next Weekend':
+          // Placeholder: Actual time-based filtering requires event dates
+          break;
+        default:
+          break;
+      }
+
+      setFilteredArtistData(filtered);
+    };
+
+    applyFilters();
+  }, [selected, artistData]);
+
   const handleShortlist = async () => {
     console.log('--- Shortlist Button Pressed ---');
 
-    if (!artistData || artistData.length === 0) {
+    if (!filteredArtistData || filteredArtistData.length === 0) {
       console.log('No artist data available to shortlist.');
       Alert.alert('No Artists', 'There are no artists to shortlist.');
       return;
     }
     console.log(`Current artist index: ${currentIndex}`);
 
-    const artist = artistData[currentIndex];
+    const artist = filteredArtistData[currentIndex];
     if (!artist || !artist.artistId) {
       console.log('Could not find artist or artistId at the current index.');
       Alert.alert('Error', 'Could not find artist to shortlist.');
@@ -151,7 +230,6 @@ console.log("token",token)
         Alert.alert('Error', response.data.message || 'Could not shortlist the artist.');
       }
     } catch (error) {
-      // Check for "Artist already shortlisted." error
       if (
         error.response &&
         error.response.data &&
@@ -161,16 +239,12 @@ console.log("token",token)
       } else {
         console.log('--- API Call Failed ---');
         if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
           console.error('Error Response Data:', JSON.stringify(error.response.data, null, 2));
           console.error('Error Response Status:', error.response.status);
           console.error('Error Response Headers:', JSON.stringify(error.response.headers, null, 2));
         } else if (error.request) {
-          // The request was made but no response was received
           console.error('Error Request:', error.request);
         } else {
-          // Something happened in setting up the request that triggered an Error
           console.error('Error Message:', error.message);
         }
         console.error('Full Error Object:', error);
@@ -193,10 +267,10 @@ console.log("token",token)
   }).current;
 
   const filterOptions = {
-    filter: ['Near - Far', 'Far - Near', 'Today', 'This Week' ,'This Weekend','Next Weekend','1km-3km','3km-5km','5km+'],
-    price: ['Low - High', 'High - Low', 'Tickets under ₹1000','₹1000-₹2000','₹2000-₹3000','₹3000+'],
-    instrument: ['Electric Guitar', 'Saxophone', 'Acoustic Guitar', 'Synthesizer','Drum Machine','Banjo','Trumpet','Turntables'],
-    type: ['Musician', 'Comedian', 'Magician', 'Anchor','Dancer','Poet','Dj','Other'],
+    filter: ['Near - Far', 'Far - Near', 'Today', 'This Week', 'This Weekend', 'Next Weekend', '1km-3km', '3km-5km', '5km+'],
+    price: ['Low - High', 'High - Low', 'Tickets under ₹1000', '₹1000-₹2000', '₹2000-₹3000', '₹3000+'],
+    instrument: ['Electric Guitar', 'Saxophone', 'Acoustic Jacket', 'Synthesizer', 'Drum Machine', 'Banjo', 'Trumpet', 'Turntables'],
+    type: ['Musician', 'Comedian', 'Magician', 'Anchor', 'Dancer', 'Poet', 'Dj', 'Other'],
   };
 
   // Enhanced responsive dimensions with comprehensive safe area considerations
@@ -206,23 +280,20 @@ console.log("token",token)
     safeAreaBottom: Math.max(insets.bottom, 0),
     safeAreaLeft: Math.max(insets.left, 0),
     safeAreaRight: Math.max(insets.right, 0),
-    // Dynamic header height based on device and safe areas
     headerHeight: Math.max(
-      dimensions.headerHeight + insets.top * 0.3, 
+      dimensions.headerHeight + insets.top * 0.3,
       width >= 768 ? 100 : 80
     ),
-    // Enhanced container padding that adapts to safe areas and device type
     containerPadding: {
       horizontal: Math.max(
-        insets.left + insets.right + dimensions.spacing.md, 
+        insets.left + insets.right + dimensions.spacing.md,
         width >= 768 ? dimensions.spacing.lg : dimensions.spacing.md
       ),
       vertical: Math.max(
-        insets.top + insets.bottom + dimensions.spacing.sm, 
+        insets.top + insets.bottom + dimensions.spacing.sm,
         dimensions.spacing.sm
       ),
     },
-    // Device-specific spacing adjustments
     spacing: {
       xs: Math.max(dimensions.spacing.xs, width >= 768 ? 6 : 4),
       sm: Math.max(dimensions.spacing.sm, width >= 768 ? 12 : 8),
@@ -230,7 +301,6 @@ console.log("token",token)
       lg: Math.max(dimensions.spacing.lg, width >= 768 ? 24 : 16),
       xl: Math.max(dimensions.spacing.xl, width >= 768 ? 30 : 20),
     },
-    // Responsive font sizes
     fontSize: {
       small: Math.max(dimensions.fontSize.small, width >= 768 ? 14 : 12),
       medium: Math.max(dimensions.fontSize.medium, width >= 768 ? 16 : 14),
@@ -270,17 +340,14 @@ console.log("token",token)
           colors={['#B15CDE', '#7952FC']}
           style={styles.modalContainer}
         >
-          {/* Close Button */}
-          <TouchableOpacity 
-            style={styles.closeButton} 
+          <TouchableOpacity
+            style={styles.closeButton}
             onPress={() => setShowFilter(false)}
           >
             <Ionicons name="close" size={24} color="#7952FC" />
           </TouchableOpacity>
 
-          {/* Filter Content - No Scroll, Compact Layout */}
           <View style={styles.filterContent}>
-            {/* FILTER Section */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>FILTER</Text>
@@ -289,7 +356,6 @@ console.log("token",token)
               {renderPills('filter')}
             </View>
 
-            {/* PRICE Section */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>PRICE</Text>
@@ -298,7 +364,6 @@ console.log("token",token)
               {renderPills('price')}
             </View>
 
-            {/* INSTRUMENT Section */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>INSTRUMENT</Text>
@@ -307,7 +372,6 @@ console.log("token",token)
               {renderPills('instrument')}
             </View>
 
-            {/* GENRE Section */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>GENRE</Text>
@@ -317,10 +381,9 @@ console.log("token",token)
             </View>
           </View>
 
-          {/* Fixed Continue Button */}
           <View style={styles.fixedButtonContainer}>
-            <TouchableOpacity 
-              style={styles.continueButton} 
+            <TouchableOpacity
+              style={styles.continueButton}
               onPress={() => setShowFilter(false)}
             >
               <Text style={styles.continueButtonText}>Continue</Text>
@@ -337,40 +400,44 @@ console.log("token",token)
       index * snapToInterval,
       (index + 1) * snapToInterval,
     ];
-
+  
     const scale = scrollX.interpolate({
       inputRange,
       outputRange: [0.85, 1, 0.85],
       extrapolate: 'clamp',
     });
-
+  
     const opacity = scrollX.interpolate({
       inputRange,
       outputRange: [0.5, 1, 0.5],
       extrapolate: 'clamp',
     });
-
+  
     // Use artist data for image, genre, and price
     const imageSource = item.profileImageUrl ? { uri: item.profileImageUrl } : require('../assets/Videos/Video.mp4');
-    const genre = Array.isArray(item.genre) && item.genre.length > 0 ? item.genre[0] : 'PERFORMANCE';
+    const genre = item.artistType || 'PERFORMANCE';
     const price = item.budget ? `$${item.budget}` : '$0';
-
+  
     return (
-      <Animated.View style={[
-        styles.eventCard, 
-        { 
-          transform: [{ scale }], 
-          opacity,
-          width: dimensions.cardWidth,
-          height: 540,
-        }
-      ]}>
-        <TouchableOpacity onPress={() => {
-          console.log('Navigating to HostPerfomanceDetails with artistId:', item.artistId);
-          navigation.navigate('HostPerfomanceDetails');
-        }} style={styles.eventCardTouchable}>
+      <Animated.View
+        style={[
+          styles.eventCard,
+          {
+            transform: [{ scale }],
+            opacity,
+            width: dimensions.cardWidth,
+            height: 540,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => {
+            console.log('Navigating to HostPerfomanceDetails with artist:', item);
+            navigation.navigate('HostPerfomanceDetails', { artist: item });
+          }}
+          style={styles.eventCardTouchable}
+        >
           <View style={styles.videoContainer}>
-            {/* If image is a video, use Video component, else use Image */}
             {item.profileImageUrl ? (
               <Image source={imageSource} style={styles.eventVideo} resizeMode="cover" />
             ) : (
@@ -388,57 +455,52 @@ console.log("token",token)
               />
             )}
           </View>
-
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
-          style={styles.gradientOverlay}
-        />
-
-        <View style={styles.crowdGuaranteeContainer}>
-          <Text style={styles.crowdGuaranteeText}>Crowd Guarante</Text>
-        </View>
-
-        <View style={styles.cardBottomPills}>
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>{genre}</Text>
+  
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            style={styles.gradientOverlay}
+          />
+  
+          <View style={styles.crowdGuaranteeContainer}>
+            <Text style={styles.crowdGuaranteeText}>
+              {item.isCrowdGuarantee ? 'Crowd Guarantee' : ''}
+            </Text>
           </View>
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>{price}</Text>
+  
+          <View style={styles.cardBottomPills}>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>{genre}</Text>
+            </View>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>{price}</Text>
+            </View>
           </View>
-        </View>
         </TouchableOpacity>
       </Animated.View>
     );
   };
-
-  // Calculate snap interval for FlatList swiper effect with safe area considerations
-  // Event card sizing to match the design - main card prominent with side peeking
   const availableWidth = width - (responsiveDimensions.safeAreaLeft + responsiveDimensions.safeAreaRight);
   const availableHeight = height - (responsiveDimensions.safeAreaTop + responsiveDimensions.safeAreaBottom);
-  
-  // Enhanced responsive card width calculation
-  const baseCardWidthPercentage = width >= 768 ? 0.7 : 0.8; // Different percentages for tablets vs phones
-  const eventCardWidth = 235; // Thin rectangle
-  const eventCardHeight = 430; // Long height
-  
-  // Responsive margin based on screen size and safe areas
+
+  const baseCardWidthPercentage = width >= 768 ? 0.7 : 0.8;
+  const eventCardWidth = 235;
+  const eventCardHeight = 430;
+
   const eventCardMarginRight = Math.max(
-    Math.min(dimensions.spacing.sm, availableWidth * 0.02), // 2% of available width or minimum spacing
+    Math.min(dimensions.spacing.sm, availableWidth * 0.02),
     8
   );
-  
-  // Enhanced peeking distance calculation with safe area consideration
+
   const basePeekingDistance = (availableWidth - eventCardWidth) / 2;
   const peekingDistance = Math.max(
     basePeekingDistance,
     Math.max(responsiveDimensions.safeAreaLeft, responsiveDimensions.safeAreaRight) + dimensions.spacing.sm
   );
-  
+
   const snapToInterval = eventCardWidth + eventCardMarginRight;
 
   const scrollX = React.useRef(new Animated.Value(0)).current;
 
-  // Dropdown/Accordion state and data
   const [showDropdowns, setShowDropdowns] = React.useState(false);
   const dropdownButtons = [
     { key: 'openmic', label: 'Open mic' },
@@ -449,106 +511,132 @@ console.log("token",token)
   const dropdownAnimations = React.useRef([
     new Animated.Value(0),
     new Animated.Value(0),
-    new Animated.Value(0)
+    new Animated.Value(0),
   ]).current;
 
   const animateDropdowns = (show) => {
-    // Reset animations if hiding
     if (!show) {
-      dropdownAnimations.forEach(anim => anim.setValue(0));
+      dropdownAnimations.forEach((anim) => anim.setValue(0));
       setShowDropdowns(false);
       return;
     }
 
     setShowDropdowns(true);
-    // Animate each dropdown item with a delay
     dropdownAnimations.forEach((anim, index) => {
       Animated.timing(anim, {
         toValue: 1,
         duration: 300,
-        delay: index * 150, // 150ms delay between each item
+        delay: index * 150,
         useNativeDriver: true,
-        easing: Easing.out(Easing.cubic)
+        easing: Easing.out(Easing.cubic),
       }).start();
     });
   };
 
-  // Update the button press handler
   const handleCuratedPress = () => {
     animateDropdowns(!showDropdowns);
   };
 
   return (
-    <View style={[
-      styles.container, 
-      { 
-        paddingTop: responsiveDimensions.safeAreaTop,
-        paddingLeft: responsiveDimensions.safeAreaLeft,
-        paddingRight: responsiveDimensions.safeAreaRight,
-        paddingBottom: responsiveDimensions.safeAreaBottom,
-      }
-    ]}>
-      {/* Background SVG */}
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: responsiveDimensions.safeAreaTop,
+          paddingLeft: responsiveDimensions.safeAreaLeft,
+          paddingRight: responsiveDimensions.safeAreaRight,
+          paddingBottom: responsiveDimensions.safeAreaBottom,
+        },
+      ]}
+    >
       <View style={styles.backgroundContainer}>
-        <SignUpBackground 
-          width={width} 
+        <SignUpBackground
+          width={width}
           height={height}
           preserveAspectRatio="xMidYMid slice"
         />
       </View>
-      
-      {/* Header */}
-      <View style={[
-        styles.header, 
-        { 
-          paddingTop: Math.max(dimensions.spacing.md, 15),
-          paddingHorizontal: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.md),
-          paddingLeft: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.md),
-          paddingRight: Math.max(responsiveDimensions.safeAreaRight + dimensions.spacing.md, dimensions.spacing.md),
-        }
-      ]}>
+
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(dimensions.spacing.md, 15),
+            paddingHorizontal: Math.max(
+              responsiveDimensions.safeAreaLeft + dimensions.spacing.md,
+              dimensions.spacing.md
+            ),
+            paddingLeft: Math.max(
+              responsiveDimensions.safeAreaLeft + dimensions.spacing.md,
+              dimensions.spacing.md
+            ),
+            paddingRight: Math.max(
+              responsiveDimensions.safeAreaRight + dimensions.spacing.md,
+              dimensions.spacing.md
+            ),
+          },
+        ]}
+      >
         <View>
           <Text style={styles.greeting}>Hello {fullName || 'User'}!</Text>
           <Text style={styles.location}>📍 {location || 'Location'}</Text>
         </View>
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('Notification')} 
-          style={{ 
-            padding: dimensions.spacing.sm, // Add touch area
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Notification')}
+          style={{
+            padding: dimensions.spacing.sm,
           }}
         >
           <NotificationIcon width={28} height={36} />
         </TouchableOpacity>
       </View>
 
-      {/* Button Container with Dropdown */}
-      <View style={[
-        styles.buttonWithDropdownContainer,
-        {
-          marginLeft: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.md),
-          marginRight: Math.max(responsiveDimensions.safeAreaRight + dimensions.spacing.md, dimensions.spacing.md),
-        }
-      ]}>
+      <View
+        style={[
+          styles.buttonWithDropdownContainer,
+          {
+            marginLeft: Math.max(
+              responsiveDimensions.safeAreaLeft + dimensions.spacing.md,
+              dimensions.spacing.md
+            ),
+            marginRight: Math.max(
+              responsiveDimensions.safeAreaRight + dimensions.spacing.md,
+              dimensions.spacing.md
+            ),
+          },
+        ]}
+      >
         {showDropdowns ? (
           <LinearGradient
             colors={['#B15CDE', '#7952FC']}
             style={styles.curatedButton}
           >
-            <TouchableOpacity 
-              style={{flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center'}} 
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                width: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
               onPress={handleCuratedPress}
               activeOpacity={0.8}
             >
-              <Text style={[styles.curatedButtonText, { color: '#fff' }]}>Personalised Curated Events by Scenezone</Text>
+              <Text
+                style={[styles.curatedButtonText, { color: '#fff' }]}
+              >
+                Personalised Curated Events by Scenezone
+              </Text>
             </TouchableOpacity>
           </LinearGradient>
         ) : (
-          <TouchableOpacity 
-            style={styles.curatedButton} 
+          <TouchableOpacity
+            style={styles.curatedButton}
             onPress={handleCuratedPress}
             activeOpacity={0.8}
           >
-            <Text style={styles.curatedButtonText}>Personalised Curated Events by Scenezone</Text>
+            <Text style={styles.curatedButtonText}>
+              Personalised Curated Events by Scenezone
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -560,15 +648,18 @@ console.log("token",token)
                 style={[
                   styles.dropdownButton,
                   {
-                    transform: [{
-                      translateY: dropdownAnimations[index].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-20, 0]
-                      })
-                    }],
+                    transform: [
+                      {
+                        translateY: dropdownAnimations[index].interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-20, 0],
+                        }),
+                      },
+                    ],
                     opacity: dropdownAnimations[index],
-                    marginBottom: index === dropdownButtons.length - 1 ? 0 : 4
-                  }
+                    marginBottom:
+                      index === dropdownButtons.length - 1 ? 0 : 4,
+                  },
                 ]}
               >
                 <TouchableOpacity style={styles.dropdownButtonTouchable}>
@@ -580,25 +671,33 @@ console.log("token",token)
         )}
       </View>
 
-      {/* Horizontal Event List */}
       <Animated.FlatList
-        data={artistData}
+        data={filteredArtistData} // Use filtered data
         renderItem={renderEventCard}
         keyExtractor={(item) => item._id}
         horizontal
         showsHorizontalScrollIndicator={false}
         snapToInterval={snapToInterval}
-        decelerationRate={"fast"}
+        decelerationRate={'fast'}
         pagingEnabled
         contentContainerStyle={[
-          styles.eventListContainer, 
-          { 
-            paddingHorizontal: Math.max(peekingDistance + responsiveDimensions.safeAreaLeft, peekingDistance),
+          styles.eventListContainer,
+          {
+            paddingHorizontal: Math.max(
+              peekingDistance + responsiveDimensions.safeAreaLeft,
+              peekingDistance
+            ),
             paddingTop: 8,
             paddingBottom: 8,
-            paddingLeft: Math.max(peekingDistance + responsiveDimensions.safeAreaLeft, peekingDistance),
-            paddingRight: Math.max(peekingDistance + responsiveDimensions.safeAreaRight, peekingDistance),
-          }
+            paddingLeft: Math.max(
+              peekingDistance + responsiveDimensions.safeAreaLeft,
+              peekingDistance
+            ),
+            paddingRight: Math.max(
+              peekingDistance + responsiveDimensions.safeAreaRight,
+              peekingDistance
+            ),
+          },
         ]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
@@ -609,23 +708,30 @@ console.log("token",token)
         scrollEventThrottle={16}
       />
 
-      {/* Middle Icons */}
-      <View style={[
-        styles.middleIconsContainer,
-        {
-          marginTop: Math.max(dimensions.spacing.xl + 20, 40), // Increased margin to shift buttons down
-          marginBottom: Math.max(dimensions.spacing.lg + 60, 90), // Increased from 80 to 100 and 110 to 130
-          paddingBottom: Math.max(dimensions.spacing.md, 10),
-          paddingHorizontal: Math.max(dimensions.spacing.md, dimensions.spacing.md),
-          paddingLeft: Math.max(dimensions.spacing.md, dimensions.spacing.md),
-          paddingRight: Math.max(dimensions.spacing.md, dimensions.spacing.md),
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1,
-        }
-      ]}>
+      <View
+        style={[
+          styles.middleIconsContainer,
+          {
+            marginTop: Math.max(dimensions.spacing.xl + 20, 40),
+            marginBottom: Math.max(dimensions.spacing.lg + 60, 90),
+            paddingBottom: Math.max(dimensions.spacing.md, 10),
+            paddingHorizontal: Math.max(
+              dimensions.spacing.md,
+              dimensions.spacing.md
+            ),
+            paddingLeft: Math.max(dimensions.spacing.md, dimensions.spacing.md),
+            paddingRight: Math.max(
+              dimensions.spacing.md,
+              dimensions.spacing.md
+            ),
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1,
+          },
+        ]}
+      >
         <TouchableOpacity
           style={[styles.middleIconButton, styles.middleIconButtonBorder]}
           onPress={() => setShowFilter(true)}
@@ -633,26 +739,24 @@ console.log("token",token)
           <Icon name="sliders" size={20} color="#a95eff" />
         </TouchableOpacity>
 
-        {/* New button with MiddleButton icon */}
         <TouchableOpacity
           style={[styles.middleIconButton, { backgroundColor: '#B15CDE', padding: 1 }]}
           onPress={handleShortlist}
         >
-          <View style={{ 
-            width: 45,
-            height: 45,
-            justifyContent: 'center', 
-            alignItems: 'center',
-            borderRadius: 20,
-            backgroundColor: '#B15CDE'
-          }}>
+          <View
+            style={{
+              width: 45,
+              height: 45,
+              justifyContent: 'center',
+              alignItems: 'center',
+              borderRadius: 20,
+              backgroundColor: '#B15CDE',
+            }}
+          >
             <MiddleButton width={28} height={28} />
           </View>
         </TouchableOpacity>
-
       </View>
-
-      {/* Bottom Navigation Bar */}
 
       <FilterModal />
     </View>
@@ -706,7 +810,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     padding: 12,
     borderRadius: 17,
-    alignItems: 'center',   
+    alignItems: 'center',
     borderColor: '#B15CDE',
     borderWidth: 1,
     marginBottom: 0,
@@ -815,8 +919,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-
-  // Middle Icons styles
   middleIconsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -840,8 +942,6 @@ const styles = StyleSheet.create({
   middleIconButtonActive: {
     backgroundColor: '#a95eff',
   },
-
-  // Bottom Navigation Bar styles
   bottomNavBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -1066,4 +1166,3 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
-
