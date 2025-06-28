@@ -448,12 +448,24 @@ const CreateProfile = ({ navigation }) => {
       setIsUploading(true);
       // Send everything in one FormData POST to create-performance-gallery
       const formData = new FormData();
-      formData.append('venueName', String(venueName));
-      formData.append('genre', String(selectedGenre));
+      
+      // Ensure venueName is properly formatted string
+      formData.append('venueName', venueName.trim());
+      
+      // Ensure genre is properly formatted string
+      formData.append('genre', selectedGenre.trim());
+      
+      // Video file with proper formatting
       formData.append('video', {
         uri: videoSource.uri,
         type: videoSource.type || 'video/mp4',
-        name: 'performance.mp4',
+        name: `performance_${Date.now()}.mp4`,
+      });
+      
+      console.log('Upload FormData:', {
+        venueName: venueName.trim(),
+        genre: selectedGenre.trim(),
+        videoUri: videoSource.uri
       });
       const res = await api.post('/artist/profile/create-performance-gallery', formData, {
         headers: {
@@ -461,20 +473,40 @@ const CreateProfile = ({ navigation }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+      console.log('Upload Response:', res.data); // Debug: Check upload response
+      
       if (res.data && res.data.success) {
-        // Refresh gallery
-        const galleryRes = await api.get('/artist/profile/get-all-performances-by-artist', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (galleryRes.data && galleryRes.data.success && Array.isArray(galleryRes.data.data)) {
-          setGalleryVideos(galleryRes.data.data.map((item, idx) => ({
-            id: item._id || idx.toString(),
-            uri: item.videoUrl,
-            genre: item.genre,
-            venue: item.venueName,
-            timestamp: item.createdAt,
-          })));
+        // Add the newly uploaded video to local gallery immediately
+        const newVideo = {
+          id: res.data.data._id || Date.now().toString(),
+          uri: res.data.data.videoUrl,
+          genre: res.data.data.genre,
+          venue: res.data.data.venueName,
+          timestamp: new Date().toISOString(),
+        };
+        
+        setGalleryVideos(prev => [...prev, newVideo]);
+        console.log('Added new video to gallery:', newVideo);
+        
+        // Try to refresh gallery from server (optional)
+        try {
+          const galleryRes = await api.get('/artist/profile/get-all-performances-by-artist', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (galleryRes.data && galleryRes.data.success && Array.isArray(galleryRes.data.data)) {
+            setGalleryVideos(galleryRes.data.data.map((item, idx) => ({
+              id: item._id || idx.toString(),
+              uri: item.videoUrl,
+              genre: item.genre,
+              venue: item.venueName,
+              timestamp: item.createdAt,
+            })));
+            console.log('Refreshed gallery from server');
+          }
+        } catch (galleryError) {
+          console.log('Could not refresh gallery from server, using local data');
         }
+        
         setIsUploadModalVisible(false);
         setVideoSource(null);
         setVenueName('');
@@ -482,15 +514,23 @@ const CreateProfile = ({ navigation }) => {
         Alert.alert('Success', 'Video uploaded successfully!');
       } else {
         console.error('Upload error:', res.data);
-        Alert.alert('Error', res.data.message || 'Failed to upload performance.');
+        Alert.alert('Error', res.data?.message || 'Failed to upload performance.');
       }
     } catch (err) {
+      console.error('Upload Error Details:', {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+        config: {
+          url: err.config?.url,
+          method: err.config?.method,
+        }
+      });
+      
       if (err.response && err.response.data) {
-        console.error('Upload error:', err.response.data);
-        Alert.alert('Error', err.response.data.message || 'Failed to upload performance.');
+        Alert.alert('Upload Error', err.response.data.message || 'Failed to upload performance.');
       } else {
-        console.error('Upload error:', err);
-        Alert.alert('Error', 'Failed to upload performance.');
+        Alert.alert('Network Error', 'Failed to upload performance. Please check your connection.');
       }
     } finally {
       setIsUploading(false);
@@ -579,15 +619,30 @@ const CreateProfile = ({ navigation }) => {
   useEffect(() => {
     const fetchProfileAndGallery = async () => {
       if (!token) return;
-      try {
-        // Fetch artist info for prefill
-        const res = await api.get('/artist/auth/get-artist', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.data && res.data.success && res.data.data) {
-          setFullName(res.data.data.fullName || '');
-          setPhoneNumber(res.data.data.mobileNumber ? String(res.data.data.mobileNumber) : '');
-        }
+             try {
+         // Fetch artist info for prefill
+         const res = await api.get('/artist/auth/get-artist', {
+           headers: { Authorization: `Bearer ${token}` }
+         });
+         
+         console.log('Artist API Response:', res.data); // Debug: Check API response
+         
+         if (res.data && res.data.success && res.data.data) {
+           const artistData = res.data.data;
+           console.log('Artist Data:', artistData); // Debug: Check artist data
+           
+           // Set fullname from API response
+           const fullNameFromApi = artistData.fullName || artistData.name || '';
+           setFullName(fullNameFromApi);
+           console.log('Setting fullName:', fullNameFromApi);
+           
+           // Set phone number from API response
+           const phoneFromApi = artistData.mobileNumber || artistData.phone || '';
+           setPhoneNumber(phoneFromApi ? String(phoneFromApi) : '');
+           console.log('Setting phoneNumber:', phoneFromApi);
+         } else {
+           console.log('No artist data found in API response');
+         }
         // Fetch performances for gallery
         const galleryRes = await api.get('/artist/profile/get-all-performances-by-artist', {
           headers: { Authorization: `Bearer ${token}` }
@@ -601,9 +656,18 @@ const CreateProfile = ({ navigation }) => {
             timestamp: item.createdAt,
           })));
         }
-      } catch (err) {
-        // Optionally handle error
-      }
+             } catch (err) {
+         console.error('Error fetching artist profile:', err.message);
+         console.error('Error response data:', err.response?.data);
+         console.error('Error response status:', err.response?.status);
+         
+         // Fallback to Redux data if API fails
+         if (userData) {
+           console.log('Falling back to Redux data:', userData);
+           setFullName(userData.fullName || userData.name || '');
+           setPhoneNumber(userData.mobileNumber ? String(userData.mobileNumber) : userData.phone || '');
+         }
+       }
     };
     fetchProfileAndGallery();
   }, [token]);

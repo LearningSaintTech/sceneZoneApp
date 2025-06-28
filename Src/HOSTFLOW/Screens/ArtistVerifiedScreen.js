@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -47,9 +47,12 @@ const VerificationSuccessIcon = (props) => (
 );
 
 const ArtistVerifiedScreen = ({ navigation }) => {
-  const handleScreenTap = () => {
-    navigation.navigate('CreateProfile');
-  };
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      navigation.navigate('CreateProfile');
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
@@ -59,14 +62,10 @@ const ArtistVerifiedScreen = ({ navigation }) => {
         height={height}
       />
       <SafeAreaView style={styles.overlay}>
-        <TouchableOpacity 
-          style={styles.content} 
-          onPress={handleScreenTap}
-          activeOpacity={1}
-        >
+        <View style={styles.content}>
           <VerificationSuccessIcon style={styles.icon} />
           <Text style={styles.title}>Verification Success</Text>
-        </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </View>
   );
