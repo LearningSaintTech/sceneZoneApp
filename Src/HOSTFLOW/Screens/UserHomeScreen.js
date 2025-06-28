@@ -125,8 +125,8 @@
 //             </TouchableOpacity>
 //           )}
 //           <TouchableOpacity style={styles.latestEventHeartIcon} onPress={() => handleFavoriteToggle(item.eventId)}>
-//             <Ionicons 
-//               name={isFavorite ? "heart" : "heart-outline"} 
+//             <Ionicons
+//               name={isFavorite ? "heart" : "heart-outline"}
 //               size={dimensions.navIconSize}
 //               color={isFavorite ? "#ff4444" : "#fff"}
 //             />
@@ -214,7 +214,7 @@
 //         <View style={[styles.calendarDot, { backgroundColor: config.indicatorColor }]} />
 //         <View style={[styles.calendarDot, { backgroundColor: config.indicatorColor }]} />
 //       </View>
-      
+
 //       {/* Main button content */}
 //       <View style={styles.calendarButtonContent}>
 //         <Text style={styles.calendarPlanForButtonText}>{config.text}</Text>
@@ -262,21 +262,19 @@
 //   const IconComponent = config.component;
 
 //   return (
-//     <IconComponent 
-//       width={24} 
+//     <IconComponent
+//       width={24}
 //       height={24}
 //     />
 //   );
 // };
-
-
 
 // const UserHomeScreen = ({ navigation, route }) => {
 //   const dispatch = useDispatch();
 //   const scrollX = useRef(new Animated.Value(0)).current;
 //   const snapToInterval = dimensions.cardWidth + dimensions.spacing.lg;
 //   const insets = useSafeAreaInsets();
-  
+
 //   // Get isLoggedIn from Redux store
 //   const isLoggedIn = useSelector(selectIsLoggedIn);
 
@@ -377,10 +375,10 @@
 
 //     return (
 //       <TouchableOpacity activeOpacity={0.85} onPress={() => handleFeatureNavigation('UserEvent')}>
-//         <Animated.View 
+//         <Animated.View
 //           style={[
 //             styles.eventCardContainerHorizontalScroll,
-//             { 
+//             {
 //               transform: [{ scale }],
 //               opacity,
 //             }
@@ -394,7 +392,7 @@
 //           />
 //           {renderMedia()}
 //           <View style={styles.imageOverlay} />
-//           <TouchableOpacity 
+//           <TouchableOpacity
 //             style={styles.heartIconPlaceholder}
 //             onPress={() => {
 //               if (isLoggedIn) {
@@ -404,10 +402,10 @@
 //               }
 //             }}
 //           >
-//             <Ionicons 
-//               name={item.isFavorite ? "heart" : "heart-outline"} 
-//               size={dimensions.navIconSize} 
-//               color={item.isFavorite ? "#ff4444" : "#fff"} 
+//             <Ionicons
+//               name={item.isFavorite ? "heart" : "heart-outline"}
+//               size={dimensions.navIconSize}
+//               color={item.isFavorite ? "#ff4444" : "#fff"}
 //             />
 //           </TouchableOpacity>
 
@@ -416,8 +414,8 @@
 //               <Text style={styles.featuredEventTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
 //               <Text style={styles.featuredEventLocationText} numberOfLines={1} ellipsizeMode="tail">{item.location}</Text>
 //             </View>
-//             <TouchableOpacity 
-//               style={styles.featuredEventArrowButton} 
+//             <TouchableOpacity
+//               style={styles.featuredEventArrowButton}
 //               onPress={() => handleFeatureNavigation('UserEvent')}
 //             >
 //               <Icon name="arrow-right" size={19.257} color="#a95eff" style={styles.featuredEventArrowIcon} />
@@ -429,25 +427,25 @@
 //   };
 
 //   const featuredEvents = [
-//     { 
-//       title: 'Another Music Festival', 
-//       price: '', 
+//     {
+//       title: 'Another Music Festival',
+//       price: '',
 //       location: 'Some City, India',
 //       eventId: eventIds.featured,
 //       isFavorite: isFeaturedFavorite,
 //       video: require('../assets/Videos/Video.mp4')
 //     },
-//     { 
-//       title: 'Stand-up Comedy Night', 
-//       price: '', 
+//     {
+//       title: 'Stand-up Comedy Night',
+//       price: '',
 //       location: 'Comedy Club, City',
 //       eventId: eventIds.upcoming1,
 //       isFavorite: isUpcoming1Favorite,
 //       video: require('../assets/Videos/Video.mp4')
 //     },
-//     { 
-//       title: 'Basketball Game', 
-//       price: '', 
+//     {
+//       title: 'Basketball Game',
+//       price: '',
 //       location: 'Sports Stadium, City',
 //       eventId: eventIds.upcoming2,
 //       isFavorite: isUpcoming2Favorite,
@@ -513,9 +511,9 @@
 //       paddingLeft: insets.left,
 //       paddingRight: insets.right,
 //     }]}>
-//       <ScrollView 
-//         showsVerticalScrollIndicator={false} 
-//         style={styles.contentArea} 
+//       <ScrollView
+//         showsVerticalScrollIndicator={false}
+//         style={styles.contentArea}
 //         stickyHeaderIndices={[3, 5]}
 //         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + dimensions.bottomNavHeight, 90) }}
 //       >
@@ -576,15 +574,15 @@
 
 //         {/* Booking Buttons */}
 //         <View style={styles.bookingButtonsContainer}>
-//           <TouchableOpacity 
-//             style={styles.bookingButton} 
+//           <TouchableOpacity
+//             style={styles.bookingButton}
 //             onPress={() => handleFeatureNavigation('ArtistBooking')}
 //           >
 //             <Text style={styles.bookingButtonText} numberOfLines={1} ellipsizeMode="tail">Artist Booking</Text>
 //             <Icon name="chevron-right" size={dimensions.iconSize} color="#a95eff" />
 //           </TouchableOpacity>
-//           <TouchableOpacity 
-//             style={styles.bookingButton} 
+//           <TouchableOpacity
+//             style={styles.bookingButton}
 //             onPress={() => handleFeatureNavigation('UserVenueBookingScreen')}
 //           >
 //             <Text style={styles.bookingButtonText} numberOfLines={1} ellipsizeMode="tail">Venue Booking</Text>
@@ -597,60 +595,60 @@
 //           <Text style={styles.sectionTitle}>Get Your Vibe</Text>
 //           <View>
 //             {/* Spotlight Card */}
-//             <TouchableOpacity 
-//               style={styles.categoryCard} 
+//             <TouchableOpacity
+//               style={styles.categoryCard}
 //               onPress={() => handleFeatureNavigation('SpotlightEvents')}
 //             >
-//               <Image 
-//                 source={require('../assets/Images/f11.png')} 
+//               <Image
+//                 source={require('../assets/Images/f11.png')}
 //                 style={styles.categoryImage}
 //                 resizeMode="cover"
 //               />
 //               <View style={styles.categoryOverlay} />
 //             </TouchableOpacity>
 //             {/* Sports Screening Card */}
-//             <TouchableOpacity 
-//               style={styles.categoryCard} 
+//             <TouchableOpacity
+//               style={styles.categoryCard}
 //               onPress={() => handleFeatureNavigation('SportsScreening')}
 //             >
-//               <Image 
-//                 source={require('../assets/Images/f12.png')} 
+//               <Image
+//                 source={require('../assets/Images/f12.png')}
 //                 style={styles.categoryImage}
 //                 resizeMode="cover"
 //               />
 //               <View style={styles.categoryOverlay} />
 //             </TouchableOpacity>
 //             {/* Music & Party Card */}
-//             <TouchableOpacity 
-//               style={styles.categoryCard} 
+//             <TouchableOpacity
+//               style={styles.categoryCard}
 //               onPress={() => handleFeatureNavigation('MusicParty')}
 //             >
-//               <Image 
-//                 source={require('../assets/Images/f13.png')} 
+//               <Image
+//                 source={require('../assets/Images/f13.png')}
 //                 style={styles.categoryImage}
 //                 resizeMode="cover"
 //               />
 //               <View style={styles.categoryOverlay} />
 //             </TouchableOpacity>
 //             {/* Trending Events Card */}
-//             <TouchableOpacity 
-//               style={styles.categoryCard} 
+//             <TouchableOpacity
+//               style={styles.categoryCard}
 //               onPress={() => handleFeatureNavigation('TrendingEvents')}
 //             >
-//               <Image 
-//                 source={require('../assets/Images/f14.png')} 
+//               <Image
+//                 source={require('../assets/Images/f14.png')}
 //                 style={styles.categoryImage}
 //                 resizeMode="cover"
 //               />
 //               <View style={styles.categoryOverlay} />
 //             </TouchableOpacity>
 //             {/* Comedy Card */}
-//             <TouchableOpacity 
-//               style={styles.categoryCard} 
+//             <TouchableOpacity
+//               style={styles.categoryCard}
 //               onPress={() => handleFeatureNavigation('Comedy')}
 //             >
-//               <Image 
-//                 source={require('../assets/Images/f15.png')} 
+//               <Image
+//                 source={require('../assets/Images/f15.png')}
 //                 style={styles.categoryImage}
 //                 resizeMode="cover"
 //               />
@@ -668,48 +666,48 @@
 //         ]}>
 //           <View style={styles.categoryNavbarScroll}>
 //             {/* Spotlight Button */}
-//             <TouchableOpacity 
-//               style={styles.categoryNavItem} 
+//             <TouchableOpacity
+//               style={styles.categoryNavItem}
 //               onPress={() => handleFeatureNavigation('SpotlightEvents')}
 //             >
 //               <CategoryNavIcon type="spotlight" />
 //               <Text style={styles.categoryNavText}>Spotlight</Text>
 //             </TouchableOpacity>
 //             {/* Sports Button */}
-//             <TouchableOpacity 
-//               style={styles.categoryNavItem} 
+//             <TouchableOpacity
+//               style={styles.categoryNavItem}
 //               onPress={() => handleFeatureNavigation('Sports')}
 //             >
 //               <CategoryNavIcon type="sports" />
 //               <Text style={styles.categoryNavText}>Sports</Text>
 //             </TouchableOpacity>
 //             {/* Party Button */}
-//             <TouchableOpacity 
-//               style={styles.categoryNavItem} 
+//             <TouchableOpacity
+//               style={styles.categoryNavItem}
 //               onPress={() => handleFeatureNavigation('Party')}
 //             >
 //               <CategoryNavIcon type="party" />
 //               <Text style={styles.categoryNavText}>Party</Text>
 //             </TouchableOpacity>
 //             {/* #Events Button */}
-//             <TouchableOpacity 
-//               style={styles.categoryNavItem} 
+//             <TouchableOpacity
+//               style={styles.categoryNavItem}
 //               onPress={() => handleFeatureNavigation('Events')}
 //             >
 //               <CategoryNavIcon type="events" />
 //               <Text style={styles.categoryNavText}>#Events</Text>
 //             </TouchableOpacity>
 //             {/* Comedy Button */}
-//             <TouchableOpacity 
-//               style={styles.categoryNavItem} 
+//             <TouchableOpacity
+//               style={styles.categoryNavItem}
 //               onPress={() => handleFeatureNavigation('Comedy')}
 //             >
 //               <CategoryNavIcon type="comedy" />
 //               <Text style={styles.categoryNavText}>Comedy</Text>
 //             </TouchableOpacity>
 //             {/* Workshop Button */}
-//             <TouchableOpacity 
-//               style={styles.categoryNavItem} 
+//             <TouchableOpacity
+//               style={styles.categoryNavItem}
 //               onPress={() => handleFeatureNavigation('Workshop')}
 //             >
 //               <CategoryNavIcon type="workshop" />
@@ -827,29 +825,29 @@
 
 //       {/* Bottom Navigation */}
 //       <View style={[styles.bottomNav, { paddingBottom: Math.max(insets.bottom + dimensions.spacing.md, 20) }]}>
-//         <TouchableOpacity 
-//           style={styles.navItem} 
+//         <TouchableOpacity
+//           style={styles.navItem}
 //           onPress={() => handleFeatureNavigation('UserHome')}
 //         >
 //           <Ionicons name="home" size={dimensions.navIconSize} color="#a95eff" />
 //           <Text style={[styles.navItemText, styles.navItemTextActive]}>Home</Text>
 //         </TouchableOpacity>
-//         <TouchableOpacity 
-//           style={styles.navItem} 
+//         <TouchableOpacity
+//           style={styles.navItem}
 //           onPress={() => handleFeatureNavigation('UserFavoriteScreen')}
 //         >
 //           <Ionicons name="heart-outline" size={dimensions.navIconSize} color="#fff" />
 //           <Text style={styles.navItemText}>Favorite</Text>
 //         </TouchableOpacity>
-//         <TouchableOpacity 
-//           style={styles.navItem} 
+//         <TouchableOpacity
+//           style={styles.navItem}
 //           onPress={() => handleFeatureNavigation('UserTicketScreen')}
 //         >
 //           <MaterialIcons name="confirmation-num" size={dimensions.navIconSize} color="#fff" />
 //           <Text style={styles.navItemText}>My Ticket</Text>
 //         </TouchableOpacity>
-//         <TouchableOpacity 
-//           style={styles.navItem} 
+//         <TouchableOpacity
+//           style={styles.navItem}
 //           onPress={() => handleFeatureNavigation('UserProfileScreen')}
 //         >
 //           <Ionicons name="person-outline" size={dimensions.navIconSize} color="#fff" />
@@ -1045,7 +1043,7 @@
 //     paddingTop: dimensions.spacing.xxxl,
 //     paddingHorizontal: dimensions.spacing.xl,
 //     marginBottom: 1,
-    
+
 //   },
 //   sectionNoPadding: {
 //     marginBottom: dimensions.spacing.lg,
@@ -1604,11 +1602,7 @@
 //   },
 // });
 
-// export default UserHomeScreen; 
-
-
-
-
+// export default UserHomeScreen;
 
 import React, { useRef, useState, useEffect } from "react";
 import {
@@ -1647,7 +1641,7 @@ import Comedy from "../assets/icons/Comedy";
 import Workshop from "../assets/icons/Workshop";
 import Plan1 from "../assets/Banners/plan1";
 import Plan2 from "../assets/Banners/plan2";
-import Plan3 from "../assets/Banners/plan3";  
+import Plan3 from "../assets/Banners/plan3";
 import { selectFavorites } from "../Redux/slices/favoritesSlice";
 
 const { width, height } = Dimensions.get("window");
@@ -1913,7 +1907,9 @@ const UserHomeScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const isLoggedIn = useSelector(selectIsLoggedIn);
   const token = useSelector(selectToken);
+  console.log("this is the token ",token)
   const [bannerData, setBannerData] = useState([]); // State for banners
+
   // State for featured events
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1927,7 +1923,7 @@ const UserHomeScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     const fetchFeaturedEvents = async () => {
-      try {  
+      try {
         const response = await api.get("/host/events/get-all-events");
         console.log("Featured events response:", response.data);
         if (response.data.success && Array.isArray(response.data.data)) {
@@ -1993,17 +1989,16 @@ const UserHomeScreen = ({ navigation, route }) => {
   // };
 
   const handleFeatureNavigation = (screenName, params = {}) => {
-  if (isLoggedIn) {
-    if (screenName === "ArtistBooking") {
-      navigation.navigate("Home");
+    if (isLoggedIn) {
+      if (screenName === "ArtistBooking") {
+        navigation.navigate("Home");
+      } else {
+        navigation.navigate(screenName, params); // <-- supports passing eventId
+      }
     } else {
-      navigation.navigate(screenName, params); // <-- supports passing eventId
+      navigation.navigate("UserSignup");
     }
-  } else {
-    navigation.navigate("UserSignup");
-  }
-};
-
+  };
 
   const handleFavoriteToggle = async (eventId) => {
     const alreadyFavorite = favorites.includes(eventId);
@@ -2123,8 +2118,9 @@ const UserHomeScreen = ({ navigation, route }) => {
               style={styles.featuredEventArrowButton}
               // onPress={() => handleFeatureNavigation("UserEvent")}
 
-                onPress={() => handleFeatureNavigation("UserEvent", { eventId: item._id })}
-
+              onPress={() =>
+                handleFeatureNavigation("UserEvent", { eventId: item._id })
+              }
             >
               <Icon
                 name="arrow-right"
@@ -2489,22 +2485,78 @@ const UserHomeScreen = ({ navigation, route }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Get Your Vibe</Text>
           <View>
-            {bannerData.map((item, index) => (
-              <TouchableOpacity
-                key={item._id}
-                style={styles.categoryCard}
-                onPress={() =>
-                  handleFeatureNavigation(item.bannerName.replace(/\s/g, ""))
-                }
-              >
-                <Image
-                  source={{ uri: item.bannerImageUrl }}
-                  style={styles.categoryImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.categoryOverlay} />
-              </TouchableOpacity>
-            ))}
+            {/* Spotlight Card */}
+            <TouchableOpacity
+              style={styles.categoryCard}
+              onPress={() => handleFeatureNavigation("SpotlightEvents")}
+            >
+              <Image
+                source={require("../assets/Images/Banner0.png")}
+                style={styles.categoryImage}
+                resizeMode="cover"
+              />
+              <View style={styles.categoryOverlay} />
+            </TouchableOpacity>
+            {/* Sports Screening Card */}
+            <TouchableOpacity
+              style={styles.categoryCard}
+              onPress={() => handleFeatureNavigation("SportsScreening")}
+            >
+              <Image
+                source={require("../assets/Images/Banner1.png")}
+                style={styles.categoryImage}
+                resizeMode="cover"
+              />
+              <View style={styles.categoryOverlay} />
+            </TouchableOpacity>
+            {/* Music & Party Card */}
+            <TouchableOpacity
+              style={styles.categoryCard}
+              onPress={() => handleFeatureNavigation("MusicParty")}
+            >
+              <Image
+                source={require("../assets/Images/Banner2.png")}
+                style={styles.categoryImage}
+                resizeMode="cover"
+              />
+              <View style={styles.categoryOverlay} />
+            </TouchableOpacity>
+            {/* Trending Events Card */}
+            <TouchableOpacity
+              style={styles.categoryCard}
+              onPress={() => handleFeatureNavigation("TrendingEvents")}
+            >
+              <Image
+                source={require("../assets/Images/Banner3.png")}
+                style={styles.categoryImage}
+                resizeMode="cover"
+              />
+              <View style={styles.categoryOverlay} />
+            </TouchableOpacity>
+            {/* Comedy Card */}
+            <TouchableOpacity
+              style={styles.categoryCard}
+              onPress={() => handleFeatureNavigation("Comedy")}
+            >
+              <Image
+                source={require("../assets/Images/Banner4.png")}
+                style={styles.categoryImage}
+                resizeMode="cover"
+              />
+              <View style={styles.categoryOverlay} />
+            </TouchableOpacity>
+            {/* workshop card*/}
+            <TouchableOpacity
+              style={styles.categoryCard}
+              onPress={() => handleFeatureNavigation("Workshop")}
+            >
+              <Image
+                source={require("../assets/Images/Banner5.png")}
+                style={styles.categoryImage}
+                resizeMode="cover"
+              />
+              <View style={styles.categoryOverlay} />
+            </TouchableOpacity>
           </View>
         </View>
 

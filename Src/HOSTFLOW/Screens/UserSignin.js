@@ -40,7 +40,7 @@
 
 //   return (
 //     <View style={styles.container}>
-//       <SignUpBackground 
+//       <SignUpBackground
 //         style={styles.backgroundSvg}
 //         width={width}
 //         height={height}
@@ -58,7 +58,7 @@
 //           </Text>
 
 //           {/* Phone Input */}
-//           <View style={[styles.inputContainer, { backgroundColor: cardBg, borderColor: border }]}> 
+//           <View style={[styles.inputContainer, { backgroundColor: cardBg, borderColor: border }]}>
 //             <Icon name="mobile" size={20} color={placeholder} style={styles.inputIcon} />
 //             <TextInput
 //               placeholder="+91 412-123-4215"
@@ -69,7 +69,7 @@
 //           </View>
 
 //           {/* Password Input */}
-//           <View style={[styles.inputContainer, styles.passwordContainer, { backgroundColor: cardBg }]}> 
+//           <View style={[styles.inputContainer, styles.passwordContainer, { backgroundColor: cardBg }]}>
 //             <Feather name="lock" size={20} color={placeholder} style={styles.inputIcon} />
 //             <TextInput
 //               placeholder="Password"
@@ -95,8 +95,8 @@
 
 //           {/* Sign In Button */}
 //           <TouchableOpacity onPress={handleSignIn}>
-//             <LinearGradient 
-//               colors={['#B15CDE', '#7952FC']} 
+//             <LinearGradient
+//               colors={['#B15CDE', '#7952FC']}
 //               start={{x: 1, y: 0}}
 //               end={{x: 0, y: 0}}
 //               style={styles.primaryButton}
@@ -218,16 +218,9 @@
 //   },
 // });
 
-// export default UserSigninScreen; 
-
-
-
-
+// export default UserSigninScreen;
 
 //  code by  sonu
-
-
-
 
 import React, { useState } from "react";
 import {
@@ -254,6 +247,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MobileIcon from "../assets/icons/mobile";
 import LockIcon from "../assets/icons/lock";
 import api from "../Config/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width, height } = Dimensions.get("window");
 
@@ -286,41 +280,51 @@ const UserSigninScreen = ({ navigation }) => {
   const handleSignIn = async () => {
     try {
       // Input validation
-      if (!mobileNumber.trim() || isNaN(mobileNumber) || mobileNumber.length < 10) {
-        Alert.alert("Error", "Please enter a valid mobile number (at least 10 digits)");
+      if (
+        !mobileNumber.trim() ||
+        isNaN(mobileNumber) ||
+        mobileNumber.length < 10
+      ) {
+        Alert.alert(
+          "Error",
+          "Please enter a valid mobile number (at least 10 digits)"
+        );
         return;
       }
       if (!password.trim()) {
         Alert.alert("Error", "Please enter your password");
         return;
       }
-  
+
       setIsLoading(true);
-  
+
       const loginData = {
         mobileNumber: Number(mobileNumber.trim()),
         password: password.trim(),
       };
-  
+
       console.log("Login Data:", loginData);
-  
-      const response = await api.post("/user/auth/loginFromPassword", loginData);
-  
+
+      const response = await api.post(
+        "/user/auth/loginFromPassword",
+        loginData
+      );
+
       console.log("Login Response:", response.data);
-  
+
       if (response.data && response.data.success) {
-        // Get token from response headers
         const token = response.headers["authorization"]?.replace("Bearer ", "");
-  
+
         if (!token) {
           console.warn("No token found in response headers");
           Alert.alert("Error", "Authentication failed: No token received.");
           return;
         }
-  
-        console.log("Sign-in successful, dispatching login action with token:", token);
-  
-        // Dispatch login action with user data
+
+        console.log("Sign-in successful with token:", token);
+        await AsyncStorage.setItem("token", token);
+
+       
         dispatch(
           loginUser({
             id: response.data.data.user._id || response.data.data.user.id,
@@ -333,16 +337,19 @@ const UserSigninScreen = ({ navigation }) => {
             token: token, // Include the token here
           })
         );
-  
+
         // Navigate to UserHome
         navigation.navigate("UserHome", { mobileNumber: mobileNumber });
       } else {
-        Alert.alert("Error", "Authentication failed: Invalid response from server.");
+        Alert.alert(
+          "Error",
+          "Authentication failed: Invalid response from server."
+        );
       }
     } catch (error) {
       console.error("Login Error:", error.message);
       console.error("Error Response:", error.response?.data);
-  
+
       Alert.alert(
         "Error",
         error.response?.data?.message ||
@@ -515,7 +522,7 @@ const UserSigninScreen = ({ navigation }) => {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => navigation.navigate("ForgotPassword")}
+                onPress={() => navigation.navigate("UserForgotPassword")}
               >
                 <Text style={styles.forgot}>Forgot Password</Text>
               </TouchableOpacity>
