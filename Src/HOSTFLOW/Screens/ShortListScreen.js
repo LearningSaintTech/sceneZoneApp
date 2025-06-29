@@ -1219,7 +1219,7 @@ const ShortlistScreen = ({ navigation }) => {
         }
         setLoading(true);
         try {
-          const response = await axios.get('http://10.0.2.2:3000/api/host/getShortlistedArtists', {
+          const response = await axios.get('http://192.168.1.8:3000/api/host/getShortlistedArtists', {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -1271,7 +1271,7 @@ const ShortlistScreen = ({ navigation }) => {
         if (activeTab !== 'Manage Event') return;
         setManageEventsLoading(true);
         try {
-          const response = await axios.get('http://10.0.2.2:3000/api/host/events/get-all-events', {
+          const response = await axios.get('http://192.168.1.8:3000/api/host/events/get-all-events', {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
