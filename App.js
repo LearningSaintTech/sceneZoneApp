@@ -96,6 +96,7 @@ import UserConfirmBookingScreen from "./Src/HOSTFLOW/Screens/UserConfirmBooking"
 import UserBottomTabNavigator from "./Src/HOSTFLOW/Components/UserBottomTabNavigator";
 import UserVerifiedScreen from "./Src/HOSTFLOW/Screens/UserVerified";
 import UserCreateNewPassword from "./Src/HOSTFLOW/Screens/UserCreateNewPassword";
+import UserCheckMailbox from "./Src/HOSTFLOW/Screens/UserCheckMailBox";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Socket.IO Context
@@ -495,6 +496,10 @@ export default function App() {
                 <Stack.Screen
                   name="UserPaymentSettingsScreen"
                   component={UserPaymentSettingsScreen}
+                />
+                 <Stack.Screen
+                  name="UserCheckMailbox"
+                  component={UserCheckMailbox}
                 />
                 <Stack.Screen
                   name="AddPaymentMethodScreen"

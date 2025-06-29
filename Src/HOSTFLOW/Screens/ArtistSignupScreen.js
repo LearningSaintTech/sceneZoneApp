@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import GoogleIcon from '../assets/icons/Google';
 import AppleIcon from '../assets/icons/Apple';
 import SignUpBackground from '../assets/Banners/SignUp';
@@ -25,6 +24,7 @@ import LockIcon from '../assets/icons/lock';
 import api from '../Config/api';
 import { useDispatch } from 'react-redux';
 import { loginArtist } from '../Redux/slices/authSlice';
+import auth from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,14 +32,12 @@ const ArtistSignupScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-
   const insets = useSafeAreaInsets();
 
-  // Responsive padding based on screen size
   const dynamicPadding = {
-    paddingTop: insets.top + height * 0.04, // 4% of screen height + safe area
+    paddingTop: insets.top + height * 0.04,
     paddingBottom: insets.bottom + height * 0.04,
-    paddingLeft: insets.left + width * 0.05, // 5% of screen width + safe area
+    paddingLeft: insets.left + width * 0.05,
     paddingRight: insets.right + width * 0.05,
   };
 
@@ -49,95 +47,82 @@ const ArtistSignupScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
 
-  const handleSignUp = async () => {
-    console.log("Artist Sign Up button pressed"); // Debug: Confirm button press
-
-    // Input validation
-    if (!fullName.trim()) {
-      Alert.alert('Error', 'Please enter your full name');
-      return;
+  const validateInputs = () => {
+    // Sanitize fullName
+    const sanitizedFullName = fullName.trim().replace(/[^a-zA-Z\s]/g, '');
+    if (!sanitizedFullName || sanitizedFullName.length < 2) {
+      Alert.alert('Error', 'Please enter a valid full name (at least 2 characters, letters only)');
+      return false;
     }
 
-    if (!mobile.trim() || isNaN(mobile) || mobile.length < 10) {
-      Alert.alert('Error', 'Please enter a valid mobile number (at least 10 digits)');
-      return;
+    // Validate mobile number with country code (e.g., +91 for India)
+    const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
+    if (!phoneRegex.test(mobile)) {
+      Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
+      return false;
     }
 
-    if (!password.trim()) {
-      Alert.alert('Error', 'Please enter a password');
-      return;
-    }
+    return { sanitizedFullName };
+  };
 
+  const handleSignup = async () => {
+    const validated = validateInputs();
+    if (!validated) return;
+
+    const { sanitizedFullName } = validated;
     const signupData = {
-      fullName: fullName.trim(),
-      mobileNumber: parseInt(mobile),
+      fullName: sanitizedFullName,
+      mobileNumber: mobile,
       password: password.trim(),
-      isRemember: rememberMe,
+      isRememberMe: rememberMe,
     };
-
-    console.log("Artist Signup Data:", signupData); // Debug: Inspect data being sent
 
     try {
       setIsLoading(true);
 
-      const response = await api.post('/artist/auth/signup', signupData);
+      console.log('Attempting Firebase signup with data:', signupData);
+      const response = await api.post('/artist/firebase-auth/firebase-signup', signupData);
+      console.log('Firebase Artist Signup Response:', response);
 
-      console.log("API Response artist:", response.data); // Debug: Log API response
+      if (response.data.success) {
+        console.log('Initiating Firebase phone auth for:', mobile);
+        const confirmationResult = await auth().signInWithPhoneNumber(mobile);
+        console.log('Firebase OTP sent successfully:', confirmationResult);
+        setConfirmation(confirmationResult);
 
-      if (response.data) {
-        // Store user data in Redux with all required fields
-        dispatch(loginArtist({
-          id: response.data.data?.id || 'artist123',
-          name: fullName.trim(),
-          fullName: fullName.trim(),
-          email: response.data.data?.email || '',
-          phone: mobile,
-          mobileNumber: parseInt(mobile),
-          role: 'artist',
-          token: response.data.data?.token || null
-        }));
-
-        // Log the Redux state after dispatch
-        console.log("Artist data stored in Redux:", {
-          fullName: fullName.trim(),
-          mobileNumber: parseInt(mobile),
-          role: 'artist'
-        });
-
-        Alert.alert('Success', 'Artist account created successfully!', [
-          { 
-            text: 'OK', 
-            onPress: () => navigation.navigate('ArtistOtpVerificationScreen', { 
-              mobileNumber: mobile
-            }) 
+        Alert.alert('Success', 'OTP sent to your mobile number', [
+          {
+            text: 'OK',
+            onPress: () =>
+              navigation.navigate('ArtistOtpVerificationScreen', {
+                mobileNumber: mobile,
+                confirmation: confirmationResult,
+                isFirebase: true,
+                userId: response.data.data.userId,
+                fullName: sanitizedFullName,
+              }),
           },
         ]);
       }
     } catch (error) {
-      console.error("Artist Signup Error:", error.message);
-      console.error("Error Response:", error.response?.data);
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to sign up. Please check your network or try again later.'
-      );
+      console.error('Signup Error:', error.message);
+      let errorMessage = 'Failed to sign up. Please check your network or try again.';
+      if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <View style={[styles.container, {
-      paddingTop: insets.top,
-      paddingBottom: insets.bottom,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-    }]}> 
-      <SignUpBackground 
-        style={styles.backgroundSvg}
-        width={width}
-        height={height}
-      />
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
+      <SignUpBackground style={styles.backgroundSvg} width={width} height={height} />
       <SafeAreaView style={styles.overlay}>
         <ScrollView
           contentContainerStyle={[styles.inner, dynamicPadding]}
@@ -148,10 +133,7 @@ const ArtistSignupScreen = ({ navigation }) => {
 
           <Text style={styles.signinText}>
             Already have an account?{' '}
-            <Text 
-              style={styles.signinLink} 
-              onPress={() => navigation.navigate('ArtistSigninScreen')}
-            >
+            <Text style={styles.signinLink} onPress={() => navigation.navigate('ArtistSigninScreen')}>
               Sign In
             </Text>
           </Text>
@@ -164,6 +146,7 @@ const ArtistSignupScreen = ({ navigation }) => {
               placeholderTextColor="#aaa"
               value={fullName}
               onChangeText={setFullName}
+              autoCapitalize="words"
             />
           </View>
 
@@ -171,7 +154,7 @@ const ArtistSignupScreen = ({ navigation }) => {
             <MobileIcon width={20} height={20} style={styles.icon} />
             <TextInput
               style={[styles.input, { color: '#fff' }]}
-              placeholder="Mobile Number"
+              placeholder="Mobile Number (e.g., +91XXXXXXXXXX)"
               placeholderTextColor="#aaa"
               keyboardType="phone-pad"
               value={mobile}
@@ -203,32 +186,33 @@ const ArtistSignupScreen = ({ navigation }) => {
             <Text style={{ color: '#fff' }}> Remember me</Text>
           </View>
 
-          <TouchableOpacity onPress={handleSignUp} disabled={isLoading}>
-            <LinearGradient 
-              colors={['#B15CDE', '#7952FC']} 
-              start={{x: 1, y: 0}}
-              end={{x: 0, y: 0}}
+          <TouchableOpacity onPress={handleSignup} disabled={isLoading}>
+            <LinearGradient
+              colors={['#B15CDE', '#7952FC']}
+              start={{ x: 1, y: 0 }}
+              end={{ x: 0, y: 0 }}
               style={[styles.signupButton, isLoading && { opacity: 0.7 }]}
             >
               <Text style={styles.signupButtonText}>
-                {isLoading ? 'Signing Up...' : 'Sign Up'}
+                {isLoading ? 'Signing Up...' : 'Sign Up with Firebase'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <Text style={[styles.orText, { color: '#ccc' }]}>or sign up with</Text>
 
-          <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}> 
+          <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>
             <GoogleIcon style={styles.socialIcon} width={24} height={24} />
             <Text style={styles.socialButtonText}>Sign up with Google</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}> 
+          <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>
             <AppleIcon style={styles.socialIcon} width={24} height={24} />
             <Text style={styles.socialButtonText}>Sign up with Apple</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.termsText, { color: '#aaa' }]}>By clicking "Sign Up" you agree to Recognotes{' '}
+          <Text style={[styles.termsText, { color: '#aaa' }]}>
+            By clicking "Sign Up" you agree to Recognotes{' '}
             <Text style={styles.linkText}>Term of Use</Text> and{' '}
             <Text style={styles.linkText}>Privacy Policy</Text>
           </Text>
@@ -238,6 +222,7 @@ const ArtistSignupScreen = ({ navigation }) => {
   );
 };
 
+// Styles unchanged
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -338,7 +323,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 1)',
   },
   orText: {
-    fontSize:11,
+    fontSize: 11,
     textAlign: 'center',
     marginBottom: 25,
   },
@@ -382,4 +367,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ArtistSignupScreen; 
+export default ArtistSignupScreen;

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "967002835299",
+    "project_id": "scene-zone-e1517",
+    "storage_bucket": "scene-zone-e1517.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:967002835299:android:995b425b77ecf7f1d2ab56",
+        "android_client_info": {
+          "package_name": "com.scene"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-0LlqGw4PCNYW4_OBk8gqQamOkw4NIWc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

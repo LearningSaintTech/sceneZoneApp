@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#C6C5ED',
     fontFamily: 'Nunito Sans',
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '700',
     lineHeight: 24,
     flexShrink: 1,

@@ -70,7 +70,7 @@ const EventScreen = ({ navigation }) => {
 
   const fetchEvents = useCallback(async () => {
     try {
-      const response = await axios.get('http://192.168.1.8:3000/api/host/events/get-all-events', {
+      const response = await axios.get('http://192.168.1.37:3000/api/host/events/get-all-events', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ const EventScreen = ({ navigation }) => {
 
   const handleDeleteEvent = async (eventId) => {
     try {
-      const response = await axios.delete(`http://192.168.1.8:3000/api/host/events/delete-event/${eventId}`, {
+      const response = await axios.delete(`http://192.168.1.37:3000/api/host/events/delete-event/${eventId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -170,7 +170,7 @@ const EventScreen = ({ navigation }) => {
             <View key={event.id} style={styles.outerCardContainer}>
               <View style={styles.card}>
                 <View style={styles.imageWrapper}>
-                  <Image source={event.image} style={styles.cardImage} />
+                  <Image source={event.image} style={styles.cardImage} resizeMode="cover" />
                   <View style={styles.dateBox}>
                     <Text style={styles.dateText}>{event.date.month}</Text>
                     <Text style={styles.dateDay}>{event.date.day}</Text>
@@ -179,50 +179,33 @@ const EventScreen = ({ navigation }) => {
                     <Text style={styles.statusText}>{event.status}</Text>
                   </View>
                 </View>
-
                 <View style={styles.cardContent}>
-                  <Text style={[styles.location, { color: textColor, fontWeight: 'bold', fontSize: dimensions.fontSize.header }]}>
-                    {event.location}
-                  </Text>
+                  <Text style={styles.location}>{event.location}</Text>
                   <View style={styles.tags}>
                     {event.tags.map((tag) => (
-                      <TouchableOpacity key={tag} style={styles.tag}>
-                        <Text style={[styles.tagText, { color: textColor }]}>{tag}</Text>
-                      </TouchableOpacity>
+                      <View key={tag} style={styles.tag}>
+                        <Text style={styles.tagText}>{tag}</Text>
+                      </View>
                     ))}
                   </View>
-                  <Text style={[styles.description, { color: subText, fontSize: dimensions.fontSize.body }]}>
-                    {event.description}
-                  </Text>
-
-                  <View style={styles.ratingRow}>
-                    {[1, 2, 3, 4, 0.5].map((value, i) => (
-                      <MaterialIcons
-                        key={i}
-                        name="star"
-                        size={12}
-                        color={value > 0 ? '#FFD700' : '#ccc'}
-                        style={value === 0.5 ? styles.halfStar : null}
-                      />
-                    ))}
-                  </View>
-
+                  <Text style={styles.description}>{event.description}</Text>
                   <View style={styles.actionRow}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        navigation.navigate('Explore', { eventId: event.id });
-                      }}
-                      style={styles.exploreButtonWrapper}
-                    >
+                    <View style={{ flex: 1 }}>
                       <LinearGradient
                         colors={['#B15CDE', '#7952FC']}
                         start={{ x: 1, y: 0 }}
                         end={{ x: 0, y: 0 }}
                         style={styles.exploreButton}
                       >
-                        <Text style={styles.exploreText}>Explore</Text>
+                        <TouchableOpacity
+                          onPress={() => navigation.navigate('Explore', { eventId: event.id })}
+                          style={{ width: '100%' }}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={styles.exploreText}>Explore</Text>
+                        </TouchableOpacity>
                       </LinearGradient>
-                    </TouchableOpacity>
+                    </View>
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => handleDeleteEvent(event.id)}
@@ -314,131 +297,133 @@ const styles = StyleSheet.create({
     marginRight: 0,
   },
   card: {
-    borderRadius: dimensions.borderRadius.lg,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: dimensions.spacing.xxl,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#181828',
+    borderWidth: 1,
+    borderColor: 'rgba(252,252,253,0.10)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
   imageWrapper: {
     position: 'relative',
+    backgroundColor: '#222',
   },
   cardImage: {
-    width: '100%', // Fixed from '100' to '100%'
+    width: '100%',
     height: dimensions.imageHeight,
-    borderTopLeftRadius: dimensions.borderRadius.lg,
-    borderTopRightRadius: dimensions.borderRadius.lg,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   dateBox: {
     position: 'absolute',
-    top: dimensions.spacing.sm,
-    left: dimensions.spacing.sm,
-    backgroundColor: '#333',
-    borderRadius: dimensions.borderRadius.sm,
-    width: 40,
-    height: 40,
+    top: 16,
+    left: 16,
+    backgroundColor: '#23233B',
+    borderRadius: 12,
+    width: 48,
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+    elevation: 2,
   },
   dateText: {
     color: '#fff',
-    fontSize: dimensions.fontSize.tiny,
+    fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
   },
   dateDay: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: dimensions.fontSize.body,
+    fontSize: 18,
     textAlign: 'center',
   },
   statusTag: {
     position: 'absolute',
-    bottom: dimensions.spacing.sm,
-    left: dimensions.spacing.sm,
-    backgroundColor: 'rgba(169, 94, 255, 0.7)',
-    paddingHorizontal: dimensions.spacing.sm,
-    paddingVertical: dimensions.spacing.xs,
-    borderRadius: dimensions.borderRadius.md,
+    bottom: 16,
+    left: 16,
+    backgroundColor: '#A95EFF',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
     justifyContent: 'center',
   },
   statusText: {
     color: '#fff',
-    fontSize: dimensions.fontSize.tiny,
+    fontSize: 12,
     fontWeight: '500',
   },
   cardContent: {
-    padding: dimensions.cardPadding,
+    padding: 20,
   },
   location: {
-    fontSize: dimensions.fontSize.title,
-    fontWeight: '600',
-    marginBottom: dimensions.spacing.sm,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 8,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: dimensions.spacing.xs,
-    marginBottom: dimensions.spacing.sm,
+    gap: 8,
+    marginBottom: 8,
   },
   tag: {
-    backgroundColor: '#333',
+    backgroundColor: '#23233B',
     paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: dimensions.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: '#444',
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginRight: 6,
+    marginBottom: 6,
   },
   tagText: {
     color: '#fff',
-    fontSize: dimensions.fontSize.tiny,
+    fontSize: 12,
     fontWeight: '500',
   },
   description: {
-    fontSize: dimensions.fontSize.small,
-    lineHeight: Math.max(dimensions.fontSize.small + 5, 20),
-    marginBottom: dimensions.spacing.sm,
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 16,
     color: '#bbb',
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    marginBottom: dimensions.spacing.lg,
-    gap: dimensions.spacing.xs,
-  },
-  halfStar: {
-    width: 6,
-    overflow: 'hidden',
   },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: dimensions.spacing.sm,
-  },
-  exploreButtonWrapper: {
-    flex: 1,
-    alignSelf: 'stretch',
+    marginTop: 8,
+    gap: 12,
   },
   exploreButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    width: '100%',
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: dimensions.borderRadius.md,
-    minWidth: 120,
+    paddingVertical: 12,
   },
   exploreText: {
     color: '#FFF',
     fontFamily: 'Inter',
-    fontSize: dimensions.fontSize.body,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   deleteButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#a95eff',
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 12,
   },
   floatingPlus: {
     position: 'absolute',
@@ -473,24 +458,12 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   outerCardContainer: {
-    display: 'flex',
-    minWidth: 240,
-    maxWidth: 580,
-    paddingVertical: 20,
-    paddingHorizontal: 10,
-    alignItems: 'flex-start',
-    alignContent: 'flex-start',
-    gap: 20,
-    alignSelf: 'stretch',
-    flexWrap: 'wrap',
-    borderRadius: dimensions.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(252,252,253,0.12)',
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
     marginBottom: dimensions.spacing.xxl,
-    shadowColor: '#0F0F0F',
-    shadowOffset: { width: 0, height: 40 },
-    shadowOpacity: 0.10,
-    shadowRadius: 64,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
 });
 

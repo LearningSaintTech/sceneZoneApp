@@ -18,6 +18,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import MailboxIcon from '../assets/icons/mailbox';
 import api from '../Config/api';
+import auth from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,25 +34,32 @@ const responsiveDimensions = {
   borderRadius: Math.max(width * 0.035, 14),
   paddingHorizontal: Math.max(width * 0.04, 16),
   gap: Math.max(width * 0.025, 10),
-  otpBoxSize: Math.max(width * 0.12, 48),
-  otpGap: Math.max(width * 0.02, 8),
-  otpContainerWidth: Math.min(width * 0.8, 320),
+  otpBoxSize: Math.max(width * 0.1, 40), // Reduced size to fit 6 boxes
+  otpGap: Math.max(width * 0.015, 6),
+  otpContainerWidth: Math.min(width * 0.9, 360), // Increased to accommodate 6 boxes
   contentTopMargin: Math.max(height * 0.08, 60),
   contentBottomPadding: Math.max(height * 0.12, 100),
   iconSize: Math.max(width * 0.06, 24),
   titleFontSize: Math.max(width * 0.06, 24),
   descriptionFontSize: Math.max(width * 0.035, 14),
-  inputFontSize: Math.max(width * 0.05, 20),
+  inputFontSize: Math.max(width * 0.045, 18),
 };
 
 const ArtistCheckMailbox = ({ navigation, route }) => {
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const insets = useSafeAreaInsets();
-  const inputRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const inputRefs = [
+    useRef(null),
+    useRef(null),
+    useRef(null),
+    useRef(null),
+    useRef(null),
+    useRef(null),
+  ];
 
-  // Get inputType and value from navigation params
-  const { inputType = 'email', value = '' } = route?.params || {};
+  // Get inputType, value, and Firebase params from navigation
+  const { inputType = 'email', value = '', confirmation, isFirebase = false, fullName = '', isForgotPassword = false } = route?.params || {};
 
   const handleOtpChange = (text, index) => {
     const newOtp = [...otp];
@@ -81,27 +89,47 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
     }
     try {
       setIsLoading(true);
-      const otpData = inputType === 'email' ? { email: value } : { mobileNumber: value };
-      console.log('[ArtistCheckMailbox] Resending OTP:', { endpoint: '/artist/email-number-send-otp', data: otpData });
+      if (isFirebase) {
+        console.log('[ArtistCheckMailbox] Resending Firebase OTP for:', value);
+        const confirmationResult = await auth().signInWithPhoneNumber(value);
+        console.log('[ArtistCheckMailbox] Firebase OTP resent successfully:', confirmationResult);
 
-      const response = await api.post('/artist/email-number-send-otp', otpData);
-
-      console.log('[ArtistCheckMailbox] Resend OTP response:', response.data);
-
-      if (response.data) {
         Alert.alert('Success', 'OTP resent successfully!');
-        setOtp(['', '', '', '']);
+        setOtp(['', '', '', '', '', '']);
         inputRefs[0]?.current?.focus();
+
+        // Update route params with new confirmation
+        navigation.setParams({ confirmation: confirmationResult });
       } else {
-        Alert.alert('Error', response.data.message || 'Failed to resend OTP');
-        console.log('[ArtistCheckMailbox] Resend OTP failed:', response.data.message);
+        const otpData = inputType === 'email' ? { email: value } : { mobileNumber: value };
+        console.log('[ArtistCheckMailbox] Resending OTP:', { endpoint: '/artist/email-number-send-otp', data: otpData });
+
+        const response = await api.post('/artist/email-number-send-otp', otpData);
+
+        console.log('[ArtistCheckMailbox] Resend OTP response:', response.data);
+
+        if (response.data) {
+          Alert.alert('Success', 'OTP resent successfully!');
+          setOtp(['', '', '', '', '', '']);
+          inputRefs[0]?.current?.focus();
+        } else {
+          Alert.alert('Error', response.data.message || 'Failed to resend OTP');
+          console.log('[ArtistCheckMailbox] Resend OTP failed:', response.data.message);
+        }
       }
     } catch (error) {
       console.error('[ArtistCheckMailbox] Resend OTP error:', {
         message: error.message,
         response: error.response?.data,
+        firebaseCode: error.code,
       });
-      Alert.alert('Error', error.response?.data?.message || 'Failed to resend OTP');
+      let errorMessage = error.response?.data?.message || 'Failed to resend OTP';
+      if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -110,54 +138,110 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
   const handleConfirm = async (code) => {
     const otpCode = code || otp.join('');
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const mobileRegex = /^\d{10}$/;
-  
-    if (!value || otpCode.length !== 4) {
-      Alert.alert('Error', `Please enter the 4-digit OTP and ensure ${inputType === 'email' ? 'email' : 'mobile number'} is present.`);
+    const mobileRegex = /^\+\d{1,3}\d{9,15}$/;
+
+    if (!value || otpCode.length !== 6) {
+      Alert.alert('Error', `Please enter the 6-digit OTP and ensure ${inputType === 'email' ? 'email' : 'mobile number'} is present.`);
       console.log('[ArtistCheckMailbox] OTP verification failed: Invalid input', { value, otpCode });
       return;
     }
-  
+
     if (inputType === 'email' && !emailRegex.test(value)) {
       Alert.alert('Error', 'Invalid email format.');
       console.log('[ArtistCheckMailbox] OTP verification failed: Invalid email', { value });
       return;
     }
-  
+
     if (inputType === 'mobile' && !mobileRegex.test(value)) {
-      Alert.alert('Error', 'Invalid mobile number. It must be 10 digits.');
+      Alert.alert('Error', 'Invalid mobile number. It must include country code (e.g., +91XXXXXXXXXX).');
       console.log('[ArtistCheckMailbox] OTP verification failed: Invalid mobile number', { value });
       return;
     }
-  
+
     // Proceed with OTP verification
     try {
       setIsLoading(true);
-      const verifyData = inputType === 'email' ? { email: value, code: otpCode } : { mobileNumber: value, code: otpCode };
-      console.log('[ArtistCheckMailbox] Verifying OTP:', { endpoint: '/artist/verify-email-number-otp', data: verifyData });
-  
-      const response = await api.post('/artist/verify-email-number-otp', verifyData);
-  
-      console.log('[ArtistCheckMailbox] OTP verification response:', response.data);
-  
-      if (response.data.success) {
-        console.log('[ArtistCheckMailbox] OTP verified successfully, navigating to ArtistCreateNewPassword');
-        Alert.alert('Success', 'OTP verified successfully!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('ArtistCreateNewPassword', { inputType, value }),
-          },
-        ]);
+      if (isFirebase) {
+        if (!confirmation) {
+          Alert.alert('Error', 'OTP session expired. Please request a new OTP.');
+          console.log('[ArtistCheckMailbox] OTP verification failed: Missing confirmation object');
+          return;
+        }
+
+        console.log('[ArtistCheckMailbox] Verifying Firebase OTP with code:', otpCode);
+        const credential = await confirmation.confirm(otpCode);
+        const idToken = await auth().currentUser.getIdToken();
+        console.log('[ArtistCheckMailbox] Firebase OTP verified, ID token:', idToken);
+
+        const verifyData = {
+          mobileNumber: value,
+          idToken,
+          fullName,
+        };
+        console.log('[ArtistCheckMailbox] Verifying Firebase OTP:', { endpoint: '/artist/firebase-auth/firebase-verify-otp', data: verifyData });
+
+        const response = await api.post('/artist/firebase-auth/firebase-verify-otp', verifyData);
+
+        console.log('[ArtistCheckMailbox] Firebase OTP verification response:', response.data);
+
+        if (response.data.success) {
+          console.log('[ArtistCheckMailbox] Firebase OTP verified successfully, navigating to ArtistCreateNewPassword');
+          Alert.alert('Success', 'OTP verified successfully!', [
+            {
+              text: 'OK',
+              onPress: () =>
+                navigation.navigate('ArtistCreateNewPassword', {
+                  inputType,
+                  value,
+                  token: response.headers['authorization']?.replace('Bearer ', '') || '',
+                  isForgotPassword: true,
+                }),
+            },
+          ]);
+        } else {
+          Alert.alert('Error', response.data.message || 'Firebase OTP verification failed');
+          console.log('[ArtistCheckMailbox] Firebase OTP verification failed:', response.data.message);
+        }
       } else {
-        Alert.alert('Error', response.data.message || 'OTP verification failed');
-        console.log('[ArtistCheckMailbox] OTP verification failed:', response.data.message);
+        const verifyData = inputType === 'email' ? { email: value, code: otpCode } : { mobileNumber: value, code: otpCode };
+        console.log('[ArtistCheckMailbox] Verifying OTP:', { endpoint: '/artist/verify-email-number-otp', data: verifyData });
+
+        const response = await api.post('/artist/verify-email-number-otp', verifyData);
+
+        console.log('[ArtistCheckMailbox] OTP verification response:', response.data);
+
+        if (response.data.success) {
+          console.log('[ArtistCheckMailbox] OTP verified successfully, navigating to ArtistCreateNewPassword');
+          Alert.alert('Success', 'OTP verified successfully!', [
+            {
+              text: 'OK',
+              onPress: () =>
+                navigation.navigate('ArtistCreateNewPassword', {
+                  inputType,
+                  value,
+                  token: response.headers['authorization']?.replace('Bearer ', '') || '',
+                  isForgotPassword: true,
+                }),
+            },
+          ]);
+        } else {
+          Alert.alert('Error', response.data.message || 'OTP verification failed');
+          console.log('[ArtistCheckMailbox] OTP verification failed:', response.data.message);
+        }
       }
     } catch (error) {
       console.error('[ArtistCheckMailbox] OTP verification error:', {
         message: error.message,
         response: error.response?.data,
+        firebaseCode: error.code,
       });
-      Alert.alert('Error', error.response?.data?.message || 'OTP verification failed');
+      let errorMessage = error.response?.data?.message || 'OTP verification failed';
+      if (error.code === 'auth/invalid-verification-code') {
+        errorMessage = 'Invalid OTP code';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -167,7 +251,7 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
   const maskedValue =
     inputType === 'email'
       ? value.replace(/(.{2}).*?@/, '***@')
-      : value.replace(/(\d{3})\d{4}(\d{3})/, '$1****$2');
+      : value.replace(/(\+\d{1,3}\d{3})\d{4}(\d{3})/, '$1****$2');
 
   return (
     <KeyboardAvoidingView
@@ -203,7 +287,7 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
               Check Your {inputType === 'email' ? 'Mailbox' : 'Messages'}
             </Text>
             <Text style={[styles.description, { fontSize: responsiveDimensions.descriptionFontSize }]}>
-              Please enter the 4-digit OTP code sent to your{' '}
+              Please enter the 6-digit OTP code sent to your{' '}
               {inputType === 'email' ? 'email' : 'mobile number'} ({maskedValue})
             </Text>
 

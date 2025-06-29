@@ -1,26 +1,25 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState } from 'react';
 import {
-  Image,
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Modal,
   Alert,
-} from "react-native";
-import Icon from "react-native-vector-icons/Feather";
-import { useDispatch } from "react-redux";
-import { loginHost, loginUser } from "../Redux/slices/authSlice";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import SignUpBackground from "../assets/Banners/SignUp";
-import OtpIcon from "../assets/icons/otp";
-import LinearGradient from "react-native-linear-gradient";
-import api from "../Config/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
+import { useDispatch } from 'react-redux';
+import { loginUser } from '../Redux/slices/authSlice';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SignUpBackground from '../assets/Banners/SignUp';
+import OtpIcon from '../assets/icons/otp';
+import LinearGradient from 'react-native-linear-gradient';
+import api from '../Config/api';
+import auth from '@react-native-firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const { width, height } = Dimensions.get("window");
+const { width, height } = Dimensions.get('window');
 
 const isTablet = width >= 768;
 const isSmallPhone = width < 350;
@@ -52,24 +51,19 @@ const dimensions = {
   },
   buttonHeight: Math.max(height * 0.06, 44),
   iconSize: Math.max(width * 0.06, 20),
-  otpBoxSize: Math.max(width * 0.12, 48),
+  otpBoxSize: Math.max(width * 0.1, 40),
   imageSize: Math.max(width * 0.25, 100),
-  modalImageSize: Math.max(width * 0.2, 80),
 };
 
 const UserOtpVerificationScreen = ({ navigation, route }) => {
-  const [otp, setOtp] = useState(["", "", "", ""]);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const inputs = useRef([]);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const { mobileNumber, confirmation, userId, fullName } = route.params;
 
-  // Get mobile number from navigation params
-  const mobileNumber = route.params?.mobileNumber;
-
-  // Enhanced responsive dimensions with safe area considerations
   const responsiveDimensions = {
     ...dimensions,
     safeAreaTop: Math.max(insets.top, 0),
@@ -77,156 +71,143 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
     safeAreaLeft: Math.max(insets.left, 0),
     safeAreaRight: Math.max(insets.right, 0),
     containerPadding: {
-      horizontal: Math.max(
-        insets.left + dimensions.spacing.md,
-        dimensions.spacing.md
-      ),
-      vertical: Math.max(
-        insets.top + dimensions.spacing.sm,
-        dimensions.spacing.sm
-      ),
-    },
-    // Modal specific responsive dimensions
-    modalPadding: {
-      horizontal:
-        Math.max(width * 0.08, 20) + Math.max(insets.left, insets.right),
-      vertical:
-        Math.max(height * 0.1, 40) + Math.max(insets.top, insets.bottom),
-    },
-    modalWidth: Math.min(
-      width -
-        (Math.max(width * 0.16, 40) + Math.max(insets.left + insets.right, 0)),
-      isTablet ? 400 : 320
-    ),
-    modalContentPadding: {
-      horizontal: Math.max(width * 0.06, 20),
-      vertical: Math.max(height * 0.025, 16),
+      horizontal: Math.max(insets.left + dimensions.spacing.md, dimensions.spacing.md),
+      vertical: Math.max(insets.top + dimensions.spacing.sm, dimensions.spacing.sm),
     },
   };
 
   const handleChange = (text, index) => {
     const newOtp = [...otp];
     if (text.length > 1) {
-      const chars = text.split("").slice(0, 4);
+      const chars = text.replace(/[^0-9]/g, '').split('').slice(0, 6);
       chars.forEach((char, idx) => {
-        newOtp[idx] = char;
-        if (inputs.current[idx])
-          inputs.current[idx].setNativeProps({ text: char });
+        if (idx < 6) {
+          newOtp[idx] = char;
+          if (inputs.current[idx]) inputs.current[idx].setNativeProps({ text: char });
+        }
       });
       setOtp(newOtp);
-      inputs.current[chars.length - 1]?.focus();
+      inputs.current[Math.min(chars.length - 1, 5)]?.focus();
       return;
     }
-    newOtp[index] = text;
-    setOtp(newOtp);
-    if (text && index < 3) {
-      inputs.current[index + 1].focus();
+    if (/^[0-9]*$/.test(text)) {
+      newOtp[index] = text;
+      setOtp(newOtp);
+      if (text && index < 5) {
+        inputs.current[index + 1].focus();
+      }
     }
   };
 
   const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === "Backspace") {
-      if (otp[index] === "" && index > 0) {
-        inputs.current[index - 1].focus();
-        const newOtp = [...otp];
-        newOtp[index - 1] = "";
-        setOtp(newOtp);
-      }
+    if (e.nativeEvent.key === 'Backspace' && otp[index] === '' && index > 0) {
+      inputs.current[index - 1].focus();
+      const newOtp = [...otp];
+      newOtp[index - 1] = '';
+      setOtp(newOtp);
     }
   };
 
+  const handleVerify = async () => {
+    try {
+      if (!mobileNumber) {
+        Alert.alert('Error', 'Mobile number is missing. Please try signing up again.');
+        console.log('[UserOtpVerificationScreen] Validation failed: mobileNumber is undefined');
+        return;
+      }
+      if (otp.some(digit => !digit)) {
+        Alert.alert('Error', 'Please enter the complete 6-digit OTP');
+        console.log('[UserOtpVerificationScreen] Validation failed: Incomplete OTP');
+        return;
+      }
 
-const handleVerify = async () => {
-  try {
-    // Validate OTP
-    if (otp.some((digit) => !digit)) {
-      Alert.alert("Error", "Please enter complete OTP");
-      return;
+      setIsLoading(true);
+
+      console.log('[UserOtpVerificationScreen] Verifying Firebase OTP with code:', otp.join(''));
+      const credential = await confirmation.confirm(otp.join(''));
+      const idToken = await credential.user.getIdToken();
+      console.log('[UserOtpVerificationScreen] Firebase OTP verified, ID token:', idToken);
+
+      const response = await api.post('/user/firebase-auth/firebase-verify-otp', {
+        mobileNumber,
+        idToken,
+        fullName,
+      });
+
+      console.log('[UserOtpVerificationScreen] Firebase OTP Verification Response:', response.data);
+
+      if (response.data.success) {
+        const userData = response.data.data.user;
+        const token = response.headers['authorization']?.replace('Bearer ', '');
+
+        if (!token) {
+          throw new Error('No token received from server');
+        }
+
+        dispatch(loginUser({
+          id: userData._id || userId,
+          fullName: userData.fullName || fullName || 'User',
+          email: userData.email || '',
+          phone: userData.mobileNumber || mobileNumber,
+          mobileNumber: mobileNumber,
+          role: userData.role || 'user',
+          token,
+        }));
+
+        await AsyncStorage.setItem('token', token);
+        setTimeout(() => {
+          navigation.navigate('UserVerifiedScreen');
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('[UserOtpVerificationScreen] Firebase OTP Verification Error:', error);
+      let errorMessage = 'Failed to verify OTP. Please try again.';
+      if (error.code === 'auth/invalid-verification-code') {
+        errorMessage = 'Invalid OTP. Please check and try again.';
+      } else if (error.code === 'auth/code-expired') {
+        errorMessage = 'OTP has expired. Please resend OTP.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later.';
+      }
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(true);
-
-    const otpData = {
-      mobileNumber: mobileNumber,
-      code: otp.join(""),
-    };
-
-    console.log("Verifying OTP:", otpData); // Debug log
-    const response = await api.post("/user/auth/verify-otp", otpData);
-    console.log("OTP Verification Response:", response.data); // Debug log
-    const tokenFromHeader =
-      response.headers["auth-token"] ||
-      response.headers["authorization"] || // case insensitive
-      response.headers["Authorization"] || // try both
-      "";
-
-    console.log("✅ Token from header:", tokenFromHeader);
-
-    if (response.data && tokenFromHeader) {
-      const user = response.data.data.user;
-
-      // ✅ Dispatch token and user data to Redux
-      dispatch(
-        loginUser({
-          fullName: user.fullName || "",
-          mobileNumber: user.mobileNumber || "",
-          role: user.role || "user",
-          token: tokenFromHeader,
-        })
-      );
-
-      // ✅ Save token in AsyncStorage
-      await AsyncStorage.setItem("token", tokenFromHeader);
-
-      setShowSuccess(true);
-
-      setTimeout(() => {
-        navigation.navigate("UserVerifiedScreen");
-      }, 1500);
-    } else {
-      Alert.alert("Error", "Invalid response from server");
-    }
-
-   
-  } catch (error) {
-    console.error("OTP verification error:", error);
-    Alert.alert("Error", "Verification failed. Please try again.");
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
+  };
 
   const handleResendOtp = async () => {
     try {
+      if (!mobileNumber) {
+        Alert.alert('Error', 'Mobile number is missing. Please try signing up again.');
+        console.log('[UserOtpVerificationScreen] Resend failed: mobileNumber is undefined');
+        return;
+      }
+
       setIsResending(true);
 
-      const resendData = {
-        mobileNumber: mobileNumber,
-      };
+      console.log('[UserOtpVerificationScreen] Resending Firebase OTP for:', mobileNumber);
+      const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber);
+      console.log('[UserOtpVerificationScreen] Firebase OTP resent successfully:', confirmationResult);
+      Alert.alert('Success', 'OTP has been resent successfully!');
+      setOtp(['', '', '', '', '', '']);
+      inputs.current[0]?.focus();
 
-      console.log("Resending OTP:", resendData); // Debug log
-
-      const response = await api.post("/user/auth/resend-otp", resendData);
-
-      console.log("Resend OTP Response:", response.data); // Debug log
-      if (response.data) {
-        Alert.alert("Success", "OTP has been resent successfully!");
-        // Clear existing OTP
-        setOtp(["", "", "", ""]);
-        // Focus on first input
-        inputs.current[0]?.focus();
-      }
+      // Navigate back to the same screen with updated confirmation
+      navigation.replace('UserOtpVerificationScreen', {
+        mobileNumber,
+        confirmation: confirmationResult,
+        userId,
+        fullName,
+      });
     } catch (error) {
-      console.error("Resend OTP Error:", error.message);
-      console.error("Error Response:", error.response?.data);
-
-      Alert.alert(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to resend OTP. Please try again."
-      );
+      console.error('[UserOtpVerificationScreen] Resend Firebase OTP Error:', error);
+      let errorMessage = 'Failed to resend OTP. Please try again.';
+      if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please wait and try again later.';
+      } else if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsResending(false);
     }
@@ -234,51 +215,17 @@ const handleVerify = async () => {
 
   return (
     <View style={styles.container}>
-      <SignUpBackground
-        style={styles.backgroundSvg}
-        width={width}
-        height={height}
-      />
-      <View
-        style={[
-          styles.overlay,
-          {
-            paddingTop: responsiveDimensions.safeAreaTop,
-            paddingBottom: responsiveDimensions.safeAreaBottom,
-            paddingLeft: responsiveDimensions.safeAreaLeft,
-            paddingRight: responsiveDimensions.safeAreaRight,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.backIcon,
-            {
-              paddingLeft: Math.max(
-                responsiveDimensions.safeAreaLeft + dimensions.spacing.md,
-                dimensions.spacing.xl
-              ),
-              paddingRight: Math.max(
-                responsiveDimensions.safeAreaRight + dimensions.spacing.md,
-                dimensions.spacing.xl
-              ),
-            },
-          ]}
-          onPress={() => navigation.goBack()}
-        >
+      <SignUpBackground style={styles.backgroundSvg} width={width} height={height} />
+      <View style={[styles.overlay, { paddingTop: responsiveDimensions.safeAreaTop, paddingBottom: responsiveDimensions.safeAreaBottom, paddingLeft: responsiveDimensions.safeAreaLeft, paddingRight: responsiveDimensions.safeAreaRight }]}>
+        <TouchableOpacity style={[styles.backIcon, { paddingLeft: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.xl), paddingRight: Math.max(responsiveDimensions.safeAreaRight + dimensions.spacing.md, dimensions.spacing.xl) }]} onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={dimensions.iconSize} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.content}>
           <OtpIcon width={52} height={52} style={styles.iconImage} />
-          <Text style={styles.title}>OTP{"\n"}Verification </Text>
-          <Text style={styles.emailVerifyText}>
-            We need to verify your email
-          </Text>
-          <Text style={styles.subtitle}>
-            To verify your account, enter the 4 digit OTP code that we sent to
-            your email.
-          </Text>
+          <Text style={styles.title}>OTP{"\n"}Verification</Text>
+          <Text style={styles.emailVerifyText}>We need to verify your mobile number</Text>
+          <Text style={styles.subtitle}>To verify your user account, enter the 6-digit OTP code that we sent to your mobile number ({mobileNumber}).</Text>
 
           <View style={styles.otpRow}>
             {otp.map((digit, index) => (
@@ -302,74 +249,20 @@ const handleVerify = async () => {
 
           <TouchableOpacity onPress={handleVerify} disabled={isLoading}>
             <LinearGradient
-              colors={["#B15CDE", "#7952FC"]}
+              colors={['#B15CDE', '#7952FC']}
               start={{ x: 1, y: 0 }}
               end={{ x: 0, y: 0 }}
               style={[styles.primaryButton, isLoading && { opacity: 0.7 }]}
             >
-              <Text style={styles.primaryButtonText}>
-                {isLoading ? "Verifying..." : "Verify"}
-              </Text>
+              <Text style={styles.primaryButtonText}>{isLoading ? 'Verifying...' : 'Verify'}</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.resendButton, isResending && { opacity: 0.7 }]}
-            onPress={handleResendOtp}
-            disabled={isResending}
-          >
-            <Text style={styles.resendText}>
-              {isResending ? "Resending..." : "Resend OTP"}
-            </Text>
+          <TouchableOpacity style={[styles.resendButton, isResending && { opacity: 0.7 }]} onPress={handleResendOtp} disabled={isResending}>
+            <Text style={styles.resendText}>{isResending ? 'Resending...' : 'Resend OTP'}</Text>
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Modal for Success Popup */}
-      {/* <Modal transparent visible={showSuccess} animationType="fade" statusBarTranslucent>
-        <View style={[
-          styles.modalContainer,
-          {
-            paddingTop: Math.max(responsiveDimensions.safeAreaTop + responsiveDimensions.modalPadding.vertical, 60),
-            paddingBottom: Math.max(responsiveDimensions.safeAreaBottom + responsiveDimensions.modalPadding.vertical, 60),
-            paddingLeft: Math.max(responsiveDimensions.safeAreaLeft + responsiveDimensions.modalPadding.horizontal, 30),
-            paddingRight: Math.max(responsiveDimensions.safeAreaRight + responsiveDimensions.modalPadding.horizontal, 30),
-          }
-        ]}>
-          <View style={[
-            styles.modalContent,
-            {
-              width: responsiveDimensions.modalWidth,
-              maxWidth: responsiveDimensions.modalWidth,
-              paddingHorizontal: responsiveDimensions.modalContentPadding.horizontal,
-              paddingVertical: responsiveDimensions.modalContentPadding.vertical,
-              minHeight: Math.max(height * 0.2, 160),
-              maxHeight: Math.max(height * 0.4, 280),
-            }
-          ]}>
-            <Image
-              source={require('../assets/Images/Success.png')}
-              style={[
-                styles.successIcon,
-                {
-                  width: Math.max(responsiveDimensions.modalImageSize || 60, 60),
-                  height: Math.max(responsiveDimensions.modalImageSize || 60, 60),
-                  marginBottom: Math.max(dimensions.spacing.sm, 8),
-                }
-              ]}
-            />
-            <Text style={[
-              styles.successText,
-              {
-                fontSize: Math.max(dimensions.fontSize.title, 14),
-                lineHeight: Math.max(dimensions.fontSize.title + 4, 18),
-              }
-            ]}>
-              Verification Success
-            </Text>
-          </View>
-        </View>
-      </Modal> */}
     </View>
   );
 };
@@ -377,94 +270,91 @@ const handleVerify = async () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: '#121212',
   },
   backgroundSvg: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
-    width: "100%",
-    height: "100%",
+    width: '100%',
+    height: '100%',
   },
   overlay: {
     flex: 1,
-    backgroundColor: "transparent",
+    backgroundColor: 'transparent',
   },
   backIcon: {
-    paddingTop: dimensions.spacing.xl,
     paddingBottom: dimensions.spacing.md,
     minWidth: Math.max(dimensions.iconSize + 16, 44),
     minHeight: Math.max(dimensions.iconSize + 16, 44),
-    justifyContent: "center",
+    justifyContent: 'center',
   },
   content: {
     padding: dimensions.spacing.xxl,
-    alignItems: "center",
+    alignItems: 'center',
     flex: 1,
-    justifyContent: "flex-start",
+    justifyContent: 'flex-start',
     paddingTop: dimensions.spacing.xxxl * 2,
   },
   iconImage: {
     width: 52,
     height: 52,
-    resizeMode: "contain",
+    resizeMode: 'contain',
     marginBottom: dimensions.spacing.md,
   },
   title: {
-    fontFamily: "Nunito Sans",
-    fontWeight: "700",
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
     fontSize: 24,
     lineHeight: 36,
-    color: "rgb(255, 255, 255)",
-    textAlign: "center",
-    alignSelf: "stretch",
+    color: 'rgb(255, 255, 255)',
+    textAlign: 'center',
+    alignSelf: 'stretch',
     letterSpacing: 0,
     marginBottom: 8,
   },
   emailVerifyText: {
-    fontFamily: "Nunito Sans",
-    fontWeight: "400",
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
     fontSize: 12,
     lineHeight: 15,
     letterSpacing: 0,
-    textAlign: "center",
-    color: "#fff",
+    textAlign: 'center',
+    color: '#fff',
     marginBottom: dimensions.spacing.xxl,
   },
   subtitle: {
-    fontFamily: "Nunito Sans",
-    fontWeight: "400",
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
     fontSize: 12,
     lineHeight: 21,
-    color: "#fff",
+    color: '#fff',
     letterSpacing: 0,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 32,
   },
   otpRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
     marginBottom: 10,
     marginTop: 12,
-    paddingHorizontal: isSmallPhone
-      ? dimensions.spacing.sm
-      : dimensions.spacing.lg,
-    gap: dimensions.spacing.sm,
+    paddingHorizontal: isSmallPhone ? dimensions.spacing.sm : dimensions.spacing.md,
+    gap: isSmallPhone ? dimensions.spacing.xs : dimensions.spacing.sm,
   },
   otpInput: {
     width: dimensions.otpBoxSize,
     height: dimensions.otpBoxSize,
     borderRadius: dimensions.borderRadius.md,
     fontSize: dimensions.fontSize.large,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     borderWidth: 2,
-    borderColor: "#333",
-    color: "#fff",
-    backgroundColor: "#1a1a1a",
-    textAlign: "center",
-    minWidth: 44,
-    minHeight: 44,
+    borderColor: '#333',
+    color: '#fff',
+    backgroundColor: '#1a1a1a',
+    textAlign: 'center',
+    minWidth: 40,
+    minHeight: 40,
   },
   primaryButton: {
     width: 325,
@@ -473,25 +363,25 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingRight: 16,
     paddingLeft: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 32,
     marginBottom: dimensions.spacing.xl,
-    shadowColor: "#a95eff",
+    shadowColor: '#a95eff',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   primaryButtonText: {
-    fontFamily: "Nunito Sans",
-    fontWeight: "500",
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
     fontSize: 13,
     lineHeight: 21,
     letterSpacing: 0,
-    textAlign: "center",
-    textAlignVertical: "center",
-    color: "rgba(255, 255, 255, 1)",
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    color: 'rgba(255, 255, 255, 1)',
   },
   resendButton: {
     width: 325,
@@ -501,49 +391,21 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     paddingLeft: 16,
     borderWidth: 1,
-    borderColor: "#fff",
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
+    borderColor: '#fff',
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: -8,
   },
   resendText: {
-    fontFamily: "Nunito Sans",
-    fontWeight: "500",
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
     fontSize: 13,
     lineHeight: 21,
     letterSpacing: 0,
-    textAlign: "center",
-    textAlignVertical: "center",
-    color: "rgba(198, 197, 237, 1)",
-  },
-
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    borderRadius: dimensions.borderRadius.lg,
-    alignItems: "center",
-    backgroundColor: "#1a1a1a",
-    borderWidth: 1,
-    borderColor: "#333",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  successIcon: {
-    resizeMode: "contain",
-  },
-  successText: {
-    fontWeight: "600",
-    color: "#fff",
-    textAlign: "center",
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    color: 'rgba(198, 197, 237, 1)',
   },
 });
 

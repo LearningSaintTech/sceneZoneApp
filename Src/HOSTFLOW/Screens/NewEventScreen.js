@@ -16,10 +16,10 @@ import Feather from 'react-native-vector-icons/Feather';
 import CameraIcon from '../assets/icons/Camera';
 import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { launchCamera } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../Config/env';
+import { API_BASE_URL } from '../Config/env.js';
 import { useSelector } from 'react-redux';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 const { width, height } = Dimensions.get('window');
@@ -88,6 +88,8 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
   const [selectedTime, setSelectedTime] = useState(new Date());
   const [posterUrl, setPosterUrl] = useState('');
   const [budget, setBudget] = useState('');
+  const [location, setLocation] = useState('');
+  const [about, setAbout] = useState('');
 
   const token = useSelector(state => state.auth.token);
 
@@ -99,9 +101,28 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     }
   };
 
- 
-
   const handleCameraPress = async () => {
+    Alert.alert(
+      'Select Image Source',
+      'Choose how you want to add an image',
+      [
+        {
+          text: 'Camera',
+          onPress: handleTakePhoto
+        },
+        {
+          text: 'Gallery',
+          onPress: handleImageLibraryPress
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
+  const handleTakePhoto = async () => {
     const options = {
       mediaType: 'photo',
       includeBase64: false,
@@ -157,8 +178,55 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     }
   };
   
-
-
+  const handleImageLibraryPress = async () => {
+    const options = {
+      mediaType: 'photo',
+      includeBase64: false,
+      maxHeight: 232,
+      maxWidth: 317,
+      quality: 0.8,
+      saveToPhotos: false,
+    };
+  
+    const storagePermission = Platform.select({
+      android: Platform.Version >= 33
+        ? PERMISSIONS.ANDROID.READ_MEDIA_IMAGES
+        : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
+      ios: PERMISSIONS.IOS.PHOTO_LIBRARY,
+    });
+  
+    const checkPermission = await check(storagePermission);
+  
+    if (checkPermission !== RESULTS.GRANTED) {
+      const requestPermission = await request(storagePermission);
+      if (requestPermission !== RESULTS.GRANTED) {
+        Alert.alert('Permission Error', 'Photo library access is required');
+        return;
+      }
+    }
+  
+    try {
+      const result = await launchImageLibrary(options);
+      if (result.didCancel) return;
+      if (result.errorCode) {
+        Alert.alert('Image Library Error', result.errorMessage || 'Unknown error');
+        return;
+      }
+  
+      if (result.assets && result.assets[0] && result.assets[0].uri) {
+        let uri = result.assets[0].uri;
+        // Ensure file:// prefix for Android
+        if (Platform.OS === 'android' && !uri.startsWith('file://')) {
+          uri = 'file://' + uri;
+        }
+        setPosterUrl(uri);
+      }
+    } catch (error) {
+      console.log("Image library error:", error);
+      Alert.alert('Error', 'Failed to access image library');
+    }
+  };
+  
   const handleTimeChange = (event, pickedTime) => {
     setShowTimePicker(false);
     if (event.type === 'set' && pickedTime) {
@@ -189,16 +257,18 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
       }
       console.log('Date selected:', date);
   
+      // eventDateTime as JSON array
+      const eventDateTime = JSON.stringify([`${date} ${time}`]);
+      console.log('Appended eventDateTime:', eventDateTime);
+  
       const formData = new FormData();
       console.log('FormData created');
-      formData.append('eventName', eventName);
-      console.log('Appended eventName:', eventName);
-      formData.append('venue', venueName);
-      console.log('Appended venueName:', venueName);
-      formData.append('eventDate', JSON.stringify([date]));
-      console.log('Appended eventDate:', JSON.stringify([date]));
-      formData.append('eventTime', time);
-      console.log('Appended eventTime:', time); // Check the value here
+      formData.append('eventName', eventName.trim());
+      console.log('Appended eventName:', eventName.trim());
+      formData.append('venue', venueName.trim());
+      console.log('Appended venueName:', venueName.trim());
+      formData.append('eventDateTime', eventDateTime);
+      console.log('Appended eventDateTime:', eventDateTime);
   
       const genreArray = genre
         .split(/\s|,+/)
@@ -222,6 +292,22 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
         console.log('Appended poster with URI:', posterUrl);
       } else {
         console.log('No poster URL found');
+      }
+  
+      if (location) {
+        console.log('Location found:', location);
+        formData.append('location', location);
+        console.log('Appended location:', location);
+      } else {
+        console.log('No location found');
+      }
+  
+      if (about) {
+        console.log('About found:', about);
+        formData.append('about', about);
+        console.log('Appended about:', about);
+      } else {
+        console.log('No about found');
       }
   
       console.log('Sending request to:', `${API_BASE_URL}/host/events/create-event`);
@@ -488,6 +574,49 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
           />
         </View>
 
+        <View style={[
+          styles.inputContainer,
+          { marginBottom: Math.max(dimensions.spacing.lg, 16) }
+        ]}>
+          <Text style={styles.label}>Location</Text>
+          <TextInput
+            style={[
+              styles.input,
+              { minHeight: Math.max(dimensions.inputHeight, 48) }
+            ]}
+            value={location}
+            onChangeText={setLocation}
+            placeholder="Enter event location"
+            placeholderTextColor="#666"
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
+        </View>
+
+        <View style={[
+          styles.inputContainer,
+          { marginBottom: Math.max(dimensions.spacing.lg, 16) }
+        ]}>
+          <Text style={styles.label}>About Event</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                minHeight: Math.max(dimensions.inputHeight * 2, 96),
+                paddingTop: Math.max(dimensions.spacing.md, 12),
+                paddingBottom: Math.max(dimensions.spacing.md, 12),
+              }
+            ]}
+            value={about}
+            onChangeText={setAbout}
+            placeholder="Describe your event..."
+            placeholderTextColor="#666"
+            multiline={true}
+            textAlignVertical="top"
+            autoCapitalize="sentences"
+          />
+        </View>
+
         <TouchableOpacity 
           style={styles.continueButton}
           activeOpacity={0.8}
@@ -608,7 +737,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   inputContainer: {
-    height:70,
+    // height:70, // Removed fixed height for better responsiveness
   },
   label: {
     color: '#FFF',

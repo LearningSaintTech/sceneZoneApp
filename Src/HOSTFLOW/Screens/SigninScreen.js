@@ -1,17 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  useColorScheme,
   SafeAreaView,
   Dimensions,
   ScrollView,
   Alert,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
 import Feather from 'react-native-vector-icons/Feather';
 import { useDispatch } from 'react-redux';
 import { loginHost } from '../Redux/slices/authSlice';
@@ -23,8 +21,42 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MobileIcon from '../assets/icons/mobile';
 import LockIcon from '../assets/icons/lock';
 import api from '../Config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get('window');
+
+// Enhanced responsive dimensions system for all Android devices
+const isTablet = width >= 768;
+const isSmallPhone = width < 350;
+
+const dimensions = {
+  spacing: {
+    xs: Math.max(width * 0.01, 4),
+    sm: Math.max(width * 0.02, 8),
+    md: Math.max(width * 0.03, 12),
+    lg: Math.max(width * 0.04, 16),
+    xl: Math.max(width * 0.05, 20),
+    xxl: Math.max(width * 0.06, 24),
+  },
+  fontSize: {
+    small: Math.max(width * 0.03, 12),
+    body: Math.max(width * 0.035, 14),
+    title: Math.max(width * 0.04, 16),
+    header: Math.max(width * 0.045, 18),
+    large: Math.max(width * 0.065, 28),
+  },
+  borderRadius: {
+    sm: Math.max(width * 0.015, 6),
+    md: Math.max(width * 0.025, 10),
+    lg: Math.max(width * 0.04, 15),
+  },
+  buttonHeight: Math.max(height * 0.06, 50),
+  inputHeight: Math.max(height * 0.06, 50),
+  iconSize: Math.max(width * 0.05, 20),
+  socialIconSize: Math.max(width * 0.05, 20),
+  marginHorizontal: Math.max(width * 0.04, 14),
+};
 
 const SignInScreen = ({ navigation }) => {
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -33,13 +65,57 @@ const SignInScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isOtpLogin, setIsOtpLogin] = useState(false);
-  const scheme = useColorScheme();
-  const isDark = true; // force dark mode
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
-  const background = '#000';
-  const cardBg = '#1a1a1a';
+  // Input refs for focus control
+  const mobileInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  // On mount, check AsyncStorage for saved credentials
+  useEffect(() => {
+    const loadRemembered = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('hostRememberMe');
+        if (saved) {
+          const { mobileNumber, password } = JSON.parse(saved);
+          setMobileNumber(mobileNumber);
+          setPassword(password);
+          setRememberMe(true);
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    };
+    loadRemembered();
+  }, []);
+
+  // Save or clear credentials when rememberMe changes
+  useEffect(() => {
+    const updateRemembered = async () => {
+      if (rememberMe) {
+        if (mobileNumber && password) {
+          await AsyncStorage.setItem('hostRememberMe', JSON.stringify({ mobileNumber, password }));
+        }
+      } else {
+        await AsyncStorage.removeItem('hostRememberMe');
+      }
+    };
+    updateRemembered();
+  }, [rememberMe]);
+
+  // Also update storage if user changes credentials while rememberMe is checked
+  useEffect(() => {
+    const updateIfRemembered = async () => {
+      if (rememberMe && mobileNumber && password) {
+        await AsyncStorage.setItem('hostRememberMe', JSON.stringify({ mobileNumber, password }));
+      }
+    };
+    updateIfRemembered();
+  }, [mobileNumber, password]);
+
+  const background = '#121212';
+  const cardBg = '#000';
   const text = '#fff';
   const border = '#333';
   const placeholder = '#aaa';
@@ -69,34 +145,53 @@ const SignInScreen = ({ navigation }) => {
 
       const loginData = {
         mobileNumber: parseInt(mobileNumber),
-        password: password.trim()
+        password: password.trim(),
       };
 
-      console.log("Login Data:", loginData); // Debug log
+      // If rememberMe is checked, save credentials
+      if (rememberMe) {
+        await AsyncStorage.setItem('hostRememberMe', JSON.stringify({ mobileNumber, password }));
+      } else {
+        await AsyncStorage.removeItem('hostRememberMe');
+      }
+
+      console.log('Host Login Data:', loginData);
 
       const response = await api.post('/host/auth/loginFromPassword', loginData);
 
-      console.log("Login Response:", response.data); // Debug log
+      console.log('Host Login Response:', response.data);
 
-      if (response.data.success) {
-        const userData = response.data.data.user;
-       const token = response.headers['authorization']?.replace('Bearer ', '');
-   
-       console.log('handleVerify - User Data:', userData);
-       console.log('handleVerify - Token:', token);
-   
-       dispatch(loginHost({
-         ...userData,
-         token,
-       }));
-       
-       navigation.navigate('MainTabs', { mobileNumber: mobileNumber });
-   
-     }
+      if (response.data && response.data.success) {
+        // Get token from response headers
+        const token = response.headers['authorization']?.replace('Bearer ', '');
+
+        if (!token) {
+          console.warn('No token found in response headers');
+          Alert.alert('Error', 'Authentication failed: No token received.');
+          return;
+        }
+
+        console.log('Sign-in successful, dispatching login action with token:', token);
+
+        // Dispatch login action with user data
+        dispatch(loginHost({
+          id: response.data.data.user._id || response.data.data.user.id,
+          name: response.data.data.user.fullName || 'Host User',
+          email: response.data.data.user.email || '',
+          phone: response.data.data.user.mobileNumber || mobileNumber,
+          mobileNumber: mobileNumber,
+          location: response.data.data.user.location || null,
+          role: response.data.data.user.role || 'host',
+          token: token,
+        }));
+
+        // Navigate directly to HostHome
+        navigation.navigate('HostHome');
+      }
     } catch (error) {
-      console.error("Login Error:", error.message);
-      console.error("Error Response:", error.response?.data);
-      
+      console.error('Host Login Error:', error.message);
+      console.error('Error Response:', error.response?.data);
+
       Alert.alert(
         'Error',
         error.response?.data?.message || 'Failed to sign in. Please check your credentials and try again.'
@@ -109,35 +204,49 @@ const SignInScreen = ({ navigation }) => {
   const handleOtpLogin = async () => {
     try {
       // Input validation
-      if (!mobileNumber.trim() || isNaN(mobileNumber) || mobileNumber.length < 10) {
-        Alert.alert('Error', 'Please enter a valid mobile number (at least 10 digits)');
+      const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
+      if (!phoneRegex.test(mobileNumber)) {
+        Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
         return;
       }
 
       setIsLoading(true);
 
-      const loginData = {
-        mobileNumber: mobileNumber
-      };
+      const loginData = { mobileNumber };
 
-      console.log("OTP Login Data:", loginData); // Debug log
+      console.log('Host OTP Login Data:', loginData);
 
-      const response = await api.post('/host/auth/login', loginData);
+      const response = await api.post('/host/firebase-auth/firebase-login', loginData);
+      console.log('Host OTP Login Response:', response.data);
 
-      console.log("OTP Login Response:", response.data); // Debug log
+      if (response.data.success) {
+        console.log('Initiating Firebase phone auth for:', mobileNumber);
+        const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber);
+        console.log('Firebase OTP sent successfully:', confirmationResult);
 
-      if (response.data) {
-        // Navigate to OTP verification screen with mobile number
-        navigation.navigate('OtpVerify', { mobileNumber: mobileNumber });
+        Alert.alert('Success', 'OTP sent to your mobile number', [
+          {
+            text: 'OK',
+            onPress: () =>
+              navigation.navigate('OtpVerify', {
+                mobileNumber,
+                confirmation: confirmationResult,
+                userId: response.data.data.user?._id || '',
+                fullName: response.data.data.user?.fullName || '',
+              }),
+          },
+        ]);
       }
     } catch (error) {
-      console.error("OTP Login Error:", error.message);
-      console.error("Error Response:", error.response?.data);
-      
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to initiate OTP login. Please try again.'
-      );
+      console.error('Host OTP Login Error:', error.message);
+      console.error('Error Response:', error.response?.data);
+      let errorMessage = error.response?.data?.message || 'Failed to initiate OTP login. Please try again.';
+      if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -150,38 +259,33 @@ const SignInScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <SignUpBackground 
-        style={styles.backgroundSvg}
-        width={width}
-        height={height}
-      />
+      <SignUpBackground style={styles.backgroundSvg} width={width} height={height} />
       <SafeAreaView style={styles.overlay}>
         <ScrollView
           contentContainerStyle={[styles.inner, dynamicPadding]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.title, { color: text }]}>
-            Sign in to{'\n'}your account
-          </Text>
+          <Text style={[styles.title, { color: text }]}>Sign in to{"\n"}your account</Text>
 
           <Text style={[styles.subtitle, { color: placeholder }]}>
             Don't have an account?{' '}
-            <Text style={styles.signup} onPress={() => navigation.navigate('Signup')}>
+            <Text style={styles.signup} onPress={() => navigation.navigate('HostSignup')}>
               Sign Up
             </Text>
           </Text>
 
           {/* Phone Input */}
-          <View style={[styles.inputContainer, { marginTop: 0 }, { backgroundColor: cardBg, borderColor: border }]}>
+          <View style={[styles.inputContainer, { backgroundColor: cardBg, borderColor: border }]}>
             <MobileIcon width={20} height={20} style={styles.inputIcon} />
             <TextInput
-              placeholder="Mobile Number"
+              placeholder="Mobile Number (e.g., +91XXXXXXXXXX)"
               placeholderTextColor={placeholder}
               style={[styles.input, { color: text }]}
               keyboardType="phone-pad"
               value={mobileNumber}
               onChangeText={setMobileNumber}
+              ref={mobileInputRef}
             />
           </View>
 
@@ -196,6 +300,7 @@ const SignInScreen = ({ navigation }) => {
                 style={[styles.input, { color: text, flex: 1 }]}
                 value={password}
                 onChangeText={setPassword}
+                ref={passwordInputRef}
               />
               <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
                 <Feather name={passwordVisible ? 'eye' : 'eye-off'} size={20} color={placeholder} />
@@ -225,7 +330,7 @@ const SignInScreen = ({ navigation }) => {
                     <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold', lineHeight: 16 }}>✓</Text>
                   )}
                 </TouchableOpacity>
-                <Text style={[styles.rememberText, { color: text }]}> Remember me</Text>
+                <Text style={[styles.rememberText, { color: text }]}>Remember me</Text>
               </View>
               <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
                 <Text style={styles.forgot}>Forgot Password</Text>
@@ -234,14 +339,11 @@ const SignInScreen = ({ navigation }) => {
           )}
 
           {/* Sign In Button */}
-          <TouchableOpacity 
-            onPress={isOtpLogin ? handleOtpLogin : handleSignIn} 
-            disabled={isLoading}
-          >
+          <TouchableOpacity onPress={isOtpLogin ? handleOtpLogin : handleSignIn} disabled={isLoading}>
             <LinearGradient
               colors={['#B15CDE', '#7952FC']}
-              start={{x: 1, y: 0}}
-              end={{x: 0, y: 0}}
+              start={{ x: 1, y: 0 }}
+              end={{ x: 0, y: 0 }}
               style={[styles.primaryButton, { borderRadius: 14, opacity: isLoading ? 0.7 : 1 }]}
             >
               <Text style={styles.primaryButtonText}>
@@ -257,7 +359,7 @@ const SignInScreen = ({ navigation }) => {
           </View>
           <TouchableOpacity onPress={toggleLoginMode}>
             <Text style={styles.loginOtp}>
-              {isOtpLogin ? 'Login with Password' : 'Login With OTP'}
+              {isOtpLogin ? 'Login with Password' : 'Login with OTP'}
             </Text>
           </TouchableOpacity>
 
@@ -279,7 +381,7 @@ const SignInScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
+  container: {
     flex: 1,
     backgroundColor: '#121212',
   },
@@ -303,7 +405,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  title: { 
+  title: {
     fontFamily: 'Nunito Sans',
     fontWeight: '800',
     fontSize: 26,
@@ -314,7 +416,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     color: '#C6C5ED',
   },
-  subtitle: { 
+  subtitle: {
     fontFamily: 'Nunito Sans',
     fontWeight: '400',
     fontSize: 13,
@@ -324,15 +426,14 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     alignSelf: 'flex-start',
   },
-  signup: { 
+  signup: {
     fontFamily: 'Nunito Sans',
     fontWeight: '700',
     fontSize: 14,
     lineHeight: 21,
     letterSpacing: 0,
-    color: '#a95eff' 
+    color: '#a95eff',
   },
-
   inputContainer: {
     width: '100%',
     maxWidth: 400,
@@ -349,7 +450,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(141, 107, 252, 1)',
     backgroundColor: '#000',
   },
-  inputIcon: { marginRight: 8 },
+  inputIcon: {
+    marginRight: 8,
+  },
   input: {
     fontSize: 13,
     flex: 1,
@@ -386,7 +489,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    width: width * 0.95, // 95% of screen width
+    width: width * 0.95,
     alignSelf: 'center',
     marginBottom: 60,
   },
