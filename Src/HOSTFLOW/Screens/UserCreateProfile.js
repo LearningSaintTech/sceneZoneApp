@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -19,9 +20,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   loginUser,
   selectToken,
-  selectFullName,
-  selectMobileNumber,
-  selectUserEmail,
   selectUserData,
 } from "../Redux/slices/authSlice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,14 +27,15 @@ import SignUpBackground from "../assets/Banners/SignUp";
 import api from "../Config/api";
 import * as ImagePicker from "react-native-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
+
 const { width, height } = Dimensions.get("window");
-const UserCreateProfileScreen = ({ navigation, route }) => {
-  
+
+const UserCreateProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const token = useSelector(selectToken);
   const userData = useSelector(selectUserData);
-  console.log("User Data create profile:", token);
+
   const [fullName, setFullName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -48,8 +47,7 @@ const UserCreateProfileScreen = ({ navigation, route }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-console.log("User Data in create profile:", userData);
-
+  // console.log("User Data in create profile:", { token, userData });
 
   useEffect(() => {
     if (userData?.fullName || userData?.mobileNumber) {
@@ -61,7 +59,6 @@ console.log("User Data in create profile:", userData);
     setLocation(userData?.location || "");
     if (userData?.dateOfBirth) {
       setDateOfBirth(userData.dateOfBirth);
-     
       const [day, month, year] = userData.dateOfBirth.split("-").map(Number);
       if (day && month && year) {
         setSelectedDate(new Date(year, month - 1, day));
@@ -74,7 +71,7 @@ console.log("User Data in create profile:", userData);
 
   const validateImage = (image) => {
     const maxSize = 5 * 1024 * 1024; // 5MB
-    if (!image.uri) {
+    if (!image?.uri) {
       Alert.alert("Error", "Invalid image selected");
       return false;
     }
@@ -136,9 +133,11 @@ console.log("User Data in create profile:", userData);
   };
 
   const serverFormatDate = (date) => {
-    const [day, month, year] = date.split("-");
-    return `${year}-${month}-${day}`; // Convert DD-MM-YYYY to YYYY-MM-DD
-  };
+  if (!date) return "";
+  const [day, month, year] = date.split("-");
+  return `${year}-${month}-${day}`;
+};
+
 
   const handleDateChange = (event, date) => {
     if (Platform.OS === "android") {
@@ -154,7 +153,15 @@ console.log("User Data in create profile:", userData);
     setShowDatePicker(true);
   };
 
+  const validateToken = (token) => {
+    // Basic JWT format validation: should have 3 parts separated by dots
+    if (!token || typeof token !== "string") return false;
+    const parts = token.split(".");
+    return parts.length === 3 && parts.every((part) => part.length > 0);
+  };
+
   const handleContinue = async () => {
+    // Input validation
     if (!fullName || !dateOfBirth || !phoneNumber || !email || !location) {
       Alert.alert("Error", "Please fill in all fields");
       return;
@@ -170,27 +177,30 @@ console.log("User Data in create profile:", userData);
       return;
     }
 
-    // Validate date format
     if (!/^\d{2}-\d{2}-\d{4}$/.test(dateOfBirth)) {
       Alert.alert("Error", "Please select a valid date of birth");
       return;
     }
 
-    if (!token) {
+    if (!token || !validateToken(token)) {
       Alert.alert(
         "Error",
-        "Authentication token is missing. Please log in again."
+        "Invalid or missing authentication token. Please log in again."
       );
+      console.error("Invalid token:", token);
       navigation.navigate("UserSignin");
       return;
     }
+
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append("fullName", fullName);
-      formData.append("dob", serverFormatDate(dateOfBirth)); // Send YYYY-MM-DD to backend
+      formData.append("dob", serverFormatDate(dateOfBirth));
       formData.append("email", email);
       formData.append("address", location);
+      formData.append("mobileNumber", phoneNumber);
+
       if (
         profileImage &&
         profileImage.uri &&
@@ -208,38 +218,43 @@ console.log("User Data in create profile:", userData);
           type: profileImage.type || "image/jpeg",
           name: profileImage.fileName || `profile_${Date.now()}.jpg`,
         });
+      } else if (userData?.profileImageUrl) {
+        formData.append("profileImageUrl", userData.profileImageUrl);
       }
 
-      const endpoint = "/user/create-profile";
-      const response = await api.post(endpoint, formData, {
+      // Log FormData for debugging
+      console.log("FormData contents:", {
+        fullName,
+        dob: serverFormatDate(dateOfBirth),
+        email,
+        address: location,
+        mobileNumber: phoneNumber,
+        profileImage: profileImage
+          ? profileImage.uri
+          : userData?.profileImageUrl,
+      });
+      console.log("Authorization header:", `${token}`);
+      const response = await api.post("/user/create-profile", formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `${token.trim()}`, 
           "Content-Type": "multipart/form-data",
         },
       });
-      console.log("API Response create profile:", response.data);
-      if (response.data && response.data.data) {
-        const profileData = response.data.data;
+
+      console.log("Crofile create response:", response.data);
+
+      if (response.data && response.data.success) {
+        const profileData = response.data.data || {};
 
         dispatch(
           loginUser({
-            fullName: profileData.fullName,
-            mobileNumber: profileData.mobileNumber,
-            email: profileData.email,
-            location: profileData.address,
-            dob: profileData.dob,
-            profileImageUrl: profileData.profileImageUrl,
-            token,
+            location: profileData.address || location,
+            dob: profileData.dob || dateOfBirth,
+            email: profileData.email || email,
+            profileImageUrl:profileData.profileImageUrl || userData?.profileImageUrl,
           })
         );
 
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "UserHome", params: { isLoggedIn: true } }],
-        });
-      }
-
-      if (response.data.success) {
         Alert.alert(
           "Success",
           response.data.message ||
@@ -250,37 +265,19 @@ console.log("User Data in create profile:", userData);
           routes: [{ name: "UserHome", params: { isLoggedIn: true } }],
         });
       } else {
-        throw new Error(
-          response.data.message ||
-            `Failed to ${isEditing ? "update" : "create"} profile`
-        );
+        throw new Error(response.data.message || "Failed to process profile");
       }
     } catch (error) {
-      console.error("Error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        headers: error.response?.headers,
-      });
-
-      let errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Something went wrong.";
-      if (error.response?.status === 401) {
-        errorMessage = "Session expired. Please log in again.";
-        navigation.navigate("UserSignin");
-      } else if (error.response?.status === 400) {
-        errorMessage =
-          error.response?.data?.message ||
-          "Invalid data provided. Please check your inputs.";
-      }
-
+      console.error(error);
       Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
   };
+
+
+
+ 
 
   return (
     <View style={styles.container}>
@@ -357,7 +354,7 @@ console.log("User Data in create profile:", userData);
                 mode="date"
                 display={Platform.OS === "ios" ? "inline" : "calendar"}
                 onChange={handleDateChange}
-                maximumDate={new Date()} // Prevent future dates
+                maximumDate={new Date()}
                 textColor="#fff"
               />
             )}
@@ -451,6 +448,7 @@ console.log("User Data in create profile:", userData);
   );
 };
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
   container: {
     flex: 1,

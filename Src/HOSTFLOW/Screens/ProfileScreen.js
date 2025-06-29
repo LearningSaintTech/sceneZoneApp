@@ -170,7 +170,7 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={styles.versionText}>App version 1.0.0.1</Text>
         {/* Log Out Button - scrolls with content */}
         <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Log Out</Text>
+          <Text style={styles.logoutButtonText}>Log Out </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

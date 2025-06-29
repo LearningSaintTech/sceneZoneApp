@@ -135,55 +135,6 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
     }
   };
 
-  // const handleVerify = async () => {
-  //   try {
-  //     // Validate OTP
-  //     if (otp.some((digit) => !digit)) {
-  //       Alert.alert("Error", "Please enter complete OTP");
-  //       return;
-  //     }
-  //     setIsLoading(true);
-  //     const otpData = {
-  //       mobileNumber: mobileNumber,
-  //       code: otp.join(""),
-  //     };
-
-  //     console.log("Verifying OTP:", otpData); // Debug log
-  //     const response = await api.post("/user/auth/verify-otp", otpData);
-  //     const tokenFromHeader =
-  //       response.headers["auth-token"] ||
-  //       response.headers["Authorization"] ||
-  //       "";
-  //     console.log("Token from header:", tokenFromHeader);
-  //     if (response.data) {
-  //       setShowSuccess(true);
-  //       // dispatch(loginUser({
-  //       //     fullName: response.data.data.user.fullName || "",
-  //       //     mobileNumber: response.data.data.user.mobileNumber || "",
-  //       //     role: response.data.data.user.role || "user",
-  //       //       token:tokenFromHeader || "",
-  //       //   })
-  //       // );
-
-  //       dispatch(
-  //         loginUser({
-  //           fullName: response.data.data.user.fullName || "",
-  //           mobileNumber: response.data.data.user.mobileNumber || "",
-  //           role: response.data.data.user.role || "user",
-  //           token: tokenFromHeader || "",
-  //         })
-  //       );
-
-  //       await AsyncStorage.setItem("token", tokenFromHeader);
-  //       setTimeout(() => {
-  //         navigation.navigate("UserVerifiedScreen");
-  //       }, 1500);
-  //     }
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
 
 const handleVerify = async () => {
   try {
@@ -201,9 +152,8 @@ const handleVerify = async () => {
     };
 
     console.log("Verifying OTP:", otpData); // Debug log
-
     const response = await api.post("/user/auth/verify-otp", otpData);
-
+    console.log("OTP Verification Response:", response.data); // Debug log
     const tokenFromHeader =
       response.headers["auth-token"] ||
       response.headers["authorization"] || // case insensitive
@@ -236,6 +186,8 @@ const handleVerify = async () => {
     } else {
       Alert.alert("Error", "Invalid response from server");
     }
+
+   
   } catch (error) {
     console.error("OTP verification error:", error);
     Alert.alert("Error", "Verification failed. Please try again.");
@@ -319,7 +271,7 @@ const handleVerify = async () => {
 
         <View style={styles.content}>
           <OtpIcon width={52} height={52} style={styles.iconImage} />
-          <Text style={styles.title}>OTP{"\n"}Verification</Text>
+          <Text style={styles.title}>OTP{"\n"}Verification </Text>
           <Text style={styles.emailVerifyText}>
             We need to verify your email
           </Text>
