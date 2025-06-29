@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  useColorScheme,
   Dimensions,
   ScrollView,
   Alert,
@@ -18,8 +17,23 @@ import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import ForgotIcon from '../assets/icons/forgot';
 import api from '../Config/api';
+import auth from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get('window');
+
+// Responsive dimensions for all screen sizes
+const isTablet = width >= 768;
+const isSmallPhone = width < 350;
+
+const responsiveDimensions = {
+  buttonWidth: Math.min(width - 32, Math.max(width * 0.9, 300)),
+  buttonHeight: Math.max(height * 0.065, 48),
+  buttonMargin: Math.max(width * 0.04, 16),
+  buttonBottom: Math.max(height * 0.08, 60),
+  borderRadius: Math.max(width * 0.035, 12),
+  paddingHorizontal: Math.max(width * 0.04, 16),
+  paddingRight: Math.max(width * 0.12, 50),
+};
 
 const ForgotPasswordScreen = ({ navigation }) => {
   const [inputType, setInputType] = useState('email'); // 'email' or 'mobile'
@@ -30,7 +44,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
   const handleConfirm = async () => {
     try {
-      // Input validation
       if (inputType === 'email') {
         if (!email.trim()) {
           Alert.alert('Error', 'Please enter your email address');
@@ -43,45 +56,81 @@ const ForgotPasswordScreen = ({ navigation }) => {
           console.log('[ForgotPasswordScreen] Validation failed: Invalid email format', email);
           return;
         }
-      } else {
-        if (!mobileNumber.trim()) {
-          Alert.alert('Error', 'Please enter your mobile number');
-          console.log('[ForgotPasswordScreen] Validation failed: Mobile number is empty');
-          return;
+
+        setIsLoading(true);
+
+        const otpData = { email: email.trim() };
+        console.log('[ForgotPasswordScreen] Sending email OTP request:', { endpoint: '/host/email-number-send-otp', data: otpData });
+
+        const response = await api.post('/host/email-number-send-otp', otpData);
+
+        console.log('[ForgotPasswordScreen] Email OTP response:', response.data);
+
+        if (response.data) {
+          console.log('[ForgotPasswordScreen] Email OTP sent successfully, navigating to CheckMailBox');
+          navigation.navigate('CheckMailBox', {
+            inputType,
+            value: email.trim(),
+            isFirebase: false,
+          });
+        } else {
+          console.log('[ForgotPasswordScreen] Email OTP request failed:', response.data.message);
+          Alert.alert('Error', response.data.message || 'Failed to send OTP');
         }
-        const mobileRegex = /^[0-9]{10}$/;
-        if (!mobileRegex.test(mobileNumber.trim())) {
-          Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+      } else {
+        const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
+        if (!phoneRegex.test(mobileNumber.trim())) {
+          Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
           console.log('[ForgotPasswordScreen] Validation failed: Invalid mobile number format', mobileNumber);
           return;
         }
-      }
 
-      setIsLoading(true);
+        setIsLoading(true);
 
-      const otpData = inputType === 'email' ? { email: email.trim() } : { mobileNumber: mobileNumber.trim() };
-      console.log('[ForgotPasswordScreen] Sending OTP request:', { endpoint: 'host/email-sendOtp', data: otpData });
+        const otpData = { mobileNumber: mobileNumber.trim() };
+        console.log('[ForgotPasswordScreen] Sending mobile OTP request:', { endpoint: '/host/firebase-auth/firebase-login', data: otpData });
 
-      const response = await api.post('host/email-sendOtp', otpData);
+        const response = await api.post('/host/firebase-auth/firebase-login', otpData);
 
-      console.log('[ForgotPasswordScreen] OTP response:', response.data);
+        console.log('[ForgotPasswordScreen] Mobile OTP response:', response.data);
 
-      if (response.data.success) {
-        console.log('[ForgotPasswordScreen] OTP sent successfully, navigating to CheckMailboxScreen');
-        navigation.navigate('CheckMailBox', {
-          inputType,
-          value: inputType === 'email' ? email.trim() : mobileNumber.trim(),
-        });
-      } else {
-        console.log('[ForgotPasswordScreen] OTP request failed:', response.data.message);
-        Alert.alert('Error', response.data.message || 'Failed to send OTP');
+        if (response.data.success) {
+          console.log('[ForgotPasswordScreen] Initiating Firebase phone auth for:', mobileNumber);
+          const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber.trim());
+          console.log('[ForgotPasswordScreen] Firebase OTP sent successfully:', confirmationResult);
+
+          Alert.alert('Success', 'OTP sent to your mobile number', [
+            {
+              text: 'OK',
+              onPress: () =>
+                navigation.navigate('CheckMailBox', {
+                  inputType,
+                  value: mobileNumber.trim(),
+                  confirmation: confirmationResult,
+                  isFirebase: true,
+                  fullName: response.data.data.user?.fullName || '',
+                  isForgotPassword: true,
+                }),
+            },
+          ]);
+        } else {
+          console.log('[ForgotPasswordScreen] Mobile OTP request failed:', response.data.message);
+          Alert.alert('Error', response.data.message || 'Failed to send OTP');
+        }
       }
     } catch (error) {
       console.error('[ForgotPasswordScreen] OTP request error:', {
         message: error.message,
         response: error.response?.data,
+        firebaseCode: error.code,
       });
-      Alert.alert('Error', error.response?.data?.message || 'Failed to send OTP. Please try again.');
+      let errorMessage = error.response?.data?.message || 'Failed to send OTP. Please try again.';
+      if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -110,7 +159,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
             </Text>
 
             {/* Toggle between Email and Mobile */}
-            <View style={styles.toggleContainer}>
+            <View style={[styles.toggleContainer, { width: responsiveDimensions.buttonWidth, alignSelf: 'center' }]}>
               <TouchableOpacity
                 style={[styles.toggleButton, inputType === 'email' ? styles.toggleButtonActive : null]}
                 onPress={() => {
@@ -138,7 +187,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
             </View>
 
             {/* Input Field */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { width: responsiveDimensions.buttonWidth, alignSelf: 'center' }]}>
               <Ionicons
                 name={inputType === 'email' ? 'mail-outline' : 'call-outline'}
                 size={20}
@@ -147,7 +196,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
               />
               <TextInput
                 style={styles.input}
-                placeholder={inputType === 'email' ? 'scenezone@gmail.com' : '9876543210'}
+                placeholder={inputType === 'email' ? 'host@email.com' : '+91XXXXXXXXXX'}
                 placeholderTextColor="#aaa"
                 value={inputType === 'email' ? email : mobileNumber}
                 onChangeText={inputType === 'email' ? setEmail : setMobileNumber}
@@ -160,15 +209,25 @@ const ForgotPasswordScreen = ({ navigation }) => {
         </ScrollView>
 
         <TouchableOpacity
-          style={[styles.confirmButton, { bottom: insets.bottom + 60 }]}
+          style={[
+            styles.confirmButton,
+            {
+              bottom: insets.bottom + responsiveDimensions.buttonBottom,
+              width: responsiveDimensions.buttonWidth,
+              height: responsiveDimensions.buttonHeight,
+              left: (width - responsiveDimensions.buttonWidth) / 2,
+              borderRadius: responsiveDimensions.borderRadius,
+              paddingHorizontal: responsiveDimensions.paddingHorizontal,
+            },
+          ]}
           onPress={handleConfirm}
           disabled={isLoading}
         >
           <LinearGradient
             colors={['#B15CDE', '#7952FC']}
-            start={{ x: 1, y: 0 }}
-            end={{ x: 0, y: 0 }}
-            style={[styles.confirmButtonGradient, { opacity: isLoading ? 0.7 : 1 }]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.confirmButtonGradient, { borderRadius: responsiveDimensions.borderRadius, opacity: isLoading ? 0.7 : 1 }]}
           >
             <Text style={styles.confirmButtonText}>{isLoading ? 'Sending...' : 'Confirm'}</Text>
           </LinearGradient>
@@ -251,7 +310,6 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   inputContainer: {
-    width: 361,
     height: 48,
     gap: 12,
     borderRadius: 12,
@@ -274,21 +332,21 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     position: 'absolute',
-    width: 361,
-    height: 52,
-    left: 16,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 10,
-    borderRadius: 14,
-    paddingRight: 16,
-    paddingLeft: 16,
+    flexShrink: 0,
     overflow: 'hidden',
   },
   confirmButtonGradient: {
     width: '100%',
     height: '100%',
-    alignItems: 'center',
+    display: 'flex',
     justifyContent: 'center',
-    borderRadius: 14,
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
   },
   confirmButtonText: {
     fontFamily: 'Nunito Sans',

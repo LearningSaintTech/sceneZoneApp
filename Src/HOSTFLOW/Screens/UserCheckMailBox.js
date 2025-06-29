@@ -45,7 +45,7 @@ const responsiveDimensions = {
   inputFontSize: Math.max(width * 0.045, 18),
 };
 
-const CheckMailboxScreen = ({ navigation, route }) => {
+const UserCheckMailbox = ({ navigation, route }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const insets = useSafeAreaInsets();
@@ -58,14 +58,13 @@ const CheckMailboxScreen = ({ navigation, route }) => {
     useRef(null),
   ];
 
-  // Get inputType, value, and Firebase params from navigation
   const { inputType = 'email', value = '', confirmation, isFirebase = false, fullName = '', isForgotPassword = false } = route?.params || {};
 
   const handleOtpChange = (text, index) => {
     const newOtp = [...otp];
     newOtp[index] = text;
     setOtp(newOtp);
-    console.log('[CheckMailboxScreen] OTP input updated:', { index, value: text, currentOtp: newOtp });
+    console.log('[UserCheckMailbox] OTP input updated:', { index, value: text, currentOtp: newOtp });
 
     if (text !== '' && index < otp.length - 1) {
       inputRefs[index + 1].current.focus();
@@ -74,9 +73,8 @@ const CheckMailboxScreen = ({ navigation, route }) => {
       inputRefs[index - 1].current.focus();
     }
 
-    // Auto-submit if all digits are entered
     if (newOtp.every(digit => digit !== '') && index === otp.length - 1) {
-      console.log('[CheckMailboxScreen] All OTP digits entered, triggering handleConfirm');
+      console.log('[UserCheckMailbox] All OTP digits entered, triggering handleConfirm');
       handleConfirm(newOtp.join(''));
     }
   };
@@ -84,29 +82,28 @@ const CheckMailboxScreen = ({ navigation, route }) => {
   const handleResendOTP = async () => {
     if (!value) {
       Alert.alert('Error', `Please provide your ${inputType === 'email' ? 'email' : 'mobile number'}.`);
-      console.log('[CheckMailboxScreen] Resend OTP failed: Missing input value', { inputType, value });
+      console.log('[UserCheckMailbox] Resend OTP failed: Missing input value', { inputType, value });
       return;
     }
     try {
       setIsLoading(true);
       if (isFirebase) {
-        console.log('[CheckMailboxScreen] Resending Firebase OTP for:', value);
+        console.log('[UserCheckMailbox] Resending Firebase OTP for:', value);
         const confirmationResult = await auth().signInWithPhoneNumber(value);
-        console.log('[CheckMailboxScreen] Firebase OTP resent successfully:', confirmationResult);
+        console.log('[UserCheckMailbox] Firebase OTP resent successfully:', confirmationResult);
 
         Alert.alert('Success', 'OTP resent successfully!');
         setOtp(['', '', '', '', '', '']);
         inputRefs[0]?.current?.focus();
 
-        // Update route params with new confirmation
         navigation.setParams({ confirmation: confirmationResult });
       } else {
         const otpData = inputType === 'email' ? { email: value } : { mobileNumber: value };
-        console.log('[CheckMailboxScreen] Resending OTP:', { endpoint: '/host/email-number-send-otp', data: otpData });
+        console.log('[UserCheckMailbox] Resending OTP:', { endpoint: '/user/email-number-send-otp', data: otpData });
 
-        const response = await api.post('/host/email-number-send-otp', otpData);
+        const response = await api.post('/user/email-number-send-otp', otpData);
 
-        console.log('[CheckMailboxScreen] Resend OTP response:', response.data);
+        console.log('[UserCheckMailbox] Resend OTP response:', response.data);
 
         if (response.data) {
           Alert.alert('Success', 'OTP resent successfully!');
@@ -114,11 +111,11 @@ const CheckMailboxScreen = ({ navigation, route }) => {
           inputRefs[0]?.current?.focus();
         } else {
           Alert.alert('Error', response.data.message || 'Failed to resend OTP');
-          console.log('[CheckMailboxScreen] Resend OTP failed:', response.data.message);
+          console.log('[UserCheckMailbox] Resend OTP failed:', response.data.message);
         }
       }
     } catch (error) {
-      console.error('[CheckMailboxScreen] Resend OTP error:', {
+      console.error('[UserCheckMailbox] Resend OTP error:', {
         message: error.message,
         response: error.response?.data,
         firebaseCode: error.code,
@@ -142,55 +139,54 @@ const CheckMailboxScreen = ({ navigation, route }) => {
 
     if (!value || otpCode.length !== 6) {
       Alert.alert('Error', `Please enter the 6-digit OTP and ensure ${inputType === 'email' ? 'email' : 'mobile number'} is present.`);
-      console.log('[CheckMailboxScreen] OTP verification failed: Invalid input', { value, otpCode });
+      console.log('[UserCheckMailbox] OTP verification failed: Invalid input', { value, otpCode });
       return;
     }
 
     if (inputType === 'email' && !emailRegex.test(value)) {
       Alert.alert('Error', 'Invalid email format.');
-      console.log('[CheckMailboxScreen] OTP verification failed: Invalid email', { value });
+      console.log('[UserCheckMailbox] OTP verification failed: Invalid email', { value });
       return;
     }
 
     if (inputType === 'mobile' && !mobileRegex.test(value)) {
       Alert.alert('Error', 'Invalid mobile number. It must include country code (e.g., +91XXXXXXXXXX).');
-      console.log('[CheckMailboxScreen] OTP verification failed: Invalid mobile number', { value });
+      console.log('[UserCheckMailbox] OTP verification failed: Invalid mobile number', { value });
       return;
     }
 
-    // Proceed with OTP verification
     try {
       setIsLoading(true);
       if (isFirebase) {
         if (!confirmation) {
           Alert.alert('Error', 'OTP session expired. Please request a new OTP.');
-          console.log('[CheckMailboxScreen] OTP verification failed: Missing confirmation object');
+          console.log('[UserCheckMailbox] OTP verification failed: Missing confirmation object');
           return;
         }
 
-        console.log('[CheckMailboxScreen] Verifying Firebase OTP with code:', otpCode);
+        console.log('[UserCheckMailbox] Verifying Firebase OTP with code:', otpCode);
         const credential = await confirmation.confirm(otpCode);
         const idToken = await auth().currentUser.getIdToken();
-        console.log('[CheckMailboxScreen] Firebase OTP verified, ID token:', idToken);
+        console.log('[UserCheckMailbox] Firebase OTP verified, ID token:', idToken);
 
         const verifyData = {
           mobileNumber: value,
           idToken,
           fullName,
         };
-        console.log('[CheckMailboxScreen] Verifying Firebase OTP:', { endpoint: '/host/firebase-auth/firebase-verify-otp', data: verifyData });
+        console.log('[UserCheckMailbox] Verifying Firebase OTP:', { endpoint: '/user/firebase-auth/firebase-verify-otp', data: verifyData });
 
-        const response = await api.post('/host/firebase-auth/firebase-verify-otp', verifyData);
+        const response = await api.post('/user/firebase-auth/firebase-verify-otp', verifyData);
 
-        console.log('[CheckMailboxScreen] Firebase OTP verification response:', response.data);
+        console.log('[UserCheckMailbox] Firebase OTP verification response:', response.data);
 
         if (response.data.success) {
-          console.log('[CheckMailboxScreen] Firebase OTP verified successfully, navigating to CreateNewPassword');
+          console.log('[UserCheckMailbox] Firebase OTP verified successfully, navigating to UserCreateNewPassword');
           Alert.alert('Success', 'OTP verified successfully!', [
             {
               text: 'OK',
               onPress: () =>
-                navigation.navigate('CreateNewPassword', {
+                navigation.navigate('UserCreateNewPassword', {
                   inputType,
                   value,
                   token: response.headers['authorization']?.replace('Bearer ', '') || '',
@@ -200,23 +196,23 @@ const CheckMailboxScreen = ({ navigation, route }) => {
           ]);
         } else {
           Alert.alert('Error', response.data.message || 'Firebase OTP verification failed');
-          console.log('[CheckMailboxScreen] Firebase OTP verification failed:', response.data.message);
+          console.log('[UserCheckMailbox] Firebase OTP verification failed:', response.data.message);
         }
       } else {
         const verifyData = inputType === 'email' ? { email: value, code: otpCode } : { mobileNumber: value, code: otpCode };
-        console.log('[CheckMailboxScreen] Verifying OTP:', { endpoint: '/host/verify-email-number-otp', data: verifyData });
+        console.log('[UserCheckMailbox] Verifying OTP:', { endpoint: '/user/verify-email-number-otp', data: verifyData });
 
-        const response = api.post('/host/verify-email-number-otp', verifyData);
+        const response = await api.post('/user/verify-email-number-otp', verifyData);
 
-        console.log('[CheckMailboxScreen] OTP verification response:', response.data);
+        console.log('[UserCheckMailbox] OTP verification response:', response.data);
 
         if (response.data.success) {
-          console.log('[CheckMailboxScreen] OTP verified successfully, navigating to CreateNewPassword');
+          console.log('[UserCheckMailbox] OTP verified successfully, navigating to UserCreateNewPassword');
           Alert.alert('Success', 'OTP verified successfully!', [
             {
               text: 'OK',
               onPress: () =>
-                navigation.navigate('CreateNewPassword', {
+                navigation.navigate('UserCreateNewPassword', {
                   inputType,
                   value,
                   token: response.headers['authorization']?.replace('Bearer ', '') || '',
@@ -226,11 +222,11 @@ const CheckMailboxScreen = ({ navigation, route }) => {
           ]);
         } else {
           Alert.alert('Error', response.data.message || 'OTP verification failed');
-          console.log('[CheckMailboxScreen] OTP verification failed:', response.data.message);
+          console.log('[UserCheckMailbox] OTP verification failed:', response.data.message);
         }
       }
     } catch (error) {
-      console.error('[CheckMailboxScreen] OTP verification error:', {
+      console.error('[UserCheckMailbox] OTP verification error:', {
         message: error.message,
         response: error.response?.data,
         firebaseCode: error.code,
@@ -247,7 +243,6 @@ const CheckMailboxScreen = ({ navigation, route }) => {
     }
   };
 
-  // Mask the email or mobile number for display
   const maskedValue =
     inputType === 'email'
       ? value.replace(/(.{2}).*?@/, '***@')
@@ -291,7 +286,6 @@ const CheckMailboxScreen = ({ navigation, route }) => {
               {inputType === 'email' ? 'email' : 'mobile number'} ({maskedValue})
             </Text>
 
-            {/* OTP Input Fields */}
             <View style={[styles.otpContainer, { width: responsiveDimensions.otpContainerWidth, gap: responsiveDimensions.otpGap }]}>
               {otp.map((digit, index) => (
                 <TextInput
@@ -465,4 +459,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CheckMailboxScreen;
+export default UserCheckMailbox;

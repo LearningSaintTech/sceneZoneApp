@@ -17,6 +17,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import ForgotIcon from '../assets/icons/forgot';
 import api from '../Config/api';
+import auth from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -43,7 +44,6 @@ const UserForgotPasswordScreen = ({ navigation }) => {
 
   const handleConfirm = async () => {
     try {
-      // Input validation
       if (inputType === 'email') {
         if (!email.trim()) {
           Alert.alert('Error', 'Please enter your email address');
@@ -56,45 +56,80 @@ const UserForgotPasswordScreen = ({ navigation }) => {
           console.log('[UserForgotPasswordScreen] Validation failed: Invalid email format', email);
           return;
         }
-      } else {
-        if (!mobileNumber.trim()) {
-          Alert.alert('Error', 'Please enter your mobile number');
-          console.log('[UserForgotPasswordScreen] Validation failed: Mobile number is empty');
-          return;
+
+        setIsLoading(true);
+
+        const otpData = { email: email.trim() };
+        console.log('[UserForgotPasswordScreen] Sending email OTP request:', { endpoint: '/user/email-number-send-otp', data: otpData });
+
+        const response = await api.post('/user/email-number-send-otp', otpData);
+
+        console.log('[UserForgotPasswordScreen] Email OTP response:', response.data);
+
+        if (response.data) {
+          console.log('[UserForgotPasswordScreen] Email OTP sent successfully, navigating to UserCheckMailbox');
+          navigation.navigate('UserCheckMailbox', {
+            inputType,
+            value: email.trim(),
+            isFirebase: false,
+            isForgotPassword: true,
+          });
+        } else {
+          console.log('[UserForgotPasswordScreen] Email OTP request failed:', response.data.message);
+          Alert.alert('Error', response.data.message || 'Failed to send OTP');
         }
-        const mobileRegex = /^[0-9]{10}$/;
-        if (!mobileRegex.test(mobileNumber.trim())) {
-          Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+      } else {
+        const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
+        if (!phoneRegex.test(mobileNumber.trim())) {
+          Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
           console.log('[UserForgotPasswordScreen] Validation failed: Invalid mobile number format', mobileNumber);
           return;
         }
-      }
 
-      setIsLoading(true);
+        setIsLoading(true);
 
-      const otpData = inputType === 'email' ? { email: email.trim() } : { mobileNumber: mobileNumber.trim() };
-      console.log('[UserForgotPasswordScreen] Sending OTP request:', { endpoint: '/user/email-number-send-otp', data: otpData });
+        const otpData = { mobileNumber: mobileNumber.trim() };
+        console.log('[UserForgotPasswordScreen] Sending mobile OTP request:', { endpoint: '/user/firebase-auth/firebase-login', data: otpData });
 
-      const response = await api.post('/user/email-number-send-otp', otpData);
+        const response = await api.post('/user/firebase-auth/firebase-login', otpData);
 
-      console.log('[UserForgotPasswordScreen] OTP response:', response.data);
+        console.log('[UserForgotPasswordScreen] Mobile OTP response:', response.data);
 
-      if (response.data) {
-        console.log('[UserForgotPasswordScreen] OTP sent successfully, navigating to UserCheckMailbox');
-        navigation.navigate('UserOtpReset', {
-          inputType,
-          value: inputType === 'email' ? email.trim() : mobileNumber.trim(),
-        });
-      } else {
-        console.log('[UserForgotPasswordScreen] OTP request failed:', response.data.message);
-        Alert.alert('Error', response.data.message || 'Failed to send OTP');
+        if (response.data.success) {
+          console.log('[UserForgotPasswordScreen] Initiating Firebase phone auth for:', mobileNumber);
+          const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber.trim());
+          console.log('[UserForgotPasswordScreen] Firebase OTP sent successfully:', confirmationResult);
+
+          Alert.alert('Success', 'OTP sent to your mobile number', [
+            {
+              text: 'OK',
+              onPress: () =>
+                navigation.navigate('CheckMailBox', {
+                  mobileNumber: mobileNumber.trim(),
+                  confirmation: confirmationResult,
+                  fullName: response.data.data.user?.fullName || '',
+                  isForgotPassword: true,
+                }),
+            },
+          ]);
+        } else {
+          console.log('[UserForgotPasswordScreen] Mobile OTP request failed:', response.data.message);
+          Alert.alert('Error', response.data.message || 'Failed to send OTP');
+        }
       }
     } catch (error) {
       console.error('[UserForgotPasswordScreen] OTP request error:', {
         message: error.message,
         response: error.response?.data,
+        firebaseCode: error.code,
       });
-      Alert.alert('Error', error.response?.data?.message || 'Failed to send OTP. Please try again.');
+      let errorMessage = error.response?.data?.message || 'Failed to send OTP. Please try again.';
+      if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +195,7 @@ const UserForgotPasswordScreen = ({ navigation }) => {
               />
               <TextInput
                 style={styles.input}
-                placeholder={inputType === 'email' ? 'user@email.com' : '9876543210'}
+                placeholder={inputType === 'email' ? 'user@email.com' : '+91XXXXXXXXXX'}
                 placeholderTextColor="#aaa"
                 value={inputType === 'email' ? email : mobileNumber}
                 onChangeText={inputType === 'email' ? setEmail : setMobileNumber}

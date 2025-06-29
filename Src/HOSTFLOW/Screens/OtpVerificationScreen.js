@@ -1,13 +1,11 @@
 import React, { useRef, useState } from 'react';
 import {
-  Image,
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Modal,
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
@@ -18,6 +16,7 @@ import SignUpBackground from '../assets/Banners/SignUp';
 import OtpIcon from '../assets/icons/otp';
 import LinearGradient from 'react-native-linear-gradient';
 import api from '../Config/api';
+import auth from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,22 +51,18 @@ const dimensions = {
   },
   buttonHeight: Math.max(height * 0.06, 44),
   iconSize: Math.max(width * 0.06, 20),
-  otpBoxSize: Math.max(width * 0.12, 48),
+  otpBoxSize: Math.max(width * 0.1, 40),
   imageSize: Math.max(width * 0.25, 100),
-  modalImageSize: Math.max(width * 0.2, 80),
 };
 
 const OtpVerificationScreen = ({ navigation, route }) => {
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const inputs = useRef([]);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-
-  // Get mobile number from navigation params
-  const mobileNumber = route.params?.mobileNumber;
+  const { mobileNumber, confirmation, userId, fullName } = route.params;
 
   // Enhanced responsive dimensions with safe area considerations
   const responsiveDimensions = {
@@ -80,99 +75,93 @@ const OtpVerificationScreen = ({ navigation, route }) => {
       horizontal: Math.max(insets.left + dimensions.spacing.md, dimensions.spacing.md),
       vertical: Math.max(insets.top + dimensions.spacing.sm, dimensions.spacing.sm),
     },
-    modalPadding: {
-      horizontal: Math.max(width * 0.08, 20) + Math.max(insets.left, insets.right),
-      vertical: Math.max(height * 0.1, 40) + Math.max(insets.top, insets.bottom),
-    },
-    modalWidth: Math.min(width - (Math.max(width * 0.16, 40) + Math.max(insets.left + insets.right, 0)), isTablet ? 400 : 320),
-    modalContentPadding: {
-      horizontal: Math.max(width * 0.06, 20),
-      vertical: Math.max(height * 0.025, 16),
-    },
   };
 
   const handleChange = (text, index) => {
-    console.log(`handleChange - Index: ${index}, Text: ${text}`);
     const newOtp = [...otp];
     if (text.length > 1) {
-      const chars = text.split('').slice(0, 4);
+      const chars = text.replace(/[^0-9]/g, '').split('').slice(0, 6);
       chars.forEach((char, idx) => {
-        newOtp[idx] = char;
-        if (inputs.current[idx]) inputs.current[idx].setNativeProps({ text: char });
+        if (idx < 6) {
+          newOtp[idx] = char;
+          if (inputs.current[idx]) inputs.current[idx].setNativeProps({ text: char });
+        }
       });
       setOtp(newOtp);
-      inputs.current[chars.length - 1]?.focus();
-      console.log('handleChange - New OTP:', newOtp);
+      inputs.current[Math.min(chars.length - 1, 5)]?.focus();
       return;
     }
-    newOtp[index] = text;
-    setOtp(newOtp);
-    if (text && index < 3) {
-      inputs.current[index + 1].focus();
+    if (/^[0-9]*$/.test(text)) {
+      newOtp[index] = text;
+      setOtp(newOtp);
+      if (text && index < 5) {
+        inputs.current[index + 1].focus();
+      }
     }
-    console.log('handleChange - New OTP:', newOtp);
   };
 
   const handleKeyPress = (e, index) => {
-    console.log(`handleKeyPress - Key: ${e.nativeEvent.key}, Index: ${index}`);
-    if (e.nativeEvent.key === 'Backspace') {
-      if (otp[index] === '' && index > 0) {
-        inputs.current[index - 1].focus();
-        const newOtp = [...otp];
-        newOtp[index - 1] = '';
-        setOtp(newOtp);
-        console.log('handleKeyPress - New OTP:', newOtp);
-      }
+    if (e.nativeEvent.key === 'Backspace' && otp[index] === '' && index > 0) {
+      inputs.current[index - 1].focus();
+      const newOtp = [...otp];
+      newOtp[index - 1] = '';
+      setOtp(newOtp);
     }
   };
 
   const handleVerify = async () => {
     try {
-      // Validate OTP
       if (otp.some(digit => !digit)) {
-        Alert.alert('Error', 'Please enter complete OTP');
-        console.log('handleVerify - Incomplete OTP:', otp);
+        Alert.alert('Error', 'Please enter the complete 6-digit OTP');
         return;
       }
 
       setIsLoading(true);
-      
-      const otpData = {
-        mobileNumber: mobileNumber,
-        code: otp.join('')
-      };
 
-      console.log("Verifying OTP:", otpData);
+      console.log('Verifying Firebase OTP with code:', otp.join(''));
+      const credential = await confirmation.confirm(otp.join(''));
+      const idToken = await credential.user.getIdToken();
+      console.log('Firebase OTP verified, ID token:', idToken);
 
-      const response = await api.post('/host/auth/verify-otp', otpData);
+      const response = await api.post('/host/firebase-auth/firebase-verify-otp', {
+        mobileNumber,
+        idToken,
+        fullName,
+      });
 
-      console.log("OTP Verification Response:", response.data);
+      console.log('Firebase Host OTP Verification Response:', response.data);
 
       if (response.data.success) {
-        setShowSuccess(true);
         const userData = response.data.data.user;
         const token = response.headers['authorization']?.replace('Bearer ', '');
 
-        console.log('handleVerify - User Data:', userData);
-        console.log('handleVerify - Token:', token);
+        if (!token) {
+          throw new Error('No token received from server');
+        }
 
         dispatch(loginHost({
-          ...userData,
+          id: userData._id || userId,
+          name: userData.fullName || fullName || 'Host User',
+          email: userData.email || '',
+          phone: userData.mobileNumber || mobileNumber,
+          mobileNumber: mobileNumber,
+          role: userData.role || 'host',
           token,
         }));
-        
-        setTimeout(() => {
-          navigation.navigate('MainTabs');
-        }, 1500);
+
+        navigation.navigate('HostVerifiedScreen');
       }
     } catch (error) {
-      console.error("OTP Verification Error:", error.message);
-      console.error("Error Response:", error.response?.data);
-      
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to verify OTP. Please try again.'
-      );
+      console.error('Firebase OTP Verification Error:', error);
+      let errorMessage = 'Failed to verify OTP. Please try again.';
+      if (error.code === 'auth/invalid-verification-code') {
+        errorMessage = 'Invalid OTP. Please check and try again.';
+      } else if (error.code === 'auth/code-expired') {
+        errorMessage = 'OTP has expired. Please resend OTP.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later.';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -181,30 +170,22 @@ const OtpVerificationScreen = ({ navigation, route }) => {
   const handleResendOtp = async () => {
     try {
       setIsResending(true);
-      
-      const resendData = {
-        mobileNumber: mobileNumber
-      };
 
-      console.log("Resending OTP:", resendData);
-
-      const response = await api.post('/host/auth/resend-otp', resendData);
-
-      console.log("Resend OTP Response:", response.data);
-
-      if (response.data) {
-        Alert.alert('Success', 'OTP has been resent successfully!');
-        setOtp(['', '', '', '']);
-        inputs.current[0]?.focus();
-      }
+      console.log('Resending Firebase OTP for:', mobileNumber);
+      const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber);
+      console.log('Firebase OTP resent successfully:', confirmationResult);
+      Alert.alert('Success', 'OTP has been resent successfully!');
+      setOtp(['', '', '', '', '', '']);
+      inputs.current[0]?.focus();
     } catch (error) {
-      console.error("Resend OTP Error:", error.message);
-      console.error("Error Response:", error.response?.data);
-      
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to resend OTP. Please try again.'
-      );
+      console.error('Resend Firebase OTP Error:', error);
+      let errorMessage = 'Failed to resend OTP. Please try again.';
+      if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please wait and try again later.';
+      } else if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsResending(false);
     }
@@ -212,48 +193,25 @@ const OtpVerificationScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      <SignUpBackground 
-        style={styles.backgroundSvg}
-        width={width}
-        height={height}
-      />
-      <View style={[
-        styles.overlay,
-        { 
-          paddingTop: responsiveDimensions.safeAreaTop,
-          paddingBottom: responsiveDimensions.safeAreaBottom,
-          paddingLeft: responsiveDimensions.safeAreaLeft,
-          paddingRight: responsiveDimensions.safeAreaRight,
-        }
-      ]}>
-        <TouchableOpacity 
-          style={[
-            styles.backIcon,
-            {
-              paddingLeft: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.xl),
-              paddingRight: Math.max(responsiveDimensions.safeAreaRight + dimensions.spacing.md, dimensions.spacing.xl),
-            }
-          ]} 
-          onPress={() => navigation.goBack()}
-        >
+      <SignUpBackground style={styles.backgroundSvg} width={width} height={height} />
+      <View style={[styles.overlay, {
+        paddingTop: responsiveDimensions.safeAreaTop,
+        paddingBottom: responsiveDimensions.safeAreaBottom,
+        paddingLeft: responsiveDimensions.safeAreaLeft,
+        paddingRight: responsiveDimensions.safeAreaRight,
+      }]}>
+        <TouchableOpacity style={[styles.backIcon, {
+          paddingLeft: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.xl),
+          paddingRight: Math.max(responsiveDimensions.safeAreaRight + dimensions.spacing.md, dimensions.spacing.xl),
+        }]} onPress={() => navigation.goBack()}>
           <Icon name="arrow-left" size={dimensions.iconSize} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.content}>
-          <OtpIcon
-            width={52}
-            height={52}
-            style={styles.iconImage}
-          />
-          <Text style={styles.title}>
-            OTP{'\n'}Verification
-          </Text>
-          <Text style={styles.emailVerifyText}>
-            We need to verify your email
-          </Text>
-          <Text style={styles.subtitle}>
-            To verify your account, enter the 4 digit OTP code that we sent to your email.
-          </Text>
+          <OtpIcon width={52} height={52} style={styles.iconImage} />
+          <Text style={styles.title}>OTP{"\n"}Verification</Text>
+          <Text style={styles.emailVerifyText}>We need to verify your mobile number</Text>
+          <Text style={styles.subtitle}>To verify your host account, enter the 6-digit OTP code that we sent to your mobile number ({mobileNumber}).</Text>
 
           <View style={styles.otpRow}>
             {otp.map((digit, index) => (
@@ -276,74 +234,21 @@ const OtpVerificationScreen = ({ navigation, route }) => {
           </View>
 
           <TouchableOpacity onPress={handleVerify} disabled={isLoading}>
-            <LinearGradient 
-              colors={['#B15CDE', '#7952FC']} 
-              start={{x: 1, y: 0}}
-              end={{x: 0, y: 0}}
+            <LinearGradient
+              colors={['#B15CDE', '#7952FC']}
+              start={{ x: 1, y: 0 }}
+              end={{ x: 0, y: 0 }}
               style={[styles.primaryButton, isLoading && { opacity: 0.7 }]}
             >
-              <Text style={styles.primaryButtonText}>
-                {isLoading ? 'Verifying...' : 'Verify'}
-              </Text>
+              <Text style={styles.primaryButtonText}>{isLoading ? 'Verifying...' : 'Verify'}</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.resendButton, isResending && { opacity: 0.7 }]} 
-            onPress={handleResendOtp}
-            disabled={isResending}
-          >
-            <Text style={styles.resendText}>
-              {isResending ? 'Resending...' : 'Resend OTP'}
-            </Text>
+          <TouchableOpacity style={[styles.resendButton, isResending && { opacity: 0.7 }]} onPress={handleResendOtp} disabled={isResending}>
+            <Text style={styles.resendText}>{isResending ? 'Resending...' : 'Resend OTP'}</Text>
           </TouchableOpacity>
         </View>
       </View>
-
-      <Modal transparent visible={showSuccess} animationType="fade" statusBarTranslucent>
-        <View style={[
-          styles.modalContainer,
-          {
-            paddingTop: Math.max(responsiveDimensions.safeAreaTop + responsiveDimensions.modalPadding.vertical, 60),
-            paddingBottom: Math.max(responsiveDimensions.safeAreaBottom + responsiveDimensions.modalPadding.vertical, 60),
-            paddingLeft: Math.max(responsiveDimensions.safeAreaLeft + responsiveDimensions.modalPadding.horizontal, 30),
-            paddingRight: Math.max(responsiveDimensions.safeAreaRight + responsiveDimensions.modalPadding.horizontal, 30),
-          }
-        ]}>
-          <View style={[
-            styles.modalContent,
-            {
-              width: responsiveDimensions.modalWidth,
-              maxWidth: responsiveDimensions.modalWidth,
-              paddingHorizontal: responsiveDimensions.modalContentPadding.horizontal,
-              paddingVertical: responsiveDimensions.modalContentPadding.vertical,
-              minHeight: Math.max(height * 0.2, 160),
-              maxHeight: Math.max(height * 0.4, 280),
-            }
-          ]}>
-            <Image
-              source={require('../assets/Images/Success.png')}
-              style={[
-                styles.successIcon,
-                {
-                  width: Math.max(responsiveDimensions.modalImageSize || 60, 60),
-                  height: Math.max(responsiveDimensions.modalImageSize || 60, 60),
-                  marginBottom: Math.max(dimensions.spacing.sm, 8),
-                }
-              ]}
-            />
-            <Text style={[
-              styles.successText,
-              {
-                fontSize: Math.max(dimensions.fontSize.title, 14),
-                lineHeight: Math.max(dimensions.fontSize.title + 4, 18),
-              }
-            ]}>
-              Verification Success
-            </Text>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
@@ -365,7 +270,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   backIcon: { 
-    paddingTop: dimensions.spacing.xl,
     paddingBottom: dimensions.spacing.md,
     minWidth: Math.max(dimensions.iconSize + 16, 44),
     minHeight: Math.max(dimensions.iconSize + 16, 44),
@@ -421,8 +325,8 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 10,
     marginTop: 12,
-    paddingHorizontal: isSmallPhone ? dimensions.spacing.sm : dimensions.spacing.lg,
-    gap: dimensions.spacing.sm,
+    paddingHorizontal: isSmallPhone ? dimensions.spacing.sm : dimensions.spacing.md,
+    gap: isSmallPhone ? dimensions.spacing.xs : dimensions.spacing.sm,
   },
   otpInput: {
     width: dimensions.otpBoxSize,
@@ -435,8 +339,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     backgroundColor: '#1a1a1a',
     textAlign: 'center',
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 40,
+    minHeight: 40,
   },
   primaryButton: {
     width: 325,
@@ -488,32 +392,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     color: 'rgba(198, 197, 237, 1)',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    borderRadius: dimensions.borderRadius.lg,
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  successIcon: {
-    resizeMode: 'contain',
-  },
-  successText: {
-    fontWeight: '600',
-    color: '#fff',
-    textAlign: 'center',
   },
 });
 
