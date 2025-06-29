@@ -89,7 +89,7 @@ const HomeScreen = ({ navigation }) => {
   React.useEffect(() => {
     const fetchArtists = async () => {
       try {
-        const response = await axios.get('http://192.168.1.8:3000/api/artist/get-all-artists', {
+        const response = await axios.get('http://192.168.1.37:3000/api/artist/get-all-artists', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -201,7 +201,7 @@ const HomeScreen = ({ navigation }) => {
     console.log('Artist object to shortlist:', artist);
 
     const artistId = artist.artistId;
-    const url = 'http://192.168.1.8:3000/api/host/shortlistArtist';
+    const url = 'http://192.168.1.37:3000/api/host/shortlistArtist';
     const body = { artistId };
     const config = {
       headers: {

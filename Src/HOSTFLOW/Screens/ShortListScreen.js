@@ -87,7 +87,7 @@ const ShortlistScreen = ({ navigation }) => {
         }
         setLoading(true);
         try {
-          const response = await axios.get('http://192.168.1.8:3000/api/host/getShortlistedArtists', {
+          const response = await axios.get('http://192.168.1.37:3000/api/host/getShortlistedArtists', {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -143,7 +143,7 @@ const ShortlistScreen = ({ navigation }) => {
         if (activeTab !== 'Manage Event') return;
         setManageEventsLoading(true);
         try {
-          const response = await axios.get('http://192.168.1.8:3000/api/host/events/get-all-events', {
+          const response = await axios.get('http://192.168.1.37:3000/api/host/events/get-all-events', {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -322,7 +322,7 @@ const ShortlistScreen = ({ navigation }) => {
             try {
               setManageEventsLoading(true);
               await axios.delete(
-                `http://192.168.1.8:3000/api/host/events/delete-event/${event._id}`,
+                `http://192.168.1.37:3000/api/host/events/delete-event/${event._id}`,
                 {
                   headers: {
                     Authorization: `Bearer ${token}`,
@@ -349,7 +349,7 @@ const ShortlistScreen = ({ navigation }) => {
     if (!token) return;
     setExistingEventsLoading(true);
     try {
-      const response = await axios.get('http://192.168.1.8:3000/api/host/events/get-all-events', {
+      const response = await axios.get('http://192.168.1.37:3000/api/host/events/get-all-events', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

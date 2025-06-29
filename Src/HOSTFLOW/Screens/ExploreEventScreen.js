@@ -45,8 +45,8 @@ const ExploreEventScreen = ({ navigation, route }) => {
       }
 
       try {
-        console.log(`Making GET request to http://192.168.1.8:3000/api/host/events/get-event/${eventId}`);
-        const response = await axios.get(`http://192.168.1.8:3000/api/host/events/get-event/${eventId}`, {
+        console.log(`Making GET request to http://192.168.1.37:3000/api/host/events/get-event/${eventId}`);
+        const response = await axios.get(`http://192.168.1.37:3000/api/host/events/get-event/${eventId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
