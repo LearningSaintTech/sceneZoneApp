@@ -162,7 +162,7 @@ const OtpVerificationScreen = ({ navigation, route }) => {
         }));
         
         setTimeout(() => {
-          navigation.navigate('HostVerifiedScreen');
+          navigation.navigate('MainTabs');
         }, 1500);
       }
     } catch (error) {

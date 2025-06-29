@@ -29,6 +29,8 @@ const ExploreEventScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const [soundSystemAvailable, setSoundSystemAvailable] = useState(true);
   const [eventData, setEventData] = useState(null);
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
   const token = useSelector(state => state.auth.token);
 
   useEffect(() => {
@@ -58,6 +60,11 @@ const ExploreEventScreen = ({ navigation, route }) => {
           console.log('API call successful, setting eventData:', response.data.data);
           setEventData(response.data.data);
           setSoundSystemAvailable(response.data.data.isSoundSystem || false);
+          if (response.data.data.eventDateTime && response.data.data.eventDateTime.length > 0) {
+            const dt = new Date(response.data.data.eventDateTime[0]);
+            setEventDate(dt.toLocaleString('en-US', { month: 'short', day: 'numeric' }));
+            setEventTime(dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+          }
         } else {
           console.log('API success is false, message:', response.data.message);
           Alert.alert('Error', response.data.message || 'Failed to fetch event details');
@@ -139,6 +146,7 @@ const ExploreEventScreen = ({ navigation, route }) => {
           <View style={{ flex: 1 }}>
             <Text style={styles.organizerName}>
               {eventData && eventData.hostId ? eventData.hostId.fullName : 'Michael De Santa'}
+              {eventData && eventData.eventName ? `  -  ${eventData.eventName}` : ''}
             </Text>
             <Text style={styles.organizerRole}>Organizer</Text>
           </View>
@@ -161,7 +169,7 @@ const ExploreEventScreen = ({ navigation, route }) => {
             <MaterialIcons name="access-time" size={16} color="#a95eff" style={{ marginRight: 6 }} />
             <Text style={styles.timingPillTextLabelOutlinedNew}>Timing :</Text>
             <Text style={styles.timingPillTextTimeOutlinedNew}>
-              {eventData ? eventData.eventTime : '08:30PM'}
+              {eventTime || '08:30 PM'}
             </Text>
           </View>
         </View>
@@ -196,7 +204,7 @@ const ExploreEventScreen = ({ navigation, route }) => {
               <Text style={styles.infoLabelNew}>Date</Text>
             </View>
             <Text style={styles.infoValueNew}>
-              {eventData && eventData.eventDate && eventData.eventDate[0] ? formatDate(eventData.eventDate[0]) : 'May 20'}
+              {eventDate || 'May 20'}
             </Text>
           </View>
           <View style={styles.infoDividerNew} />
