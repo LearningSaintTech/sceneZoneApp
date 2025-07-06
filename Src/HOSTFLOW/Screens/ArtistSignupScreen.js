@@ -48,6 +48,56 @@ const ArtistSignupScreen = ({ navigation }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+
+  const getPasswordRequirements = () => {
+    const requirements = [
+      { 
+        label: 'At least 8 characters', 
+        met: password.length >= 8,
+        icon: password.length >= 8 ? '✓' : '✗'
+      },
+      { 
+        label: 'One uppercase letter', 
+        met: /[A-Z]/.test(password),
+        icon: /[A-Z]/.test(password) ? '✓' : '✗'
+      },
+      { 
+        label: 'One lowercase letter', 
+        met: /[a-z]/.test(password),
+        icon: /[a-z]/.test(password) ? '✓' : '✗'
+      },
+      { 
+        label: 'One number', 
+        met: /\d/.test(password),
+        icon: /\d/.test(password) ? '✓' : '✗'
+      },
+      { 
+        label: 'One special character', 
+        met: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+        icon: /[!@#$%^&*(),.?":{}|<>]/.test(password) ? '✓' : '✗'
+      }
+    ];
+    return requirements;
+  };
+
+  const isPasswordValid = () => {
+    const requirements = getPasswordRequirements();
+    return requirements.every(req => req.met);
+  };
+
+  const handleMobileChange = (text) => {
+    // Remove any non-digit characters
+    const cleanedText = text.replace(/\D/g, '');
+    // Limit to 10 digits
+    if (cleanedText.length <= 10) {
+      setMobile(cleanedText);
+    }
+  };
+
+  const getFullMobileNumber = () => {
+    return mobile ? `+91${mobile}` : '';
+  };
 
   const validateInputs = () => {
     // Sanitize fullName
@@ -57,10 +107,27 @@ const ArtistSignupScreen = ({ navigation }) => {
       return false;
     }
 
-    // Validate mobile number with country code (e.g., +91 for India)
+    // Validate mobile number (should be 10 digits)
+    if (!mobile) {
+      Alert.alert('Error', 'Please enter your mobile number');
+      return false;
+    }
+    
+    if (mobile.length !== 10) {
+      Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+      return false;
+    }
+
+    const fullMobileNumber = getFullMobileNumber();
     const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
-    if (!phoneRegex.test(mobile)) {
-      Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
+    if (!phoneRegex.test(fullMobileNumber)) {
+      Alert.alert('Error', 'Please enter a valid mobile number');
+      return false;
+    }
+
+    // Validate password
+    if (!isPasswordValid()) {
+      Alert.alert('Error', 'Password must meet all requirements:\n• At least 8 characters\n• One uppercase letter\n• One lowercase letter\n• One number\n• One special character');
       return false;
     }
 
@@ -72,9 +139,10 @@ const ArtistSignupScreen = ({ navigation }) => {
     if (!validated) return;
 
     const { sanitizedFullName } = validated;
+    const fullMobileNumber = getFullMobileNumber();
     const signupData = {
       fullName: sanitizedFullName,
-      mobileNumber: mobile,
+      mobileNumber: fullMobileNumber,
       password: password.trim(),
       isRememberMe: rememberMe,
     };
@@ -87,8 +155,8 @@ const ArtistSignupScreen = ({ navigation }) => {
       console.log('Firebase Artist Signup Response:', response);
 
       if (response.data.success) {
-        console.log('Initiating Firebase phone auth for:', mobile);
-        const confirmationResult = await auth().signInWithPhoneNumber(mobile);
+        console.log('Initiating Firebase phone auth for:', fullMobileNumber);
+        const confirmationResult = await auth().signInWithPhoneNumber(fullMobileNumber);
         console.log('Firebase OTP sent successfully:', confirmationResult);
         setConfirmation(confirmationResult);
 
@@ -97,7 +165,7 @@ const ArtistSignupScreen = ({ navigation }) => {
             text: 'OK',
             onPress: () =>
               navigation.navigate('ArtistOtpVerificationScreen', {
-                mobileNumber: mobile,
+                mobileNumber: fullMobileNumber,
                 confirmation: confirmationResult,
                 isFirebase: true,
                 userId: response.data.data.userId,
@@ -129,7 +197,7 @@ const ArtistSignupScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.header, { color: '#fff' }]}>Create new{"\n"}Artist account</Text>
+          <Text style={[styles.header, { color: '#fff' }]}>Create new{"\n"} account</Text>
 
           <Text style={styles.signinText}>
             Already have an account?{' '}
@@ -152,17 +220,23 @@ const ArtistSignupScreen = ({ navigation }) => {
 
           <View style={styles.inputContainer}>
             <MobileIcon width={20} height={20} style={styles.icon} />
+            <Text style={styles.countryCode}>+91</Text>
             <TextInput
-              style={[styles.input, { color: '#fff' }]}
-              placeholder="Mobile Number (e.g., +91XXXXXXXXXX)"
+              style={[styles.input, { color: '#fff', marginLeft: 8 }]}
+              placeholder="Enter 10-digit mobile number"
               placeholderTextColor="#aaa"
               keyboardType="phone-pad"
               value={mobile}
-              onChangeText={setMobile}
+              onChangeText={handleMobileChange}
+              maxLength={10}
             />
           </View>
 
-          <View style={[styles.inputContainer, styles.passwordContainer]}>
+          <View style={[
+            styles.inputContainer, 
+            styles.passwordContainer,
+            password && isPasswordValid() && { borderColor: '#4CAF50' }
+          ]}>
             <LockIcon width={20} height={20} style={styles.icon} />
             <TextInput
               style={[styles.input, { color: '#fff' }]}
@@ -171,11 +245,32 @@ const ArtistSignupScreen = ({ navigation }) => {
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
+              onFocus={() => setShowPasswordRequirements(true)}
+              onBlur={() => setShowPasswordRequirements(false)}
             />
+            {password && isPasswordValid() && (
+              <Icon name="checkmark-circle" size={20} color="#4CAF50" style={{ marginRight: 8 }} />
+            )}
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
               <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#aaa" />
             </TouchableOpacity>
           </View>
+
+          {showPasswordRequirements && (
+            <View style={styles.passwordRequirementsContainer}>
+              <Text style={styles.passwordRequirementsTitle}>Password Requirements:</Text>
+              {getPasswordRequirements().map((requirement, index) => (
+                <View key={index} style={styles.requirementRow}>
+                  <Text style={[styles.requirementIcon, { color: requirement.met ? '#4CAF50' : '#FF5252' }]}>
+                    {requirement.icon}
+                  </Text>
+                  <Text style={[styles.requirementText, { color: requirement.met ? '#4CAF50' : '#aaa' }]}>
+                    {requirement.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.rememberMeRow}>
             <Switch
@@ -194,7 +289,7 @@ const ArtistSignupScreen = ({ navigation }) => {
               style={[styles.signupButton, isLoading && { opacity: 0.7 }]}
             >
               <Text style={styles.signupButtonText}>
-                {isLoading ? 'Signing Up...' : 'Sign Up with Firebase'}
+                {isLoading ? 'Signing Up...' : 'Sign Up '}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -364,6 +459,60 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#A020F0',
     fontWeight: '700',
+  },
+  passwordRequirementsContainer: {
+    backgroundColor: 'rgba(20, 20, 20, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  passwordRequirementsTitle: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '600',
+    fontSize: 14,
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  requirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  requirementIcon: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 12,
+    width: 20,
+    textAlign: 'center',
+  },
+  requirementText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
+    fontSize: 13,
+    flex: 1,
+  },
+  countryCode: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#fff',
+    backgroundColor: '#333',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 8,
   },
 });
 

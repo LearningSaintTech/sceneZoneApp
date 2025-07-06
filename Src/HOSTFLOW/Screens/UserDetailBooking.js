@@ -12,9 +12,24 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import HapticFeedback from 'react-native-haptic-feedback';
 
 const UserDetailBookingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  
+  // Haptic feedback options
+  const hapticOptions = {
+    enableVibrateFallback: true,
+    ignoreAndroidSystemSettings: false,
+  };
+
+  const triggerHaptic = (type) => {
+    try {
+      HapticFeedback.trigger(type, hapticOptions);
+    } catch (error) {
+      // Silently fail
+    }
+  };
   
   // Get booking details from navigation parameters
   const { numberOfTickets, selectedGuestType, eventDetails } = route.params || {};
@@ -33,6 +48,9 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
   const userName = 'Franklin Clinton';
 
   const handleConfirmBooking = () => {
+    // Add haptic feedback
+    triggerHaptic('impactMedium');
+    
     // Implement booking confirmation logic here
     console.log('Confirming booking');
     // Navigate to the next screen, e.g., payment processing or confirmation
@@ -300,7 +318,7 @@ const styles = StyleSheet.create({
     color: '#aaa',
   },
   detailValue: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#fff',
   },

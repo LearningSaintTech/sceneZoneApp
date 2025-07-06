@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
+  Dimensions,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import LinearGradient from "react-native-linear-gradient";
@@ -19,6 +20,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRoute } from "@react-navigation/native";
 import { useSelector } from "react-redux";
 import api from "../Config/api";
+
+const { width, height } = Dimensions.get('window');
 
 const UserEvent = ({ navigation }) => {
   const [soundSystemAvailable, setSoundSystemAvailable] = React.useState(true);
@@ -110,60 +113,71 @@ const UserEvent = ({ navigation }) => {
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.eventImageWrapper}>
-          {eventDetails?.posterUrl && (
+          {eventDetails?.posterUrl ? (
             <Image
               source={{ uri: eventDetails.posterUrl }}
+              style={styles.eventImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <Image
+              source={require("../assets/Images/ffff.jpg")}
               style={styles.eventImage}
               resizeMode="cover"
             />
           )}
 
           <LinearGradient
-            colors={["rgba(0,0,0,0)", "#18151f"]}
+            colors={["rgba(0,0,0,0)", "rgba(24,21,31,0.8)", "#18151f"]}
+            locations={[0, 0.6, 1]}
             style={styles.eventImageGradient}
           />
+          
           <TouchableOpacity
             style={styles.fabLeft}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back-outline" size={26} color="#C6C5ED" />
+            <Ionicons name="arrow-back-outline" size={24} color="#C6C5ED" />
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.fabRight}>
+            <Ionicons name="share-social-outline" size={20} color="#C6C5ED" />
+          </TouchableOpacity>
+
+          {/* Guest List Button - Centered */}
           <View style={styles.guestListButtonWrapper}>
             <TouchableOpacity
               onPress={handleGuestListRequest}
               style={styles.guestListButton}
             >
-              <Text style={styles.guestListText}>Apply For Guest List </Text>
+              <Text style={styles.guestListText}>Apply For Guest List</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity style={styles.fabRight}>
-            <Ionicons name="share-social-outline" size={22} color="#C6C5ED" />
-          </TouchableOpacity>
         </View>
 
+        {/* Organizer Section */}
         <View style={styles.organizerRow}>
           <Image
             source={require("../assets/Images/Avatar.png")}
             style={styles.organizerAvatar}
           />
-          <View style={{ flex: 1, marginLeft: 14 }}>
+          <View style={styles.organizerInfo}>
             <Text style={styles.organizerName}>Michael De Santa</Text>
             <Text style={styles.organizerSubtitle}>Organizer</Text>
           </View>
-          <View style={styles.upcomingPill}>
+          <View style={styles.upcomingPillContainer}>
             <LinearGradient
               colors={["#7952FC", "#B15CDE"]}
-              start={{ x: 0, y: 1 }}
-              end={{ x: 1, y: 0 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.upcomingPill}
             >
               <Ionicons
                 name="musical-notes-outline"
-                size={16}
+                size={14}
                 color="#fff"
                 style={{ marginRight: 4 }}
               />
@@ -172,30 +186,32 @@ const UserEvent = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Timing and Price Row */}
         <View style={styles.timingPriceRow}>
           <View style={styles.timingPill}>
             <Ionicons
-              name="musical-notes-outline"
-              size={16}
+              name="time-outline"
+              size={14}
               color="#a95eff"
               style={{ marginRight: 6 }}
             />
-            <Text style={styles.timingPillLabel}>Timing :</Text>
-
+            <Text style={styles.timingPillLabel}>Timing:</Text>
             <Text style={styles.timingPillTime}>
-              {eventDetails?.eventTime || "N/A"}
+              {eventDetails?.eventTime || "8:00 PM"}
             </Text>
           </View>
-          <Text style={styles.priceText}>{eventDetails?.budget}</Text>
+          <Text style={styles.priceText}>{eventDetails?.budget || "$400-$500"}</Text>
         </View>
 
+        {/* Event Title */}
         <Text style={styles.eventTitle}>
-          {eventDetails?.eventName || "Loading..."}
+          {eventDetails?.eventName || "Sounds of Celebration"}
         </Text>
 
+        {/* Category Pills */}
         <View style={styles.categoryPillsRow}>
-          {(eventDetails?.genre || []).map((tag) => (
-            <View key={tag} style={styles.categoryPill}>
+          {(eventDetails?.genre || ["Rock", "Metal", "Live Music"]).map((tag, index) => (
+            <View key={index} style={styles.categoryPill}>
               <Text style={styles.categoryPillText}>{tag}</Text>
             </View>
           ))}
@@ -204,30 +220,33 @@ const UserEvent = ({ navigation }) => {
         {/* Event Details Card */}
         <View style={styles.eventDetailsCard}>
           <View style={styles.eventDetailsCol}>
-            <Ionicons name="calendar-outline" size={18} color="#a95eff" />
+            <Ionicons name="calendar-outline" size={14} color="#a95eff" style={styles.eventDetailsIcon} />
             <Text style={styles.eventDetailsLabel}>Date</Text>
             <Text style={styles.eventDetailsValue}>
               {eventDetails?.eventDate?.[0]
-                ? new Date(eventDetails.eventDate[0]).toLocaleDateString()
-                : "--"}
+                ? new Date(eventDetails.eventDate[0]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                : "May 20"}
             </Text>
           </View>
+          <View style={styles.eventDetailsDivider} />
           <View style={styles.eventDetailsCol}>
-            <Ionicons name="location-outline" size={18} color="#a95eff" />
+            <Ionicons name="location-outline" size={14} color="#a95eff" style={styles.eventDetailsIcon} />
             <Text style={styles.eventDetailsLabel}>Location</Text>
             <Text style={styles.eventDetailsValue}>
-              {eventDetails?.venue || "--"}
+              {eventDetails?.venue || "Yogyakarta"}
             </Text>
           </View>
+          <View style={styles.eventDetailsDivider} />
           <View style={styles.eventDetailsCol}>
-            <Ionicons name="people-outline" size={18} color="#a95eff" />
+            <Ionicons name="people-outline" size={18} color="#a95eff" style={styles.eventDetailsIcon} />
             <Text style={styles.eventDetailsLabel}>Crowd Capacity</Text>
             <Text style={styles.eventDetailsValue}>
-              {eventDetails?.assignedArtists?.length || "0"}
+              {eventDetails?.assignedArtists?.length || "500"}
             </Text>
           </View>
         </View>
 
+        {/* Sound System Section */}
         <Text style={styles.sectionTitle}>Sound System Availability</Text>
         <View style={styles.soundSystemRow}>
           <TouchableOpacity
@@ -281,20 +300,20 @@ const UserEvent = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Fixed Bottom Buttons */}
         <View style={styles.fixedBottomButtonsContainer}>
-          <View>
-            <TouchableOpacity style={styles.heartButton}>
-              <Ionicons name="heart-outline" size={32} color="#a95eff" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.heartButton}>
+            <Ionicons name="heart-outline" size={24} color="#a95eff" />
+          </TouchableOpacity>
           <LinearGradient
             colors={["#B15CDE", "#7952FC"]}
-            start={{ x: 1, y: 0 }}
-            end={{ x: 0, y: 0 }}
-            style={styles.soldOutButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.continueButton}
           >
             <TouchableOpacity
-              style={styles.soldOutButtonInner}
+              style={styles.continueButtonInner}
               onPress={() =>
                 navigation.navigate("UserFormBookingScreen", {
                   eventDetails: {
@@ -306,7 +325,7 @@ const UserEvent = ({ navigation }) => {
                 })
               }
             >
-              <Text style={styles.soldOutButtonText}>Continue</Text>
+              <Text style={styles.continueButtonText}>Continue</Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>
@@ -320,37 +339,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#18151f",
   },
-  guestListButtonWrapper: {
-    position: "absolute",
-    top: 36,
-    left: "25%",
-    right: "25%",
-    zIndex: 9,
-  },
-  guestListButton: {
-    borderWidth: 1,
-    borderColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  guestListText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    fontFamily: "Nunito Sans",
-  },
   eventImageWrapper: {
     width: "100%",
     height: 320,
     position: "relative",
-    marginBottom: -30,
+    marginBottom: 0,
   },
   eventImage: {
-   
     width: "100%",
     height: 320,
     borderBottomLeftRadius: 32,
@@ -361,188 +356,193 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 180,
+    height: 200,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
   fabLeft: {
     position: "absolute",
-    top: 36,
-    left: 18,
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    top: 20,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#C6C5ED",
-    backgroundColor: "rgba(24,21,31,0.25)",
+    borderColor: "rgba(198,197,237,0.3)",
+    backgroundColor: "rgba(24,21,31,0.8)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
   },
   fabRight: {
     position: "absolute",
-    top: 36,
-    right: 18,
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    top: 20,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#C6C5ED",
-    backgroundColor: "rgba(24,21,31,0.25)",
+    borderColor: "rgba(198,197,237,0.3)",
+    backgroundColor: "rgba(24,21,31,0.8)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
   },
+  guestListButtonWrapper: {
+    position: "absolute",
+    top: 20,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 9,
+  },
+  guestListButton: {
+    borderWidth: 1,
+    borderColor: "#fff",
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 160,
+  },
+  guestListText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: "Nunito Sans",
+  },
   organizerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 0,
-    marginBottom: 8,
+    marginTop: 24,
+    marginBottom: 16,
     paddingHorizontal: 20,
   },
   organizerAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginRight: 0,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 2,
     borderColor: "#fff",
   },
+  organizerInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
   organizerName: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "600",
     color: "#C6C5ED",
     fontFamily: "Nunito Sans",
   },
   organizerSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#b3b3cc",
     marginTop: 2,
     fontFamily: "Nunito Sans",
   },
+  upcomingPillContainer: {
+    marginLeft: "auto",
+  },
   upcomingPill: {
-    display: "flex",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    height: 32,
-    paddingTop: 0,
-    paddingRight: 18,
-    paddingBottom: 0,
-    paddingLeft: 12,
-    gap: 4,
-    borderRadius: 360,
-    marginLeft: "auto",
-    overflow: "hidden",
+    height: 28,
+    paddingHorizontal: 12,
+    borderRadius: 14,
   },
   upcomingPillText: {
     color: "#fff",
     fontFamily: "Nunito Sans",
     fontWeight: "600",
-    fontSize: 14,
+    fontSize: 12,
   },
   timingPriceRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   timingPill: {
-    display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    height: 32,
-    paddingTop: 0,
-    paddingRight: 18,
-    paddingBottom: 0,
-    paddingLeft: 12,
-    gap: 4,
-    borderRadius: 360,
+    height: 28,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#7952FC",
     backgroundColor: "transparent",
-    alignSelf: "flex-start",
   },
   timingPillLabel: {
-    textAlign: "center",
     fontFamily: "Nunito Sans",
     fontSize: 10,
-    fontStyle: "normal",
     fontWeight: "400",
-    lineHeight: 21,
     color: "#B15CDE",
+    marginRight: 4,
   },
   timingPillTime: {
     color: "#D9D8F3",
     fontFamily: "Nunito Sans",
     fontSize: 10,
-    fontStyle: "normal",
     fontWeight: "400",
-    lineHeight: 21,
-    textAlign: "center",
   },
   priceText: {
     color: "#B15CDE",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     fontFamily: "Nunito Sans",
   },
   eventTitle: {
-    overflow: "hidden",
     color: "#C6C5ED",
-    textOverflow: "ellipsis",
     fontFamily: "Nunito Sans",
-    fontSize: 20,
-    fontStyle: "normal",
+    fontSize: 18,
     fontWeight: "700",
-    lineHeight: 30,
+    lineHeight: 24,
     paddingHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   categoryPillsRow: {
     flexDirection: "row",
-    flexWrap: "nowrap",
+    flexWrap: "wrap",
     paddingHorizontal: 20,
-    marginBottom: 18,
-    display: "flex",
-    alignItems: "flex-start",
+    marginBottom: 24,
   },
   categoryPill: {
     borderWidth: 1,
     borderColor: "#b3b3cc",
     backgroundColor: "transparent",
-    borderRadius: 16,
-    marginRight: 12,
-    marginBottom: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 8,
+    paddingHorizontal: 12,
     paddingVertical: 6,
   },
   categoryPillText: {
     color: "#C6C5ED",
-    fontFamily: "Inter",
-    fontSize: 12,
-    fontStyle: "normal",
+    fontFamily: "Nunito Sans",
+    fontSize: 11,
     fontWeight: "500",
-    lineHeight: 16,
   },
   eventDetailsCard: {
     flexDirection: "row",
     alignItems: "stretch",
-    backgroundColor: "rgba(30,30,40,0.95)",
-    borderWidth: 1.5,
-    borderColor: "#b3b3cc",
+    backgroundColor: "rgba(30,30,40,0.85)",
+    borderWidth: 1,
+    borderColor: "#7952FC",
     borderRadius: 24,
-    marginHorizontal: 14,
-    marginBottom: 18,
-    marginTop: 2,
+    marginHorizontal: 16,
+    marginBottom: 24,
     paddingVertical: 18,
     paddingHorizontal: 0,
+    shadowColor: '#B15CDE',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
   },
   eventDetailsCol: {
     flex: 1,
@@ -552,37 +552,46 @@ const styles = StyleSheet.create({
   },
   eventDetailsLabel: {
     color: "#b3b3cc",
-    fontSize: 13,
+    fontSize: 8,
     fontWeight: "400",
-    marginTop: 2,
+    marginTop: 4,
     fontFamily: "Nunito Sans",
+    textAlign: 'center',
   },
   eventDetailsValue: {
     color: "#a95eff",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "700",
     marginTop: 2,
     fontFamily: "Nunito Sans",
+    textAlign: 'center',
+  },
+  eventDetailsIcon: {
+    marginBottom: 2,
+  },
+  eventDetailsDivider: {
+    width: 1,
+    backgroundColor: 'rgba(198,197,237,0.12)',
+    marginVertical: 8,
   },
   sectionTitle: {
     color: "#C6C5ED",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     marginHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 6,
+    marginBottom: 12,
     fontFamily: "Nunito Sans",
   },
   soundSystemRow: {
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 24,
   },
   customCheckbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 4,
     borderWidth: 2,
     borderColor: "#a95eff",
     backgroundColor: "transparent",
@@ -598,9 +607,8 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "bold",
-    lineHeight: 20,
   },
   checkmarkNo: {
     color: "transparent",
@@ -610,7 +618,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 0,
     borderColor: "transparent",
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 0,
     paddingVertical: 0,
     marginRight: 24,
@@ -622,10 +630,9 @@ const styles = StyleSheet.create({
   },
   checkboxPillText: {
     color: "#C6C5ED",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "500",
     fontFamily: "Nunito Sans",
-    marginLeft: 2,
   },
   checkboxPillTextActive: {
     color: "#a95eff",
@@ -634,48 +641,44 @@ const styles = StyleSheet.create({
   fixedBottomButtonsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingBottom: 0,
-    paddingTop: 0,
-    backgroundColor: "transparent",
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    gap: 16,
-    marginTop: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 12,
+    marginTop: 20,
   },
   heartButton: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 12,
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "transparent",
-    elevation: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  soldOutButton: {
-    flex: 2,
-    height: 56,
-    borderRadius: 14,
-    borderWidth: 0,
-    borderColor: "#fff",
+  continueButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 0,
-    marginRight: 0,
-    paddingHorizontal: 0,
-    shadowColor: "transparent",
-    elevation: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  soldOutButtonText: {
+  continueButtonText: {
     color: "#fff",
     fontFamily: "Nunito Sans",
     fontSize: 14,
     fontWeight: "600",
-    letterSpacing: 0.2,
     textAlign: "center",
   },
-  soldOutButtonInner: {
+  continueButtonInner: {
     flex: 1,
     height: "100%",
     justifyContent: "center",

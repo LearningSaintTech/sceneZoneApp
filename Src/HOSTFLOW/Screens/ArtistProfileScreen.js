@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ImageBackground, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ImageBackground, Dimensions, ActivityIndicator, Alert, BackHandler } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import LinearGradient from 'react-native-linear-gradient';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout, selectToken, selectUserData, selectLocation, selectFullName, selectMobileNumber } from '../Redux/slices/authSlice';
@@ -15,6 +13,11 @@ import {
 import MaskedView from '@react-native-masked-view/masked-view';
 import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import api from '../Config/api';
+import EditProfileIcon from '../assets/icons/EditProfile';
+import GuestListIcon from '../assets/icons/GuestList';
+import PaymentIcon from '../assets/icons/Payment';
+import GeneralSettingIcon from '../assets/icons/Generalsetting';
+import HelpCentreIcon from '../assets/icons/HelpCentre';
 
 const { width } = Dimensions.get('window');
 
@@ -79,6 +82,18 @@ const ArtistProfileScreen = ({ navigation }) => {
     });
     fetchProfile();
   }, []);
+
+  // Handle Android back button
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('ArtistHome');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [navigation]);
 
   const fetchProfile = async () => {
     try {
@@ -157,7 +172,7 @@ const ArtistProfileScreen = ({ navigation }) => {
     <View style={styles.container}>
       {/* Header with safe area top padding */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.navigate('ArtistHome')} style={styles.backButton}>
           <Ionicons name="chevron-back" size={design.iconSize} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
@@ -211,53 +226,107 @@ const ArtistProfileScreen = ({ navigation }) => {
         <TouchableOpacity style={styles.optionItem}
           onPress={() => navigation.navigate('ArtistEditProfile')}
         >
-          <Ionicons name="person-outline" size={design.iconSize} color="#a95eff" style={styles.optionIcon} />
+          <EditProfileIcon width={24} height={24} style={styles.optionIcon} color="#A58AFF" />
           <Text style={styles.optionText}>Edit Profile</Text>
-          <Icon name="chevron-right" size={design.iconSize * 0.8} color="#aaa" />
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.optionItem}
           onPress={() => navigation.navigate('ArtistGuestList')}
         >
-          <Ionicons name="checkmark-circle-outline" size={design.iconSize} color="#a95eff" style={styles.optionIcon} />
+          <GuestListIcon width={24} height={24} style={styles.optionIcon} color="#A58AFF" />
           <Text style={styles.optionText}>Guest List</Text>
-          <Icon name="chevron-right" size={design.iconSize * 0.8} color="#aaa" />
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.optionItem}
           onPress={() => navigation.navigate('ArtistPaymentSettings')}
         >
-          <MaterialIcons name="payment" size={design.iconSize} color="#a95eff" style={styles.optionIcon} />
+          <PaymentIcon width={24} height={24} style={styles.optionIcon} color="#A58AFF" />
           <Text style={styles.optionText}>Payment Settings</Text>
-          <Icon name="chevron-right" size={design.iconSize * 0.8} color="#aaa" />
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.optionItem}
           onPress={() => navigation.navigate('ArtistGeneralSettings')}
         >
-          <Ionicons name="settings-outline" size={design.iconSize} color="#a95eff" style={styles.optionIcon} />
+          <GeneralSettingIcon width={24} height={24} style={styles.optionIcon} color="#A58AFF" />
           <Text style={styles.optionText}>General Settings</Text>
-          <Icon name="chevron-right" size={design.iconSize * 0.8} color="#aaa" />
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.optionItem}
           onPress={() => navigation.navigate('ArtistHelpCentre')}
         >
-          <FontAwesome name="support" size={design.iconSize} color="#a95eff" style={styles.optionIcon} />{/* Using support for Help Centre */}
+          <HelpCentreIcon width={24} height={24} style={styles.optionIcon} color="#A58AFF" />
           <Text style={styles.optionText}>Help Centre</Text>
-          <Icon name="chevron-right" size={design.iconSize * 0.8} color="#aaa" />
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
          <Text style={styles.appVersionText}>App version 1.0.0.1</Text>
 
         {/* Log Out Button - Updated to match UserProfile style */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Log Out</Text>
-        </TouchableOpacity>
+        <LinearGradient
+          colors={["#B15CDE", "#7952FC"]}
+          start={{ x: 1, y: 0 }}
+          end={{ x: 0, y: 0 }}
+          style={{
+            borderRadius: 20,
+            padding: 1,
+            width: '100%',
+            marginTop: 24,
+            marginBottom: 24,
+          }}
+        >
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#18171D',
+              borderRadius: 20,
+              height: 54,
+              width: '100%',
+              alignSelf: 'center',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            onPress={handleLogout}
+          >
+            <MaskedView
+              maskElement={
+                <Text style={{
+                  fontFamily: 'Nunito Sans',
+                  fontSize: 14,
+                  fontWeight: '400',
+                  textAlign: 'center',
+                  color: 'black',
+                }}>
+                  Log Out
+                </Text>
+              }
+            >
+              <LinearGradient
+                colors={["#B15CDE", "#7952FC"]}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 0 }}
+                style={{ height: 24 }}
+              >
+                <Text style={{
+                  opacity: 0,
+                  fontFamily: 'Nunito Sans',
+                  fontSize: 16,
+                  fontWeight: '400',
+                  textAlign: 'center',
+                }}>
+                  Log Out
+                </Text>
+              </LinearGradient>
+            </MaskedView>
+          </TouchableOpacity>
+        </LinearGradient>
       </ScrollView>
       <ArtistBottomNavBar
         navigation={navigation}
         insets={insets}
+        isLoading={loading}
       />
     </View>
   );
@@ -290,8 +359,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
     flex: 1,
-    textAlign: 'center',
-    marginRight:240,
+    textAlign: 'left',
+    
   },
   backButton: {
     padding: design.spacing.sm,
@@ -360,26 +429,35 @@ const styles = StyleSheet.create({
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: design.borderRadius.md,
-    marginVertical: design.spacing.xs,
-    paddingVertical: design.spacing.lg,
-    paddingHorizontal: design.spacing.lg,
-    minHeight: design.buttonHeight,
+    backgroundColor: '#18171D',
+    borderRadius: 20,
+    marginVertical: 6,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    height: 72,
+    borderWidth: 1.5,
+    borderColor: '#39355B',
+    width: '100%',
+    alignSelf: 'center',
+    shadowColor: 'transparent',
   },
   optionIcon: {
-    marginRight: design.spacing.lg,
+    marginLeft: 28,
+    marginRight: 20,
+    alignSelf: 'center',
   },
   optionText: {
     flex: 1,
     fontSize: 14,
-    color: '#C6C5ED',
+    color: '#fff',
     fontFamily: 'Nunito Sans',
-    fontStyle: 'normal',
-    fontWeight: '400',
-    lineHeight: 21,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    fontWeight: '600',
+    lineHeight: 22,
+    textAlignVertical: 'center',
+  },
+  chevronIcon: {
+    marginRight: 28,
+    alignSelf: 'center',
   },
   appVersionText: {
     fontSize: design.fontSize.small,
@@ -387,33 +465,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: design.spacing.xl,
     marginBottom: design.spacing.md,
-  },
-  logoutButton: {
-    display: 'flex',
-    height: 54,
-    paddingTop: 18,
-    paddingBottom: 18,
-    paddingLeft: 16,
-    paddingRight: 16,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#B15CDE',
-    backgroundColor: '#1A1A1F',
-    marginTop: design.spacing.lg,
-    marginBottom: design.spacing.xl,
-  },
-  logoutButtonText: {
-    fontFamily: 'Nunito Sans',
-    fontSize: 12,
-    fontStyle: 'normal',
-    fontWeight: '400',
-    lineHeight: 21,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    color: '#B15CDE',
   },
   loadingContainer: {
     flex: 1,

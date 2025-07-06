@@ -130,10 +130,8 @@ const UserSigninScreen = ({ navigation }) => {
 
   const handleSignIn = async () => {
     try {
-      const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
-      if (!phoneRegex.test(mobileNumber)) {
-        Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
-        console.log('[UserSigninScreen] Validation failed: Invalid mobile number', mobileNumber);
+      if (!mobileNumber || mobileNumber.length !== 10) {
+        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
         return;
       }
 
@@ -146,7 +144,7 @@ const UserSigninScreen = ({ navigation }) => {
       setIsLoading(true);
 
       const loginData = {
-        mobileNumber: mobileNumber.trim(),
+        mobileNumber: '+91' + mobileNumber.trim(),
         password: password.trim(),
       };
 
@@ -192,16 +190,14 @@ const UserSigninScreen = ({ navigation }) => {
 
   const handleOtpLogin = async () => {
     try {
-      const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
-      if (!phoneRegex.test(mobileNumber)) {
-        Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
-        console.log('[UserSigninScreen] Validation failed: Invalid mobile number', mobileNumber);
+      if (!mobileNumber || mobileNumber.length !== 10) {
+        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
         return;
       }
 
       setIsLoading(true);
 
-      const loginData = { mobileNumber: mobileNumber.trim() };
+      const loginData = { mobileNumber: '+91' + mobileNumber.trim() };
       console.log('[UserSigninScreen] OTP Login Data:', loginData);
 
       const response = await api.post('/user/firebase-auth/firebase-login', loginData);
@@ -216,8 +212,7 @@ const UserSigninScreen = ({ navigation }) => {
           {
             text: 'OK',
             onPress: () =>
-              
-              navigation.navigate('UserOtpVerification', {
+              navigation.navigate('UserLoginOtpVerification', {
                 mobileNumber: mobileNumber.trim(),
                 confirmation: confirmationResult,
                 fullName: response.data.data.user?.fullName || '',
@@ -269,16 +264,18 @@ const UserSigninScreen = ({ navigation }) => {
           {/* Mobile Number Input */}
           <View style={[styles.inputContainer, { backgroundColor: cardBg, borderColor: border }]}>
             <MobileIcon width={20} height={20} style={styles.inputIcon} />
+            <Text style={styles.countryCode}>+91</Text>
             <TextInput
-              placeholder="Mobile Number (e.g., +91XXXXXXXXXX)"
+              placeholder="Enter 10-digit mobile number"
               placeholderTextColor={placeholder}
-              style={[styles.input, { color: text }]}
+              style={[styles.input, { color: text, marginLeft: 8 }]}
               keyboardType="phone-pad"
               value={mobileNumber}
-              onChangeText={setMobileNumber}
+              onChangeText={text => setMobileNumber(text.replace(/\D/g, '').slice(0, 10))}
               ref={mobileInputRef}
               autoCapitalize="none"
               editable={!isLoading}
+              maxLength={10}
             />
           </View>
 
@@ -557,6 +554,17 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textAlign: 'center',
     marginBottom: 18,
+  },
+  countryCode: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#fff',
+    backgroundColor: '#333',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 8,
   },
 });
 

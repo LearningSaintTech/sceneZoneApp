@@ -5,22 +5,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
   Dimensions,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
-import GoogleIcon from '../assets/icons/Google';
-import AppleIcon from '../assets/icons/Apple';
-import VisaIcon from '../assets/icons/Visa';
-import MasterIcon from '../assets/icons/Mater';
+import RazorpayCheckout from 'react-native-razorpay';
+import { useSelector } from 'react-redux';
+import Svg, { Path } from 'react-native-svg';
 import BackButtonIcon from '../assets/icons/backbutton';
 import ArrowIcon from '../assets/icons/arrow';
 
 const { width, height } = Dimensions.get('window');
 
-// Enhanced responsive dimensions system for all Android devices
 const isTablet = width >= 768;
 const isSmallPhone = width < 350;
 
@@ -55,375 +51,285 @@ const dimensions = {
 
 const HostShortBookPaymentMethodContent = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('googlepay'); // Default selected
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('razorpay');
+  const { bookingDetails, eventId, artistId } = route.params || {};
+  const token = useSelector(state => state.auth.token);
+  const userName = useSelector(state => state.auth.user?.name) || 'Customer Name';
+  const userEmail = useSelector(state => state.auth.user?.email) || 'customer@example.com';
+  const userContact = useSelector(state => state.auth.user?.contact) || '9999999999';
+  const backendUrl = process.env.BACKEND_URL || 'http://192.168.1.4:3000';
 
-  // Get booking details from navigation parameters
-  const { bookingDetails } = route.params || {};
+  // Log input parameters for debugging
+  console.log('Input parameters:', {
+    bookingDetails,
+    eventId,
+    artistId,
+    token: !!token,
+    userName,
+    userEmail,
+    userContact,
+    backendUrl,
+    timestamp: new Date().toISOString(),
+  });
 
-  const handleConfirmPayment = () => {
-    // Implement payment confirmation logic here
-    console.log('Confirming payment with:', selectedPaymentMethod);
-    // Navigate to the next screen, e.g., payment processing or confirmation
-    navigation.navigate('HostShortConfirmBooking');
+  const handleConfirmPayment = async () => {
+    console.log('Confirm Payment triggered:', {
+      selectedPaymentMethod,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Validate inputs
+    if (!bookingDetails?.total || !eventId || !artistId || !token) {
+      console.error('Validation failed:', {
+        hasTotal: !!bookingDetails?.total,
+        total: bookingDetails?.total,
+        hasEventId: !!eventId,
+        hasArtistId: !!artistId,
+        hasToken: !!token,
+        timestamp: new Date().toISOString(),
+      });
+      alert('Missing payment details. Please ensure all details are provided.');
+      return;
+    }
+
+    const amount = parseFloat(bookingDetails.total) * 100;
+    if (isNaN(amount) || amount <= 0) {
+      console.error('Invalid amount:', {
+        total: bookingDetails.total,
+        amount,
+        timestamp: new Date().toISOString(),
+      });
+      alert('Invalid payment amount. Please try again.');
+      return;
+    }
+
+    try {
+      console.log('Event ID and amount before create-order:', {
+        eventId,
+        amount,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Step 1: Create an order on the backend
+      const orderResponse = await fetch(`${backendUrl}/api/bookings/create-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount,
+          currency: 'INR',
+          eventId,
+          artistId,
+        }),
+      });
+
+      const orderData = await orderResponse.json();
+
+      if (!orderResponse.ok) {
+        console.error('Error creating order:', {
+          status: orderResponse.status,
+          statusText: orderResponse.statusText,
+          response: orderData,
+          timestamp: new Date().toISOString(),
+        });
+        alert(`Failed to create order: ${orderData.message || 'Unknown error'}`);
+        return;
+      }
+
+      const { orderId } = orderData.data;
+
+      // Step 2: Open Razorpay Checkout
+      const options = {
+        key: process.env.RAZORPAY_KEY_ID || 'rzp_live_BWOUs1FhlzOLO7',
+        amount,
+        currency: 'INR',
+        name: 'Event Booking',
+        description: `Booking for event ${eventId}`,
+        image: 'https://your-app-logo.png',
+        order_id: orderId,
+        handler: (response) => {
+          // Log handler for debugging, but move verify logic to .then
+          console.log('Handler callback triggered:', {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            timestamp: new Date().toISOString(),
+          });
+        },
+        prefill: {
+          name: userName,
+          email: userEmail,
+          contact: userContact,
+        },
+        theme: {
+          color: '#7952FC',
+        },
+      };
+
+      console.log('Opening Razorpay checkout with options:', {
+        key: options.key,
+        amount: options.amount,
+        order_id: options.order_id,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Step 3: Verify payment after successful checkout
+      const data = await RazorpayCheckout.open(options);
+      console.log('Razorpay payment success:', data, {
+        timestamp: new Date().toISOString(),
+      });
+
+      // Verify payment
+      console.log('Preparing to fetch verify-payment:', {
+        url: `${backendUrl}/api/bookings/verify-payment`,
+        token: !!token,
+        payload: {
+          razorpay_order_id: data.razorpay_order_id,
+          razorpay_payment_id: data.razorpay_payment_id,
+          razorpay_signature: data.razorpay_signature,
+          eventId,
+          artistId,
+          invoices: bookingDetails,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
+      if (!token) {
+        console.error('Token missing during verify-payment:', {
+          timestamp: new Date().toISOString(),
+        });
+        alert('Authentication token missing. Please log in again.');
+        return;
+      }
+
+      try {
+        const verifyResponse = await fetch(`${backendUrl}/api/bookings/verify-payment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            razorpay_order_id: data.razorpay_order_id,
+            razorpay_payment_id: data.razorpay_payment_id,
+            razorpay_signature: data.razorpay_signature,
+            eventId,
+            artistId,
+            invoices: bookingDetails,
+          }),
+        });
+
+        console.log('Verify payment response status:', {
+          status: verifyResponse.status,
+          statusText: verifyResponse.statusText,
+          timestamp: new Date().toISOString(),
+        });
+
+        const verifyData = await verifyResponse.json();
+
+        if (!verifyResponse.ok) {
+          console.error('Payment verification failed:', {
+            status: verifyResponse.status,
+            statusText: verifyResponse.statusText,
+            response: verifyData,
+            timestamp: new Date().toISOString(),
+          });
+          alert(`Payment verification failed: ${verifyData.message || 'Unknown error'}`);
+          return;
+        }
+
+        if (verifyData.success) {
+          console.log('Payment verified and booking created:', {
+            bookingId: verifyData.data._id,
+            data: verifyData.data,
+            timestamp: new Date().toISOString(),
+          });
+          navigation.navigate('HostShortConfirmBooking', { bookingId: verifyData.data._id });
+        } else {
+          console.error('Payment verification failed:', {
+            message: verifyData.message,
+            timestamp: new Date().toISOString(),
+          });
+          alert(`Payment verification failed: ${verifyData.message}`);
+        }
+      } catch (error) {
+        console.error('Error during verify-payment fetch:', {
+          error: error.message,
+          stack: error.stack,
+          timestamp: new Date().toISOString(),
+        });
+        alert(`Error verifying payment: ${error.message || 'Network or server error'}`);
+      }
+    } catch (error) {
+      console.error('Error initiating payment:', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+      });
+      alert('Error initiating payment. Please try again.');
+    }
   };
 
   return (
-    <View style={[
-      styles.container,
-      {
-        // Comprehensive safe area handling for main container
-        paddingTop: Math.max(insets.top, 0),
-      }
-    ]}>
-      {/* Enhanced Header with comprehensive safe area handling */}
-      <View style={[
-        styles.header,
-        {
-          // Dynamic header positioning based on safe area
-          paddingTop: Math.max(dimensions.spacing.xl, 20),
-          paddingBottom: Math.max(dimensions.spacing.md, 12),
-          marginTop: Math.max(dimensions.spacing.sm, 8),
-        }
-      ]}>
-        <TouchableOpacity 
-          style={[
-            styles.backButtonContainer,
-            {
-              minWidth: 46,
-              minHeight: 46,
-              padding: 2
-            }
-          ]}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 0) }]}>
+      <View style={[styles.header, { paddingTop: Math.max(dimensions.spacing.xl, 20), paddingBottom: Math.max(dimensions.spacing.md, 12), marginTop: Math.max(dimensions.spacing.sm, 8) }]}>
+        <TouchableOpacity style={[styles.backButtonContainer, { minWidth: 46, minHeight: 46, padding: 2 }]} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <BackButtonIcon width={28} height={28} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Payment Method</Text>
         </View>
-        <View style={[
-          styles.headerSpacer,
-          {
-            width: Math.max(dimensions.iconSize, 24),
-          }
-        ]} />
+        <View style={[styles.headerSpacer, { width: Math.max(dimensions.iconSize, 24) }]} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.paymentMethodsContainer}
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            // Enhanced content padding with proper safe area consideration
-            paddingBottom: Math.max(insets.bottom + 120, 140),
-          }
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 120, 140) }]}
         showsVerticalScrollIndicator={false}
         bounces={true}
         scrollEventThrottle={16}
       >
-        {/* Enhanced Google Pay with responsive design */}
         <TouchableOpacity
-          style={[
-            styles.paymentMethodCard, 
-            selectedPaymentMethod === 'googlepay' && styles.paymentMethodCardSelected,
-            {
-              marginBottom: Math.max(dimensions.spacing.md, 12),
-            }
-          ]}
-          onPress={() => setSelectedPaymentMethod('googlepay')}
+          style={[styles.paymentMethodCard, selectedPaymentMethod === 'razorpay' && styles.paymentMethodCardSelected, { marginBottom: Math.max(dimensions.spacing.md, 12) }]}
+          onPress={() => setSelectedPaymentMethod('razorpay')}
           activeOpacity={0.8}
         >
-          <View style={[
-            styles.paymentMethodContent,
-            {
-              padding: Math.max(dimensions.spacing.lg, 15),
-            }
-          ]}>
-            <View style={[
-              styles.paymentIconContainer,
-              {
-                width: 34,
-                height: 34,
-                borderRadius: dimensions.iconContainerSize / 2,
-                marginRight: Math.max(dimensions.spacing.lg, 15),
-              }
-            ]}>
-              <GoogleIcon
-                style={styles.paymentIcon}
-                width={24}
-                height={24}
-              />
+          <View style={[styles.paymentMethodContent, { padding: Math.max(dimensions.spacing.lg, 15) }]}>
+            <View style={[styles.paymentIconContainer, { width: 34, height: 34, borderRadius: dimensions.iconContainerSize / 2, marginRight: Math.max(dimensions.spacing.lg, 15) }]}>
             </View>
             <View style={styles.paymentDetails}>
-              <View style={[
-                styles.paymentMethodTitleContainer,
-                {
-                  marginBottom: Math.max(dimensions.spacing.xs, 4),
-                }
-              ]}>
-                <Text style={styles.paymentMethodTitle}>Google Pay</Text>
+              <View style={[styles.paymentMethodTitleContainer, { marginBottom: Math.max(dimensions.spacing.xs, 4) }]}>
+                <Text style={styles.paymentMethodTitle}>Razorpay</Text>
               </View>
-              <View style={[
-                styles.paymentMethodInfoContainer,
-                {
-                  marginBottom: Math.max(dimensions.spacing.xs, 4),
-                }
-              ]}>
-                <Text style={styles.paymentMethodInfo}>f************n@gmail.com</Text>
+              <View style={[styles.paymentMethodInfoContainer, { marginBottom: Math.max(dimensions.spacing.xs, 4) }]}>
+                <Text style={styles.paymentMethodInfo}>Pay via UPI, Card, Netbanking</Text>
               </View>
               <View style={styles.paymentMethodBalanceContainer}>
                 <Text>
-                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
-                  <Text style={styles.paymentMethodBalanceValue}>$1,234.00</Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Total </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>₹{bookingDetails?.total || '0.00'}</Text>
                 </Text>
               </View>
             </View>
-            <View style={[
-              styles.checkmarkContainer,
-              {
-                marginLeft: Math.max(dimensions.spacing.sm, 10),
-              }
-            ]}>
-              <ArrowIcon width={14} height={15} />
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* Enhanced Apple Pay with responsive design */}
-        <TouchableOpacity
-          style={[
-            styles.paymentMethodCard, 
-            selectedPaymentMethod === 'applepay' && styles.paymentMethodCardSelected,
-            {
-              marginBottom: Math.max(dimensions.spacing.md, 12),
-            }
-          ]}
-          onPress={() => setSelectedPaymentMethod('applepay')}
-          activeOpacity={0.8}
-        >
-          <View style={[
-            styles.paymentMethodContent,
-            {
-              padding: Math.max(dimensions.spacing.lg, 15),
-            }
-          ]}>
-            <View style={[
-              styles.paymentIconContainer,
-              {
-                width: 34,
-                height: 34,
-                borderRadius: dimensions.iconContainerSize / 2,
-                marginRight: Math.max(dimensions.spacing.lg, 15),
-              }
-            ]}>
-              <AppleIcon
-                style={styles.paymentIcon}
-                width={24}
-                height={24}
-              />
-            </View>
-            <View style={styles.paymentDetails}>
-              <View style={[
-                styles.paymentMethodTitleContainer,
-                {
-                  marginBottom: Math.max(dimensions.spacing.xs, 4),
-                }
-              ]}>
-                <Text style={styles.paymentMethodTitle}>Apple Pay</Text>
-              </View>
-              <View style={[
-                styles.paymentMethodInfoContainer,
-                {
-                  marginBottom: Math.max(dimensions.spacing.xs, 4),
-                }
-              ]}>
-                <Text style={styles.paymentMethodInfo}>f************n@gmail.com</Text>
-              </View>
-              <View style={styles.paymentMethodBalanceContainer}>
-                <Text>
-                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
-                  <Text style={styles.paymentMethodBalanceValue}>$2,766.00</Text>
-                </Text>
-              </View>
-            </View>
-            <View style={[
-              styles.checkmarkContainer,
-              {
-                marginLeft: Math.max(dimensions.spacing.sm, 10),
-              }
-            ]}>
-              <ArrowIcon width={14} height={15} />
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* Enhanced Visa with proper icon replacement */}
-        <TouchableOpacity
-          style={[
-            styles.paymentMethodCard, 
-            selectedPaymentMethod === 'visa' && styles.paymentMethodCardSelected,
-            {
-              marginBottom: Math.max(dimensions.spacing.md, 12),
-            }
-          ]}
-          onPress={() => setSelectedPaymentMethod('visa')}
-          activeOpacity={0.8}
-        >
-          <View style={[
-            styles.paymentMethodContent,
-            {
-              padding: Math.max(dimensions.spacing.lg, 15),
-            }
-          ]}>
-            <View style={[
-              styles.paymentIconContainer,
-              {
-                width:34,
-                height: 34,
-                borderRadius: dimensions.iconContainerSize / 2,
-                marginRight: Math.max(dimensions.spacing.lg, 15),
-              }
-            ]}>
-              <VisaIcon
-                style={styles.paymentIcon}
-                width={24}
-                height={24}
-              />
-            </View>
-            <View style={styles.paymentDetails}>
-              <View style={[
-                styles.paymentMethodTitleContainer,
-                {
-                  marginBottom: Math.max(dimensions.spacing.xs, 4),
-                }
-              ]}>
-                <Text style={styles.paymentMethodTitle}>Visa</Text>
-              </View>
-              <View style={[
-                styles.paymentMethodInfoContainer,
-                {
-                  marginBottom: Math.max(dimensions.spacing.xs, 4),
-                }
-              ]}>
-                <Text style={styles.paymentMethodInfo}>**** **** **** 1234</Text>
-              </View>
-              <View style={styles.paymentMethodBalanceContainer}>
-                <Text>
-                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
-                  <Text style={styles.paymentMethodBalanceValue}>$1,876,766.00</Text>
-                </Text>
-              </View>
-            </View>
-            <View style={[
-              styles.checkmarkContainer,
-              {
-                marginLeft: Math.max(dimensions.spacing.sm, 10),
-              }
-            ]}>
-              <ArrowIcon width={14} height={15} />
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* Enhanced Master Card with proper icon replacement */}
-        <TouchableOpacity
-          style={[
-            styles.paymentMethodCard, 
-            selectedPaymentMethod === 'mastercard' && styles.paymentMethodCardSelected,
-            {
-              marginBottom: Math.max(dimensions.spacing.md, 12),
-            }
-          ]}
-          onPress={() => setSelectedPaymentMethod('mastercard')}
-          activeOpacity={0.8}
-        >
-          <View style={[
-            styles.paymentMethodContent,
-            {
-              padding: Math.max(dimensions.spacing.lg, 15),
-            }
-          ]}>
-            <View style={[
-              styles.paymentIconContainer,
-              {
-                width: 34,
-                height: 34,
-                borderRadius: dimensions.iconContainerSize / 2,
-                marginRight: Math.max(dimensions.spacing.lg, 15),
-              }
-            ]}>
-              <MasterIcon
-                style={styles.paymentIcon}
-                width={24}
-                height={24}
-              />
-            </View>
-            <View style={styles.paymentDetails}>
-              <View style={[
-                styles.paymentMethodTitleContainer,
-                {
-                  marginBottom: Math.max(dimensions.spacing.xs, 4),
-                }
-              ]}>
-                <Text style={styles.paymentMethodTitle}>Master Card</Text>
-              </View>
-              <View style={[
-                styles.paymentMethodInfoContainer,
-                {
-                  marginBottom: Math.max(dimensions.spacing.xs, 4),
-                }
-              ]}>
-                <Text style={styles.paymentMethodInfo}>**** **** **** 1234</Text>
-              </View>
-              <View style={styles.paymentMethodBalanceContainer}>
-                <Text>
-                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
-                  <Text style={styles.paymentMethodBalanceValue}>$2,876,766.00</Text>
-                </Text>
-              </View>
-            </View>
-            <View style={[
-              styles.checkmarkContainer,
-              {
-                marginLeft: Math.max(dimensions.spacing.sm, 10),
-              }
-            ]}>
+            <View style={[styles.checkmarkContainer, { marginLeft: Math.max(dimensions.spacing.sm, 10) }]}>
               <ArrowIcon width={14} height={15} />
             </View>
           </View>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Enhanced Confirm Payment Button with comprehensive safe area handling */}
-      <View style={[
-        styles.buttonContainer,
-        {
-          padding: dimensions.cardMargin,
-          marginBottom: Math.max(insets.bottom + 20, 30),
-        }
-      ]}>
+      <View style={[styles.buttonContainer, { padding: dimensions.cardMargin, marginBottom: Math.max(insets.bottom + 20, 30) }]}>
         <LinearGradient
           colors={['#B15CDE', '#7952FC']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[
-            styles.confirmButtonGradient,
-            {
-              borderRadius: dimensions.borderRadius.lg,
-            }
-          ]}
+          style={[styles.confirmButtonGradient, { borderRadius: dimensions.borderRadius.lg }]}
         >
-          <TouchableOpacity 
-            onPress={handleConfirmPayment} 
-            style={[
-              styles.confirmButton,
-              {
-                paddingVertical: Math.max(dimensions.spacing.lg, 15),
-                minHeight: Math.max(dimensions.buttonHeight, 54),
-              }
-            ]}
+          <TouchableOpacity
+            onPress={handleConfirmPayment}
+            style={[styles.confirmButton, { paddingVertical: Math.max(dimensions.spacing.lg, 15), minHeight: Math.max(dimensions.buttonHeight, 54) }]}
             activeOpacity={0.9}
           >
             <View style={styles.confirmButtonTextContainer}>
@@ -466,7 +372,6 @@ const styles = StyleSheet.create({
     borderRadius: dimensions.borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    // Enhanced shadow for better visual feedback
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.5,
@@ -488,7 +393,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 24,
     overflow: 'hidden',
-    marginRight:120,
+    marginRight: 120,
   },
   paymentMethodsContainer: {
     flex: 1,
@@ -519,13 +424,13 @@ const styles = StyleSheet.create({
   paymentMethodContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    position: 'relative', // Needed for zIndex to make content visible over gradient
-    zIndex: 1, // Ensure content is above gradient
+    position: 'relative',
+    zIndex: 1,
   },
   paymentIconContainer: {
     backgroundColor: '#191919',
-    width: 22,
-    height: 22,
+    width: 34,
+    height: 34,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
@@ -535,11 +440,8 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
   },
-  paymentIcon: {
-   
-  },
   paymentDetails: {
-    flex: 2, // Take available space
+    flex: 2,
   },
   paymentMethodTitleContainer: {
     // Margin set in component
@@ -585,7 +487,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 21,
     overflow: 'hidden',
-    
   },
   checkmarkContainer: {
     // Margin set in component
@@ -595,7 +496,6 @@ const styles = StyleSheet.create({
   },
   confirmButtonGradient: {
     overflow: 'hidden',
-    // Enhanced shadow for better visual prominence
     shadowColor: '#7952FC',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -620,4 +520,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HostShortBookPaymentMethodScreen; 
+export default HostShortBookPaymentMethodScreen;

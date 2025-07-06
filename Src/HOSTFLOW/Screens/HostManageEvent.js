@@ -7,7 +7,7 @@ import {
   Image,
   FlatList,
   Dimensions,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
@@ -61,7 +61,6 @@ const artistStatusData = [
   { id: '2', image: require('../assets/Images/frame1.png'), budget: '$500', genre: 'Rock', status: 'Pay Booking Amount', date: '06 Feb 2025' },
   { id: '3', image: require('../assets/Images/frame1.png'), budget: '$500', genre: 'Rock', status: 'Booked', date: '06 Feb 2025' },
   { id: '4', image: require('../assets/Images/frame1.png'), budget: '$500', genre: 'Rock', status: 'Rejected', date: '06 Feb 2025' },
-  // Add more data as needed
 ];
 
 // GradientText component for gradient text rendering
@@ -77,14 +76,16 @@ const GradientText = ({ text, style, colors = ['#B15CDE', '#7952FC'] }) => (
   </MaskedView>
 );
 
-const HostManageEventContent = ({ navigation }) => {
+const HostManageEventContent = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-
+  // Retrieve eventId from route.params or use fallback
+  const eventId = route.params?.eventId ;
+console.log("manage events ",eventId)
   // Sample event data
   const eventData = {
-    image: require('../assets/Images/ffff.jpg'), // Main event image
+    image: require('../assets/Images/ffff.jpg'),
     title: 'Sounds of Celebration',
-    date: 'May 20', // Date for the overlay
+    date: 'May 20',
   };
 
   const renderArtistStatusCard = ({ item }) => {
@@ -176,7 +177,6 @@ const HostManageEventContent = ({ navigation }) => {
                 statusButtonStyle,
                 {
                   // Remove extra minWidth/padding for Pay Booking Amount and Booked
-                  // Only apply for Pending/Rejected if needed
                 }
               ]}
               onPress={() => item.status === 'Pay Booking Amount' && navigation.navigate('HostManageEventDetailBooking')}
@@ -253,22 +253,22 @@ const HostManageEventContent = ({ navigation }) => {
                 </Text>
               )}
             </TouchableOpacity>
-             {showPlusButton && (
-               <TouchableOpacity 
-                 style={[
-                   styles.plusButton,
-                   {
-                     borderRadius: Math.max(dimensions.borderRadius.lg, 15),
-                     width: Math.max(dimensions.spacing.xxl + 6, 30),
-                     height: Math.max(dimensions.spacing.xxl + 6, 30),
-                     marginLeft: Math.max(dimensions.spacing.md, 10),
-                   }
-                 ]}
-                 activeOpacity={0.8}
-               >
-                 <Feather name="plus" size={Math.max(dimensions.iconSize * 0.8, 18)} color="#fff" />
-               </TouchableOpacity>
-             )}
+            {showPlusButton && (
+              <TouchableOpacity 
+                style={[
+                  styles.plusButton,
+                  {
+                    borderRadius: Math.max(dimensions.borderRadius.lg, 15),
+                    width: Math.max(dimensions.spacing.xxl + 6, 30),
+                    height: Math.max(dimensions.spacing.xxl + 6, 30),
+                    marginLeft: Math.max(dimensions.spacing.md, 10),
+                  }
+                ]}
+                activeOpacity={0.8}
+              >
+                <Feather name="plus" size={Math.max(dimensions.iconSize * 0.8, 18)} color="#fff" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         <View style={styles.artistActions}>
@@ -296,7 +296,6 @@ const HostManageEventContent = ({ navigation }) => {
     <View style={[
       styles.container,
       {
-        // Comprehensive safe area handling for main container
         paddingTop: Math.max(insets.top, 0),
       }
     ]}>
@@ -310,14 +309,13 @@ const HostManageEventContent = ({ navigation }) => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Enhanced Header with responsive design */}
+        {/* Header */}
         <View style={[
           styles.header,
           {
             width: 393,
             paddingTop: 20,
             paddingBottom: 20,
-            //paddingLeft: 16,
             paddingRight: 90,
             alignItems: 'center',
             gap: 16,
@@ -355,7 +353,7 @@ const HostManageEventContent = ({ navigation }) => {
           <View style={{ width: Math.max(dimensions.iconSize + 4, 24) }} />
         </View>
 
-        {/* Enhanced Event Image with Date Overlay */}
+        {/* Event Image with Date Overlay */}
         <View style={[
           styles.imageContainer,
           {
@@ -405,7 +403,7 @@ const HostManageEventContent = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Enhanced Event Title */}
+        {/* Event Title */}
         <Text style={[
           styles.eventTitle,
           {
@@ -417,6 +415,8 @@ const HostManageEventContent = ({ navigation }) => {
           {eventData.title}
         </Text>
         <View style={styles.sectionSeparator} />
+
+        {/* Artists Status Section */}
         <Text style={[
           styles.sectionTitle,
           {
@@ -427,8 +427,6 @@ const HostManageEventContent = ({ navigation }) => {
         ]}>
           Artists Status :
         </Text>
-
-        {/* Enhanced Artists Status Section */}
         <View style={[
           styles.artistStatusSection,
           {
@@ -443,10 +441,10 @@ const HostManageEventContent = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Separator below artist status and above action buttons */}
+        {/* Separator */}
         <View style={styles.sectionSeparator} />
 
-        {/* Enhanced Action Buttons */}
+        {/* Action Buttons */}
         <View style={[
           styles.eventActionButtonsContainer,
           {
@@ -455,7 +453,6 @@ const HostManageEventContent = ({ navigation }) => {
           }
         ]}>
           <View style={styles.topActionButtonsContainer}>
-            {/* Cancel Event Button with gradient border and fill */}
             <LinearGradient
               colors={['#B15CDE', '#7952FC']}
               start={{ x: 0, y: 0 }}
@@ -476,7 +473,6 @@ const HostManageEventContent = ({ navigation }) => {
                 </TouchableOpacity>
               </LinearGradient>
             </LinearGradient>
-            {/* Event Completed Button with white border and transparent background */}
             <TouchableOpacity
               style={styles.eventCompletedButton}
               activeOpacity={0.8}
@@ -490,7 +486,13 @@ const HostManageEventContent = ({ navigation }) => {
           </View>
           <TouchableOpacity
             style={styles.ticketSettingsButton}
-            onPress={() => navigation.navigate('HostTicketSetting')}
+            onPress={() => {
+              console.log('Navigating to HostTicketSettingScreen', {
+                timestamp: new Date().toISOString(),
+                eventId,
+              });
+              navigation.navigate('HostTicketSetting', { eventId });
+            }}
             activeOpacity={0.8}
           >
             <Text style={styles.ticketSettingsButtonText}>Ticket Settings</Text>
@@ -501,10 +503,10 @@ const HostManageEventContent = ({ navigation }) => {
   );
 };
 
-const HostManageEventScreen = ({ navigation }) => {
+const HostManageEventScreen = ({ navigation, route }) => {
   return (
     <SafeAreaProvider>
-      <HostManageEventContent navigation={navigation} />
+      <HostManageEventContent navigation={navigation} route={route} />
     </SafeAreaProvider>
   );
 };

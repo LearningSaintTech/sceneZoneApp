@@ -27,7 +27,7 @@ import { useDispatch } from 'react-redux';
 import { loginUser } from '../Redux/slices/authSlice';
 import auth from '@react-native-firebase/auth';
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window'); 
 
 const SignUpScreen = ({ navigation }) => {
   const dispatch = useDispatch();

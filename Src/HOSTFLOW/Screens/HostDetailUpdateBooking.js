@@ -140,9 +140,8 @@ const HostDetailBookingContent = ({ navigation, route }) => {
             platformFees,
             tax,
             total,
-          }); 
-          console.log("artistttttttttttdwtttt",artistData)
-          setIsNegotiationAvailable(artistData.isNegotiaitonAvailable || false);
+          });
+          setIsNegotiationAvailable(artistData.isNegotiationAvailable || false);
 
           console.log('Updated bookingDetails state', {
             timestamp: new Date().toISOString(),
@@ -366,81 +365,40 @@ const HostDetailBookingContent = ({ navigation, route }) => {
             </View>
 
             {isNegotiationAvailable && (
-           <TouchableOpacity
-           onPress={async () => {
-             console.log('Negotiation button pressed', {
-               timestamp: new Date().toISOString(),
-               navigation: 'NegotiationScreen',
-               participantId: artist.artistId,
-               participantRole: 'artist',
-               eventId,
-             });
-         
-             try {
-               // Call the create-chat API
-               const response = await axios.post(
-                 'http://192.168.1.4:3000/api/chat/create-chat',
-                 {
-                   eventId,
-                   artistId: artist.artistId,
-                 },
-                 {
-                   headers: {
-                     Authorization: `Bearer ${token}`,
-                     'Content-Type': 'application/json',
-                   },
-                 }
-               );
-         
-               console.log('Chat created successfully', {
-                 timestamp: new Date().toISOString(),
-                 response: response.data,
-               });
-         
-               if (response.data && response.data._id) {
-                 const chatId = response.data._id;
-                 // Navigate to NegotiationScreen with chatId and eventId
-                 navigation.navigate('HostNegotiationAvailable', {
-                   chatId,
-                   eventId,
-                   participantId: artist.artistId,
-                   participantRole: 'artist',
-                 });
-               } else {
-                 console.error('Failed to create chat: Invalid response data', {
-                   timestamp: new Date().toISOString(),
-                   response: response.data,
-                 });
-                 alert('Failed to create chat. Please try again.');
-               }
-             } catch (error) {
-               console.error('Error creating chat', {
-                 timestamp: new Date().toISOString(),
-                 error: error.response?.data?.message || error.message,
-                 status: error.response?.status,
-               });
-               alert('Failed to initiate negotiation. Please try again.');
-             }
-           }}
-           style={[
-             styles.negotiationButton,
-             {
-               marginHorizontal: dimensions.cardMargin,
-               marginTop: Math.max(dimensions.spacing.lg, 16),
-               marginBottom: Math.max(dimensions.spacing.md, 12),
-               padding: Math.max(dimensions.spacing.lg, 16),
-               minHeight: Math.max(dimensions.buttonHeight * 0.8, 48),
-             },
-           ]}
-           activeOpacity={0.8}
-         >
-           <Text style={styles.negotiationButtonText}>Negotiation Available</Text>
-           <Feather
-             name="chevron-right"
-             size={Math.max(dimensions.iconSize * 0.8, 20)}
-             color="#999"
-           />
-         </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  console.log('Negotiation button pressed', {
+                    timestamp: new Date().toISOString(),
+                    navigation: 'NegotiationScreen',
+                    participantId: artist.artistId,
+                    participantRole: 'artist',
+                    eventId,
+                  });
+                  navigation.navigate('NegotiationScreen', {
+                    participantId: artist.artistId,
+                    participantRole: 'artist',
+                    eventId,
+                  });
+                }}
+                style={[
+                  styles.negotiationButton,
+                  {
+                    marginHorizontal: dimensions.cardMargin,
+                    marginTop: Math.max(dimensions.spacing.lg, 16),
+                    marginBottom: Math.max(dimensions.spacing.md, 12),
+                    padding: Math.max(dimensions.spacing.lg, 16),
+                    minHeight: Math.max(dimensions.buttonHeight * 0.8, 48),
+                  },
+                ]}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.negotiationButtonText}>Negotiation Available</Text>
+                <Feather
+                  name="chevron-right"
+                  size={Math.max(dimensions.iconSize * 0.8, 20)}
+                  color="#999"
+                />
+              </TouchableOpacity>
             )}
 
             <TouchableOpacity
@@ -450,8 +408,11 @@ const HostDetailBookingContent = ({ navigation, route }) => {
                   navigation: 'HostShortBookPaymentMethod',
                   bookingDetails,
                   eventId,
-                });
-                navigation.navigate('HostShortBookPaymentMethod');
+                  artistId
+                }); 
+                navigation.navigate('HostShortBookPaymentMethod',{ bookingDetails,
+                  eventId,
+                  artistId});
               }}
               style={{
                 marginHorizontal: dimensions.cardMargin,
@@ -644,6 +605,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Math.max(dimensions.spacing.xl, 20),
   },
-});
+}); 
 
 export default HostDetailBookingScreen;

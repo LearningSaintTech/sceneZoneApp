@@ -1,8 +1,15 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { persistStore, persistReducer } from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import favoritesReducer from './slices/favoritesSlice';
 import authReducer from './slices/authSlice';
 import appliedReducer from './slices/appliedSlice';
-import { combineReducers } from 'redux';
+
+const persistConfig = {
+  key: 'root',
+  storage: AsyncStorage,
+  whitelist: ['auth'], // Persist only the auth slice
+};
 
 const rootReducer = combineReducers({
   favorites: favoritesReducer,
@@ -10,17 +17,21 @@ const rootReducer = combineReducers({
   applied: appliedReducer,
 });
 
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
 export const store = configureStore({
-  reducer: rootReducer,
+  reducer: persistedReducer,
   middleware: (getDefaultMiddleware) => {
-    console.log('Configuring store with middleware');
+    console.log(`[${new Date().toISOString()}] [store] Configuring store with middleware`);
     const middleware = getDefaultMiddleware({
       serializableCheck: false,
       immutableCheck: false,
     });
-    console.log('Store configured with middleware:', middleware);
+    console.log(`[${new Date().toISOString()}] [store] Store configured with middleware:`, middleware);
     return middleware;
   },
 });
 
-console.log('Store initialized:', store.getState());
+export const persistor = persistStore(store);
+
+console.log(`[${new Date().toISOString()}] [store] Store initialized:`, store.getState());

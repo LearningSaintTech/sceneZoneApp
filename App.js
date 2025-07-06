@@ -3,9 +3,12 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider, useSelector } from "react-redux";
+import { PersistGate } from "redux-persist/integration/react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState } from "react-native";
 import { io } from "socket.io-client";
-import { store } from "./Src/HOSTFLOW/Redux/store";
+import { store, persistor } from "./Src/HOSTFLOW/Redux/store";
+import { selectIsLoggedIn, selectUserType, selectToken } from "./Src/HOSTFLOW/Redux/slices/authSlice";
 
 // Common Screens
 import SplashScreen from "./Src/HOSTFLOW/Screens/SplashScreen";
@@ -68,6 +71,9 @@ import HostManageEventDetailBookingScreen from "./Src/HOSTFLOW/Screens/HostManag
 import HostPerfomanceDetailsScreen from "./Src/HOSTFLOW/Screens/HostPerfomanceDetails";
 import HostVerifiedScreen from "./Src/HOSTFLOW/Screens/HostVerifiedScreen";
 import HostAddPayment from "./Src/HOSTFLOW/Screens/HostAddPayment";
+import HostDetailUpdateBookingScreen from './Src/HOSTFLOW/Screens/HostDetailUpdateBooking'
+import HostChatEventList from './Src/HOSTFLOW/Screens/HostChatEventList'
+import HostChatList from './Src/HOSTFLOW/Screens/HostChatList'
 
 // User Screens
 import UserSignupScreen from "./Src/HOSTFLOW/Screens/UserSignup";
@@ -97,13 +103,12 @@ import UserBottomTabNavigator from "./Src/HOSTFLOW/Components/UserBottomTabNavig
 import UserVerifiedScreen from "./Src/HOSTFLOW/Screens/UserVerified";
 import UserCreateNewPassword from "./Src/HOSTFLOW/Screens/UserCreateNewPassword";
 import UserCheckMailbox from "./Src/HOSTFLOW/Screens/UserCheckMailBox";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Socket.IO Context
-export const SocketContext = React.createContext();
+
 
 // Socket.IO URL
-const SOCKET_URL = "http://10.0.2.2:3000"; // Matches backend PORT
+
 
 const Stack = createNativeStackNavigator();
 
@@ -123,444 +128,210 @@ if (!Array.prototype.findLastIndex) {
   });
 }
 
-export default function App() {
-  const [socket, setSocket] = React.useState(null);
-  const [isAppInBackground, setIsAppInBackground] = React.useState(false);
-  const [showSplash, setShowSplash] = React.useState(true);
-  const [initialRoute, setInitialRoute] = React.useState(null); // NEW
-
+function AppNavigator() {
+  const isLoggedIn = useSelector(selectIsLoggedIn);
+  const userType = useSelector(selectUserType);
+  const token = useSelector(selectToken);
+  const [initialRoute, setInitialRoute] = React.useState(null);
   const navigationRef = React.useRef();
 
   React.useEffect(() => {
     const checkLogin = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-        console.log("Retrieved token from storage:", token);
+      console.log(`[${new Date().toISOString()}] [App] Starting checkLogin`);
 
-        if (token) {
-          // You can decode the token here if needed to find user type
-          setInitialRoute("UserHome"); // OR 'ArtistHome' based on user role
+      try {
+        // Check AsyncStorage
+        console.log(`[${new Date().toISOString()}] [App] Fetching token from AsyncStorage`);
+        const storedToken = await AsyncStorage.getItem("token");
+        console.log(`[${new Date().toISOString()}] [App] Stored Token: ${storedToken ? "Found" : "Not found"}`);
+
+        console.log(`[${new Date().toISOString()}] [App] Fetching userType from AsyncStorage`);
+        const storedUserType = await AsyncStorage.getItem("userType");
+        console.log(`[${new Date().toISOString()}] [App] Stored UserType: ${storedUserType || "Not found"}`);
+
+        // Check Redux state
+        console.log(`[${new Date().toISOString()}] [App] Redux isLoggedIn: ${isLoggedIn}`);
+        console.log(`[${new Date().toISOString()}] [App] Redux userType: ${userType || "Not set"}`);
+        console.log(`[${new Date().toISOString()}] [App] Redux token: ${token ? "Found" : "Not set"}`);
+
+        // Use AsyncStorage if available, otherwise fall back to Redux
+        const finalToken = storedToken || token;
+        const finalUserType = storedUserType || userType;
+
+        if (finalToken && finalUserType && isLoggedIn) {
+          console.log(`[${new Date().toISOString()}] [App] Valid token and userType found, selecting route`);
+          const normalizedUserType = finalUserType.toLowerCase();
+          switch (normalizedUserType) {
+            case "artist":
+              console.log(`[${new Date().toISOString()}] [App] Setting initialRoute to ArtistHome`);
+              setInitialRoute("ArtistHome");
+              break;
+            case "host":
+              console.log(`[${new Date().toISOString()}] [App] Setting initialRoute to MainTabs`);
+              setInitialRoute("MainTabs");
+              break;
+            case "user":
+              console.log(`[${new Date().toISOString()}] [App] Setting initialRoute to UserHome`);
+              setInitialRoute("UserHome");
+              break;
+            default:
+              console.warn(`[${new Date().toISOString()}] [App] Invalid userType: ${finalUserType}, falling back to Onboard1`);
+              setInitialRoute("Onboard1");
+          }
         } else {
-          setInitialRoute("Onboard1"); // or 'SignIn'
+          console.log(`[${new Date().toISOString()}] [App] Missing token, userType, or not logged in, falling back to Onboard1`);
+          setInitialRoute("Onboard1");
         }
       } catch (err) {
-        console.error("Failed to retrieve token:", err);
+        console.error(`[${new Date().toISOString()}] [App] Error in checkLogin:`, err.message);
+        console.log(`[${new Date().toISOString()}] [App] Falling back to Onboard1 due to error`);
         setInitialRoute("Onboard1");
-      } finally {
-        setShowSplash(false);
       }
     };
 
+    console.log(`[${new Date().toISOString()}] [App] Initiating checkLogin`);
     checkLogin();
-  }, []);
-
-  // Initialize Socket.IO  commented by KD
-  // React.useEffect(() => {
-  //   const socketInstance = io(SOCKET_URL, {
-  //     transports: ['websocket'],
-  //     reconnection: true,
-  //     reconnectionAttempts: 5,
-  //     reconnectionDelay: 1000,
-  //   });
-
-  //   setSocket(socketInstance);
-  //   // Detailed Socket.IO event logging
-  //   socketInstance.on('connect', () => {
-  //     console.log(`[${new Date().toISOString()}] Socket.IO connected: ID=${socketInstance.id}`);
-  //   });
-
-  //   socketInstance.on('connect_error', (error) => {
-  //     console.error(`[${new Date().toISOString()}] Socket.IO connection error:`, error.message);
-  //   });
-
-  //   socketInstance.on('reconnect', (attempt) => {
-  //     console.log(`[${new Date().toISOString()}] Socket.IO reconnected after ${attempt} attempts`);
-  //   });
-
-  //   socketInstance.on('reconnect_attempt', (attempt) => {
-  //     console.log(`[${new Date().toISOString()}] Socket.IO reconnect attempt #${attempt}`);
-  //   });
-
-  //   socketInstance.on('reconnect_error', (error) => {
-  //     console.error(`[${new Date().toISOString()}] Socket.IO reconnect error:`, error.message);
-  //   });
-
-  //   socketInstance.on('reconnect_failed', () => {
-  //     console.error(`[${new Date().toISOString()}] Socket.IO reconnect failed after max attempts`);
-  //   });
-
-  //   socketInstance.on('disconnect', (reason) => {
-  //     console.log(`[${new Date().toISOString()}] Socket.IO disconnected: Reason=${reason}`);
-  //   });
-
-  //   // Handle app state changes
-  //   const handleAppStateChange = (nextAppState) => {
-  //     console.log(`[${new Date().toISOString()}] App state changed: ${nextAppState}`);
-  //     if (nextAppState === 'background' || nextAppState === 'inactive') {
-  //       setIsAppInBackground(true);
-  //       socketInstance.disconnect();
-  //       console.log(`[${new Date().toISOString()}] Socket.IO manually disconnected due to app background`);
-  //     } else if (nextAppState === 'active' && isAppInBackground) {
-  //       setIsAppInBackground(false);
-  //       socketInstance.connect();
-  //       console.log(`[${new Date().toISOString()}] Socket.IO reconnecting due to app foreground`);
-  //       setShowSplash(true);
-  //       if (navigationRef.current) {
-  //         console.log(`[${new Date().toISOString()}] Resetting navigation to Splash screen`);
-  //         navigationRef.current.reset({
-  //           index: 0,
-  //           routes: [{ name: 'Splash' }],
-  //         });
-  //       }
-  //     }
-  //   };
-
-  //   const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-  //   // Cleanup on unmount
-  //   return () => {
-  //     console.log(`[${new Date().toISOString()}] Cleaning up Socket.IO and AppState listener`);
-  //     subscription.remove();
-  //     socketInstance.disconnect();
-  //     setSocket(null);
-  //   };
-  // }, [isAppInBackground]);
+  }, [isLoggedIn, userType, token]);
 
   return (
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        console.log(`[${new Date().toISOString()}] [App] NavigationContainer ready, initialRoute: ${initialRoute || "Not set"}`);
+      }}
+    >
+      {initialRoute ? (
+        <>
+          {console.log(`[${new Date().toISOString()}] [App] Rendering Stack.Navigator with initialRoute: ${initialRoute}`)}
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 300,
+            }}
+            initialRouteName={initialRoute}
+          >
+            {/* Common Screens */}
+            <Stack.Screen name="Onboard1" component={OnboardScreen} options={{ animation: "slide_from_left" }} />
+            <Stack.Screen name="Notification" component={NotificationScreen} />
+            <Stack.Screen name="Explore" component={ExploreEventScreen} />
+            <Stack.Screen name="Event" component={EventDashboardScreen} />
+            <Stack.Screen name="NewEvent" component={NewEventScreen} />
+            <Stack.Screen name="GuestList" component={GuestListScreen} />
+            <Stack.Screen name="ShortList" component={ShortListScreen} />
+            <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
+
+            {/* Artist Screens */}
+            <Stack.Screen name="ArtistSignup" component={ArtistSignupScreen} />
+            <Stack.Screen name="ArtistSigninScreen" component={ArtistSigninScreen} />
+            <Stack.Screen name="ArtistOtpVerificationScreen" component={ArtistOtpVerificationScreen} />
+            <Stack.Screen name="ArtistVerifiedScreen" component={ArtistVerifiedScreen} />
+            <Stack.Screen name="ArtistHome" component={ArtistHomeScreen} />
+            <Stack.Screen name="ArtistNotification" component={ArtistNotificationScreen} />
+            <Stack.Screen name="ArtistApplied" component={ArtistAppliedScreen} />
+            <Stack.Screen name="ArtistFormBooking" component={ArtistFormBookingScreen} />
+            <Stack.Screen name="ArtistInbox" component={ArtistInboxScreen} />
+            <Stack.Screen name="ArtistProfile" component={ArtistProfileScreen} />
+            <Stack.Screen name="ArtistEditProfile" component={ArtistEditProfileScreen} />
+            <Stack.Screen name="ArtistGuestList" component={ArtistGuestListScreen} />
+            <Stack.Screen name="ArtistPaymentSettings" component={ArtistPaymentSettingsScreen} />
+            <Stack.Screen name="ArtistGeneralSettings" component={ArtistGeneralSettingsScreen} />
+            <Stack.Screen name="ArtistHelpCentre" component={ArtistHelpCentreScreen} />
+            <Stack.Screen name="ArtistForgotPasswordScreen" component={ArtistForgotPasswordScreen} />
+            <Stack.Screen name="ArtistCheckMailbox" component={ArtistCheckMailbox} />
+            <Stack.Screen name="ArtistCreateNewPassword" component={ArtistCreateNewPassword} />
+            <Stack.Screen name="ArtistUpload" component={ArtistUpload} />
+
+            {/* Host Screens */}
+            <Stack.Screen name="Signup" component={SignUpScreen} options={{ animation: "slide_from_left" }} />
+            <Stack.Screen name="SignIn" component={SigninScreen} options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="OtpVerify" component={OtpVerificationScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="CheckMailBox" component={CheckMailboxScreen} />
+            <Stack.Screen name="CreateNewPassword" component={CreateNewPasswordScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="CreateProfile" component={CreateProfile} />
+            <Stack.Screen name="HostEditProfile" component={HostEditProfileScreen} />
+            <Stack.Screen name="HostAccountSecurity" component={HostAccountSecurityScreen} />
+            <Stack.Screen name="hostPaymentSetting" component={HostPaymentSettingsScreen} />
+            <Stack.Screen name="HostGeneralSetting" component={HostGeneralSettingsScreen} />
+            <Stack.Screen name="HostHelpCentre" component={HostHelpCentreScreen} />
+            <Stack.Screen name="HostEnableGuestList" component={HostEnableGuestListScreen} />
+            <Stack.Screen name="HostTicketSetting" component={HostTicketSettingScreen} />
+            <Stack.Screen name="OnSallaryBasis" component={OnSalaryBasisScreen} />
+            <Stack.Screen name="ShortlistCreateNewEvent" component={ShortlistCreateNewEventScreen} />
+            <Stack.Screen name="HostDetailBooking" component={HostDetailBookingScreen} />
+            <Stack.Screen name="HostNegotiationAvailable" component={HostNegotiationAvailableScreen} />
+            <Stack.Screen name="HostShortBookPaymentMethod" component={HostShortBookPaymentMethodScreen} />
+            <Stack.Screen name="HostShortConfirmBooking" component={HostShortConfirmBookingScreen} />
+            <Stack.Screen name="HostArtistContact" component={HostArtistContactScreen} />
+            <Stack.Screen name="HostManageEvent" component={HostManageEventScreen} />
+            <Stack.Screen name="HostManageEventDetailBooking" component={HostManageEventDetailBookingScreen} />
+            <Stack.Screen name="HostPerfomanceDetails" component={HostPerfomanceDetailsScreen} />
+            <Stack.Screen name="HostVerifiedScreen" component={HostVerifiedScreen} />
+            <Stack.Screen name="HostAddPayment" component={HostAddPayment} />
+            <Stack.Screen name="HostDetailUpdateBookingScreen" component={HostDetailUpdateBookingScreen} />
+            <Stack.Screen name="HostChatEventList" component={HostChatEventList} />
+            <Stack.Screen name="HostChatList" component={HostChatList} />
+
+
+
+            {/* User Screens */}
+            <Stack.Screen name="UserSignup" component={UserSignupScreen} />
+            <Stack.Screen name="UserSignin" component={UserSigninScreen} />
+            <Stack.Screen name="UserCreateProfile" component={UserCreateProfileScreen} />
+            <Stack.Screen name="UserOtpVerification" component={UserOtpVerificationScreen} />
+            <Stack.Screen name="UserForgotPassword" component={UserForgotPasswordScreen} />
+            <Stack.Screen name="UserOtpReset" component={UserOtpResetScreen} />
+            <Stack.Screen name="UserHome" component={UserBottomTabNavigator} />
+            <Stack.Screen name="UserNotificationScreen" component={UserNotificationScreen} />
+            <Stack.Screen name="UserProfileScreen" component={UserProfileScreen} />
+            <Stack.Screen name="UserEditProfileScreen" component={UserEditProfileScreen} />
+            <Stack.Screen name="UserAccountSecurityScreen" component={UserAccountSecurityScreen} />
+            <Stack.Screen name="UserPaymentSettingsScreen" component={UserPaymentSettingsScreen} />
+            <Stack.Screen name="UserCheckMailbox" component={UserCheckMailbox} />
+            <Stack.Screen name="AddPaymentMethodScreen" component={AddPaymentMethodScreen} />
+            <Stack.Screen name="UserGeneralSettingsScreen" component={UserGeneralSettingsScreen} />
+            <Stack.Screen name="UserHelpCentreScreen" component={UserHelpCentreScreen} />
+            <Stack.Screen name="UserFavoriteScreen" component={UserFavoriteScreen} />
+            <Stack.Screen name="UserVenueBookingScreen" component={UserVenueBookingScreen} />
+            <Stack.Screen name="UserTicketScreen" component={UserTicketScreen} />
+            <Stack.Screen name="UserEvent" component={UserEvent} />
+            <Stack.Screen name="UserFormBookingScreen" component={UserFormBookingScreen} />
+            <Stack.Screen name="UserDetailBookingScreen" component={UserDetailBookingScreen} />
+            <Stack.Screen name="UserBookingPaymentScreen" component={UserBookingPaymentScreen} />
+            <Stack.Screen name="UserConfirmBookingScreen" component={UserConfirmBookingScreen} />
+            <Stack.Screen name="UserTabs" component={UserBottomTabNavigator} />
+            <Stack.Screen name="UserVerifiedScreen" component={UserVerifiedScreen} />
+            <Stack.Screen name="UserCreateNewPassword" component={UserCreateNewPassword} />
+          </Stack.Navigator>
+        </>
+      ) : (
+        <>
+          {console.log(`[${new Date().toISOString()}] [App] Rendering SplashScreen (initialRoute not set)`)}
+          <Stack.Screen name="Splash" component={SplashScreen} />
+        </>
+      )}
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
+  const [socket, setSocket] = React.useState(null);
+  const [isAppInBackground, setIsAppInBackground] = React.useState(false);
+
+  // Initialize Socket.IO
+  
+  return (
     <Provider store={store}>
-      <SafeAreaProvider>
-        <SocketContext.Provider value={socket}>
-          <NavigationContainer ref={navigationRef}>
-            {/* This code is commented by sonu */}
-            {/* <Stack.Navigator
-              screenOptions={{
-                headerShown: false,
-                animation: 'slide_from_right',
-                animationDuration: 300,
-              }}
-              initialRouteName="Splash"
-            > */}
-
-            {initialRoute ? (
-              <Stack.Navigator
-                screenOptions={{
-                  headerShown: false,
-                  animation: "slide_from_right",
-                  animationDuration: 300,
-                }}
-                initialRouteName={initialRoute}
-              >
-                <Stack.Screen
-                  name="Onboard1"
-                  component={OnboardScreen}
-                  options={{
-                    animation: "slide_from_left",
-                    animationDuration: 300,
-                  }}
-                />
-                <Stack.Screen
-                  name="Notification"
-                  component={NotificationScreen}
-                />
-                <Stack.Screen name="Explore" component={ExploreEventScreen} />
-                <Stack.Screen name="Event" component={EventDashboardScreen} />
-                <Stack.Screen name="NewEvent" component={NewEventScreen} />
-                <Stack.Screen name="GuestList" component={GuestListScreen} />
-                <Stack.Screen name="ShortList" component={ShortListScreen} />
-                <Stack.Screen name="Chat" component={ChatScreen} />
-                <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
-
-                {/* Artist Screens */}
-                <Stack.Screen
-                  name="ArtistSignup"
-                  component={ArtistSignupScreen}
-                />
-                <Stack.Screen
-                  name="ArtistSigninScreen"
-                  component={ArtistSigninScreen}
-                />
-                <Stack.Screen
-                  name="ArtistOtpVerificationScreen"
-                  component={ArtistOtpVerificationScreen}
-                />
-                <Stack.Screen
-                  name="ArtistVerifiedScreen"
-                  component={ArtistVerifiedScreen}
-                />
-                <Stack.Screen name="ArtistHome" component={ArtistHomeScreen} />
-                <Stack.Screen
-                  name="ArtistNotification"
-                  component={ArtistNotificationScreen}
-                />
-                <Stack.Screen
-                  name="ArtistApplied"
-                  component={ArtistAppliedScreen}
-                />
-                <Stack.Screen
-                  name="ArtistFormBooking"
-                  component={ArtistFormBookingScreen}
-                />
-                <Stack.Screen
-                  name="ArtistInbox"
-                  component={ArtistInboxScreen}
-                />
-                <Stack.Screen
-                  name="ArtistProfile"
-                  component={ArtistProfileScreen}
-                />
-                <Stack.Screen
-                  name="ArtistEditProfile"
-                  component={ArtistEditProfileScreen}
-                />
-                <Stack.Screen
-                  name="ArtistGuestList"
-                  component={ArtistGuestListScreen}
-                />
-                <Stack.Screen
-                  name="ArtistPaymentSettings"
-                  component={ArtistPaymentSettingsScreen}
-                />
-                <Stack.Screen
-                  name="ArtistGeneralSettings"
-                  component={ArtistGeneralSettingsScreen}
-                />
-                <Stack.Screen
-                  name="ArtistHelpCentre"
-                  component={ArtistHelpCentreScreen}
-                />
-                <Stack.Screen
-                  name="ArtistForgotPasswordScreen"
-                  component={ArtistForgotPasswordScreen}
-                />
-                <Stack.Screen
-                  name="ArtistCheckMailbox"
-                  component={ArtistCheckMailbox}
-                />
-                <Stack.Screen
-                  name="ArtistCreateNewPassword"
-                  component={ArtistCreateNewPassword}
-                />
-                <Stack.Screen name="ArtistUpload" component={ArtistUpload} />
-
-                {/* Host Screens */}
-                <Stack.Screen
-                  name="Signup"
-                  component={SignUpScreen}
-                  options={{
-                    animation: "slide_from_left",
-                    animationDuration: 300,
-                  }}
-                />
-                <Stack.Screen
-                  name="SignIn"
-                  component={SigninScreen}
-                  options={{
-                    animation: "slide_from_right",
-                    animationDuration: 300,
-                  }}
-                />
-                <Stack.Screen
-                  name="OtpVerify"
-                  component={OtpVerificationScreen}
-                />
-                <Stack.Screen
-                  name="ForgotPassword"
-                  component={ForgotPasswordScreen}
-                />
-                <Stack.Screen
-                  name="CheckMailBox"
-                  component={CheckMailboxScreen}
-                />
-                <Stack.Screen
-                  name="CreateNewPassword"
-                  component={CreateNewPasswordScreen}
-                />
-                <Stack.Screen name="Profile" component={ProfileScreen} />
-                <Stack.Screen name="CreateProfile" component={CreateProfile} />
-                <Stack.Screen
-                  name="HostEditProfile"
-                  component={HostEditProfileScreen}
-                />
-                <Stack.Screen
-                  name="HostAccountSecurity"
-                  component={HostAccountSecurityScreen}
-                />
-                <Stack.Screen
-                  name="hostPaymentSetting"
-                  component={HostPaymentSettingsScreen}
-                />
-                <Stack.Screen
-                  name="HostGeneralSetting"
-                  component={HostGeneralSettingsScreen}
-                />
-                <Stack.Screen
-                  name="HostHelpCentre"
-                  component={HostHelpCentreScreen}
-                />
-                <Stack.Screen
-                  name="HostEnableGuestList"
-                  component={HostEnableGuestListScreen}
-                />
-                <Stack.Screen
-                  name="HostTicketSetting"
-                  component={HostTicketSettingScreen}
-                />
-                <Stack.Screen
-                  name="OnSallaryBasis"
-                  component={OnSalaryBasisScreen}
-                />
-                <Stack.Screen
-                  name="ShortlistCreateNewEvent"
-                  component={ShortlistCreateNewEventScreen}
-                />
-                <Stack.Screen
-                  name="HostDetailBooking"
-                  component={HostDetailBookingScreen}
-                />
-                <Stack.Screen
-                  name="HostNegotiationAvailable"
-                  component={HostNegotiationAvailableScreen}
-                />
-                <Stack.Screen
-                  name="HostShortBookPaymentMethod"
-                  component={HostShortBookPaymentMethodScreen}
-                />
-                <Stack.Screen
-                  name="HostShortConfirmBooking"
-                  component={HostShortConfirmBookingScreen}
-                />
-                <Stack.Screen
-                  name="HostArtistContact"
-                  component={HostArtistContactScreen}
-                />
-                <Stack.Screen
-                  name="HostManageEvent"
-                  component={HostManageEventScreen}
-                />
-                <Stack.Screen
-                  name="HostManageEventDetailBooking"
-                  component={HostManageEventDetailBookingScreen}
-                />
-                <Stack.Screen
-                  name="HostPerfomanceDetails"
-                  component={HostPerfomanceDetailsScreen}
-                />
-                <Stack.Screen
-                  name="HostVerifiedScreen"
-                  component={HostVerifiedScreen}
-                />
-                <Stack.Screen
-                  name="HostAddPayment"
-                  component={HostAddPayment}
-                />
-
-                {/* User Screens */}
-                <Stack.Screen name="UserSignup" component={UserSignupScreen} />
-                <Stack.Screen name="UserSignin" component={UserSigninScreen} />
-                <Stack.Screen
-                  name="UserCreateProfile"
-                  component={UserCreateProfileScreen}
-                />
-                <Stack.Screen
-                  name="UserOtpVerification"
-                  component={UserOtpVerificationScreen}
-                />
-                <Stack.Screen
-                  name="UserForgotPassword"
-                  component={UserForgotPasswordScreen}
-                />
-                <Stack.Screen
-                  name="UserOtpReset"
-                  component={UserOtpResetScreen}
-                />
-                <Stack.Screen
-                  name="UserHome"
-                  component={UserBottomTabNavigator}
-                />
-                <Stack.Screen
-                  name="UserNotificationScreen"
-                  component={UserNotificationScreen}
-                />
-                <Stack.Screen
-                  name="UserProfileScreen"
-                  component={UserProfileScreen}
-                />
-                <Stack.Screen
-                  name="UserEditProfileScreen"
-                  component={UserEditProfileScreen}
-                />
-                <Stack.Screen
-                  name="UserAccountSecurityScreen"
-                  component={UserAccountSecurityScreen}
-                />
-                <Stack.Screen
-                  name="UserPaymentSettingsScreen"
-                  component={UserPaymentSettingsScreen}
-                />
-                 <Stack.Screen
-                  name="UserCheckMailbox"
-                  component={UserCheckMailbox}
-                />
-                <Stack.Screen
-                  name="AddPaymentMethodScreen"
-                  component={AddPaymentMethodScreen}
-                />
-                <Stack.Screen
-                  name="UserGeneralSettingsScreen"
-                  component={UserGeneralSettingsScreen}
-                />
-                <Stack.Screen
-                  name="UserHelpCentreScreen"
-                  component={UserHelpCentreScreen}
-                />
-                <Stack.Screen
-                  name="UserFavoriteScreen"
-                  component={UserFavoriteScreen}
-                />
-                <Stack.Screen
-                  name="UserVenueBookingScreen"
-                  component={UserVenueBookingScreen}
-                />
-                <Stack.Screen
-                  name="UserTicketScreen"
-                  component={UserTicketScreen}
-                />
-                <Stack.Screen name="UserEvent" component={UserEvent} />
-                <Stack.Screen
-                  name="UserFormBookingScreen"
-                  component={UserFormBookingScreen}
-                />
-                <Stack.Screen
-                  name="UserDetailBookingScreen"
-                  component={UserDetailBookingScreen}
-                />
-                <Stack.Screen
-                  name="UserBookingPaymentScreen"
-                  component={UserBookingPaymentScreen}
-                />
-                <Stack.Screen
-                  name="UserConfirmBookingScreen"
-                  component={UserConfirmBookingScreen}
-                />
-                <Stack.Screen
-                  name="UserTabs"
-                  component={UserBottomTabNavigator}
-                />
-                <Stack.Screen
-                  name="UserVerifiedScreen"
-                  component={UserVerifiedScreen}
-                />
-                <Stack.Screen
-                  name="UserCreateNewPassword"
-                  component={UserCreateNewPassword}
-                />
-              </Stack.Navigator>
-            ) : (
-              <Stack.Screen name="Splash" component={SplashScreen} />
-            )}
-          </NavigationContainer>
-        </SocketContext.Provider>
-      </SafeAreaProvider>
+      <PersistGate loading={null} persistor={persistor}>
+        <SafeAreaProvider>
+         
+            <AppNavigator />
+       
+        </SafeAreaProvider>
+      </PersistGate>
     </Provider>
   );
 }

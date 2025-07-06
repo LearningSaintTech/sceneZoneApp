@@ -9,6 +9,7 @@ import {
   Dimensions,
   Share,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -17,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RegisteredIcon from '../assets/icons/registered';
 import ViewedIcon from '../assets/icons/viewed';
 import LikedIcon from '../assets/icons/liked';
+import axios from 'axios';
+import { useSelector } from 'react-redux';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +35,7 @@ const EventDashboardScreen = ({ navigation, route }) => {
   );
   const insets = useSafeAreaInsets();
   const eventData = route.params?.eventData; // Extract eventData from route.params
+  const token = useSelector(state => state.auth.token); // Get token from Redux
 
   const textColor = '#fff';
   const subColor = '#ccc';
@@ -69,11 +73,46 @@ const EventDashboardScreen = ({ navigation, route }) => {
     }
   };
 
+  // Toggle guest list API call
+  const toggleGuestList = async () => {
+    const eventId = eventData?._id;
+    if (!eventId) {
+      Alert.alert('Error', 'No event ID provided.');
+      return;
+    }
+
+    try {
+      console.log(`Making POST request to http://192.168.1.4:3000/api/host/events/toggle-guest-list/${eventId}`);
+      const response = await axios.patch(
+        `http://192.168.1.4:3000/api/host/events/toggle-guest-list/${eventId}`,
+        { eventGuestEnabled: !isGuestListEnabled },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      console.log('Toggle Guest List API Response:', response.data);
+
+      if (response.data.success) {
+        setIsGuestListEnabled(!isGuestListEnabled);
+        Alert.alert('Success', `Guest list ${!isGuestListEnabled ? 'enabled' : 'disabled'} successfully.`);
+      } else {
+        console.log('API success is false, message:', response.data.message);
+        Alert.alert('Error', response.data.message || 'Failed to toggle guest list.');
+      }
+    } catch (error) {
+      console.error('Error toggling guest list:', error.response?.data || error.message);
+      Alert.alert('Error', 'Failed to toggle guest list.');
+    }
+  };
+
   // Custom Toggle Component
   const CustomToggle = ({ value, onValueChange }) => (
     <TouchableOpacity
       activeOpacity={0.8}
-      onPress={() => onValueChange(!value)}
+      onPress={onValueChange}
       style={{
         width: 36,
         height: 20,
@@ -170,7 +209,7 @@ const EventDashboardScreen = ({ navigation, route }) => {
                     {eventData?.venue || 'Central Park, New York'}
                   </Text>
                 </View>
-              </View>
+              </  View>
             </View>
             {/* Right Column: Stats Cards */}
             <View style={styles.statsColumn}>
@@ -216,7 +255,7 @@ const EventDashboardScreen = ({ navigation, route }) => {
             <Text style={styles.toggleLabelNew}>Enable Guest List</Text>
             <CustomToggle
               value={isGuestListEnabled}
-              onValueChange={setIsGuestListEnabled}
+              onValueChange={toggleGuestList}
             />
           </View>
           {isGuestListEnabled && (
@@ -235,7 +274,6 @@ const EventDashboardScreen = ({ navigation, route }) => {
   );
 };
 
-// Styles (unchanged from the original)
 const styles = StyleSheet.create({
   container: {
     flex: 1,

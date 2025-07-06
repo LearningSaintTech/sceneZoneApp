@@ -9,20 +9,12 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const UserGeneralSettingsScreen = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
-  
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={[
-        styles.header,
-        {
-          paddingTop: Math.max(insets.top, 20),
-        }
-      ]}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -71,16 +63,27 @@ const UserGeneralSettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#121212',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    display: 'flex',
+    width: 393,
+    paddingVertical: 20,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16,
+    backgroundColor: '#121212',
     borderBottomWidth: 1,
-    borderColor: '#333',
+    borderBottomColor: '#C6C5ED',
+    // Shadow for iOS
+    shadowColor: 'rgba(104, 59, 252, 0.05)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    // Elevation for Android
+    elevation: 8,
+    paddingTop:40,
   },
   headerTitle: {
     fontSize: 18,
@@ -93,12 +96,17 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   menuItem: {
+    display: 'flex',
     flexDirection: 'row',
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a', // Dark background
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    borderRadius: 10,
+    alignSelf: 'stretch',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#34344A',
+    backgroundColor: '#1A1A1F',
     marginBottom: 10,
   },
   menuItemText: {

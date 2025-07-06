@@ -7,21 +7,21 @@ import {
   ScrollView,
   SafeAreaView,
   TextInput,
-  Switch,
   Dimensions,
   Platform,
+  Alert,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker'; // Added for date/time picking
+import axios from 'axios'; // Added for API calls
+import { useSelector } from 'react-redux'; // Added for token
 import Camera from '../assets/icons/Camera';
-// You may need to import a date/time picker library here later
-// import DatePicker from 'react-native-date-picker';
 
 const { width, height } = Dimensions.get('window');
 
-// Enhanced responsive dimensions system for all Android devices
 const dimensions = {
   spacing: {
     xs: Math.max(width * 0.01, 4),
@@ -73,51 +73,183 @@ const CustomToggle = ({ value, onValueChange }) => (
         backgroundColor: '#C6C5ED',
         marginLeft: value ? 18 : 0,
         marginRight: value ? 0 : 18,
-        transition: 'margin 0.2s',
       }}
     />
   </TouchableOpacity>
 );
 
-const HostTicketSettingScreen = ({ navigation }) => {
-  const [ticketType, setTicketType] = useState('Paid'); // 'Paid' or 'RSVP/Free'
-  const [eventName, setEventName] = useState('Sounds of Celebration');
-  const [location, setLocation] = useState('Noida, Sector 63');
+const HostTicketSettingScreen = ({ navigation, route }) => {
+  const [ticketType, setTicketType] = useState('paid'); // Changed to 'paid' or 'free'
+  const [eventName, setEventName] = useState('');
+  const [location, setLocation] = useState('');
   const [aboutEvent, setAboutEvent] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [startDate, setStartDate] = useState(null); // Changed to Date object
+  const [endDate, setEndDate] = useState(null); // Changed to Date object
+  const [startTime, setStartTime] = useState(null); // Changed to Date object
+  const [endTime, setEndTime] = useState(null); // Changed to Date object
   const [ticketQuantity, setTicketQuantity] = useState('500');
-  const [gstType, setGstType] = useState('18%');
-  const [price, setPrice] = useState('100'); // New state for Price
-  const [ticketStatus, setTicketStatus] = useState({ // New state for Ticket Status
+  const [gstType, setGstType] = useState('inclusive'); // Changed to match API ('inclusive' or 'exclusive')
+  const [price, setPrice] = useState('100');
+  const [ticketStatus, setTicketStatus] = useState({
     Live: false,
-    ComingSoon: false,
-    SoldOut: true,
+    ComingSoon: true,
+    SoldOut: false,
   });
-  const [isTicketEnabled, setIsTicketEnabled] = useState(true); // New state for Enable Ticket toggle
+  const [isTicketEnabled, setIsTicketEnabled] = useState(true);
+  const [showDatePicker, setShowDatePicker] = useState(null); // For date picker visibility
+  const [showTimePicker, setShowTimePicker] = useState(null); // For time picker visibility
+  const token = useSelector(state => state.auth.token); // Get token from Redux
+  const eventId = route.params?.eventId ; // Get eventId from route or use default
+  console.log("evedffdfdfdfdfvdvfntId",eventId)
   const insets = useSafeAreaInsets();
 
-  // Placeholder functions for future implementation
   const handleUploadPoster = () => {
-    console.log('Upload poster pressed');
+    console.log('Upload poster pressed', {
+      timestamp: new Date().toISOString(),
+    });
     // Implement image picker logic here
   };
 
-  const handleDateSelect = (dateType) => {
-    console.log(`Select ${dateType} pressed`);
-    // Implement date picker logic here
+  const handleDateSelect = (dateType, event, selectedDate) => {
+    console.log(`Date selected for ${dateType}`, {
+      timestamp: new Date().toISOString(),
+      selectedDate,
+    });
+    const date = selectedDate || (event?.nativeEvent?.timestamp ? new Date(event.nativeEvent.timestamp) : null);
+    if (date) {
+      if (dateType === 'Start Date') {
+        setStartDate(date);
+      } else {
+        setEndDate(date);
+      }
+    }
+    setShowDatePicker(null);
   };
 
-  const handleTimeSelect = (timeType) => {
-    console.log(`Select ${timeType} pressed`);
-    // Implement time picker logic here
+  const handleTimeSelect = (timeType, event, selectedTime) => {
+    console.log(`Time selected for ${timeType}`, {
+      timestamp: new Date().toISOString(),
+      selectedTime,
+    });
+    const time = selectedTime || (event?.nativeEvent?.timestamp ? new Date(event.nativeEvent.timestamp) : null);
+    if (time) {
+      if (timeType === 'Start Time') {
+        setStartTime(time);
+      } else {
+        setEndTime(time);
+      }
+    }
+    setShowTimePicker(null);
   };
 
   const handleGstTypeSelect = () => {
-    console.log('Select GST Type pressed');
-    // Implement dropdown/picker logic here
+    console.log('Select GST Type pressed', {
+      timestamp: new Date().toISOString(),
+    });
+    // Toggle between 'inclusive' and 'exclusive' for simplicity
+    setGstType(gstType === 'inclusive' ? 'exclusive' : 'inclusive');
+  };
+
+  const getTicketStatusValue = () => {
+    if (ticketStatus.Live) return 'live';
+    if (ticketStatus.ComingSoon) return 'comingsoon';
+    if (ticketStatus.SoldOut) return 'soldout';
+    return 'comingsoon'; // Default
+  };
+
+  const handleSaveDetails = async () => {
+    console.log('Save Details pressed', {
+      timestamp: new Date().toISOString(),
+      ticketType,
+      eventName,
+      location,
+      aboutEvent,
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      ticketQuantity,
+      gstType,
+      price,
+      ticketStatus,
+      isTicketEnabled,
+      eventId,
+    });
+
+    if (!token) {
+      console.warn('No token available, cannot save ticket settings', {
+        timestamp: new Date().toISOString(),
+      });
+      Alert.alert('Error', 'Please log in to save ticket settings');
+      return;
+    }
+
+    if (!startDate || !endDate || !startTime || !endTime) {
+      console.warn('Missing date or time fields', {
+        timestamp: new Date().toISOString(),
+      });
+      Alert.alert('Error', 'Please select sales start and end dates and times');
+      return;
+    }
+
+    // Combine date and time for salesStart and salesEnd
+    const salesStart = new Date(startDate);
+    salesStart.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+    const salesEnd = new Date(endDate);
+    salesEnd.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+    const payload = {
+      ticketType: ticketType.toLowerCase(), // 'paid' or 'free'
+      salesStart: salesStart.toISOString(),
+      salesEnd: salesEnd.toISOString(),
+      gstType: ticketType === 'paid' ? gstType : undefined,
+      price: ticketType === 'paid' ? parseFloat(price) : 0,
+      totalQuantity: parseInt(ticketQuantity, 10),
+      ticketStatus: getTicketStatusValue(),
+      isEnabled: isTicketEnabled,
+    };
+
+    try {
+      console.log('Sending ticket settings API request', {
+        timestamp: new Date().toISOString(),
+        url: `http://localhost:3000/api/host/${eventId}/ticket-settings`,
+        payload,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const response = await axios.post(
+        `http://localhost:3000/api/host/${eventId}/ticket-settings`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log('Ticket settings API response', {
+        timestamp: new Date().toISOString(),
+        response: response.data,
+      });
+
+      if (response.data.success) {
+        Alert.alert('Success', 'Ticket settings updated successfully');
+        navigation.goBack(); // Navigate back after successful save
+      } else {
+        console.error('Failed to update ticket settings', {
+          timestamp: new Date().toISOString(),
+          message: response.data.message,
+        });
+        Alert.alert('Error', response.data.message || 'Failed to update ticket settings');
+      }
+    } catch (error) {
+      console.error('Error saving ticket settings', {
+        timestamp: new Date().toISOString(),
+        error: error.response?.data?.message || error.message,
+        status: error.response?.status,
+      });
+      Alert.alert('Error', 'Failed to save ticket settings. Please try again.');
+    }
   };
 
   return (
@@ -148,26 +280,26 @@ const HostTicketSettingScreen = ({ navigation }) => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Paid / RSVP Toggle */}
+        {/* Paid / Free Toggle */}
         <View style={styles.toggleContainer}>
           <TouchableOpacity
             style={[
               styles.toggleButton,
-              ticketType === 'Paid' ? styles.toggleButtonActive : styles.toggleButtonInactive,
+              ticketType === 'paid' ? styles.toggleButtonActive : styles.toggleButtonInactive,
               { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
             ]}
-            onPress={() => setTicketType('Paid')}
+            onPress={() => setTicketType('paid')}
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={ticketType === 'Paid' ? ['#B15CDE', '#7952FC'] : ['#181828', '#181828']}
+              colors={ticketType === 'paid' ? ['#B15CDE', '#7952FC'] : ['#181828', '#181828']}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.toggleButtonGradient}
             >
               <Text style={[
                 styles.toggleButtonText,
-                ticketType === 'Paid' ? styles.toggleButtonTextActive : styles.toggleButtonTextInactive,
+                ticketType === 'paid' ? styles.toggleButtonTextActive : styles.toggleButtonTextInactive,
               ]}>
                 Paid
               </Text>
@@ -176,21 +308,21 @@ const HostTicketSettingScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.toggleButton,
-              ticketType === 'RSVP/Free' ? styles.toggleButtonActive : styles.toggleButtonInactive,
+              ticketType === 'free' ? styles.toggleButtonActive : styles.toggleButtonInactive,
               { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
             ]}
-            onPress={() => setTicketType('RSVP/Free')}
+            onPress={() => setTicketType('free')}
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={ticketType === 'RSVP/Free' ? ['#B15CDE', '#7952FC'] : ['#181828', '#181828']}
+              colors={ticketType === 'free' ? ['#B15CDE', '#7952FC'] : ['#181828', '#181828']}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.toggleButtonGradient}
             >
               <Text style={[
                 styles.toggleButtonText,
-                ticketType === 'RSVP/Free' ? styles.toggleButtonTextActive : styles.toggleButtonTextInactive,
+                ticketType === 'free' ? styles.toggleButtonTextActive : styles.toggleButtonTextInactive,
               ]}>
                 RSVP/Free
               </Text>
@@ -214,8 +346,7 @@ const HostTicketSettingScreen = ({ navigation }) => {
           style={styles.input}
           value={eventName}
           onChangeText={setEventName}
-          placeholder="Sounds of Celebration"
-          placeholderTextColor="#d1cfff"
+           placeholderTextColor="#d1cfff"
         />
 
         {/* Location */}
@@ -224,8 +355,7 @@ const HostTicketSettingScreen = ({ navigation }) => {
           style={styles.input}
           value={location}
           onChangeText={setLocation}
-          placeholder="Noida, Sector 63"
-          placeholderTextColor="#d1cfff"
+           placeholderTextColor="#d1cfff"
         />
 
         {/* About Event */}
@@ -234,9 +364,7 @@ const HostTicketSettingScreen = ({ navigation }) => {
           style={[styles.input, styles.aboutInput]}
           value={aboutEvent}
           onChangeText={setAboutEvent}
-          placeholder="Write here"
-          placeholderTextColor="#7952FC"
-          placeholderStyle={{ paddingTop: 20 }}
+           placeholderTextColor="#7952FC"
           multiline={true}
           numberOfLines={4}
         />
@@ -244,62 +372,103 @@ const HostTicketSettingScreen = ({ navigation }) => {
         {/* Sales Start From */}
         <Text style={styles.label}>Sales Start From</Text>
         <View style={styles.datePickerRow}>
-          <TouchableOpacity style={styles.datePickerButton} onPress={() => handleDateSelect('Start Date')}>
-            <Text style={styles.datePickerText}>{startDate || 'Start Date'}</Text>
+          <TouchableOpacity
+            style={styles.datePickerButton}
+            onPress={() => setShowDatePicker('Start Date')}
+          >
+            <Text style={styles.datePickerText}>
+              {startDate ? startDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Start Date'}
+            </Text>
           </TouchableOpacity>
           <Text style={styles.datePickerDivider}>-</Text>
-          <TouchableOpacity style={styles.datePickerButton} onPress={() => handleDateSelect('End Date')}>
-            <Text style={styles.datePickerText}>{endDate || 'End Date'}</Text>
+          <TouchableOpacity
+            style={styles.datePickerButton}
+            onPress={() => setShowDatePicker('End Date')}
+          >
+            <Text style={styles.datePickerText}>
+              {endDate ? endDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'End Date'}
+            </Text>
             <MaterialIcons name="calendar-today" size={Math.max(dimensions.iconSize * 0.8, 16)} color="#a95eff" style={styles.datePickerIcon} />
           </TouchableOpacity>
         </View>
+
+        {/* Date Pickers */}
+        {showDatePicker && (
+          <DateTimePicker
+            value={showDatePicker === 'Start Date' ? (startDate || new Date()) : (endDate || new Date())}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            onChange={(event, selectedDate) => handleDateSelect(showDatePicker, event, selectedDate)}
+          />
+        )}
 
         {/* Start and End Time */}
         <View style={styles.timePickerRow}>
           <View style={styles.timePickerColumn}>
             <Text style={styles.label}>Start Time</Text>
-            <TouchableOpacity style={styles.timePickerButton} onPress={() => handleTimeSelect('Start Time')}>
-              <Text style={styles.timePickerText}>{startTime || 'HH:mm'}</Text>
+            <TouchableOpacity
+              style={styles.timePickerButton}
+              onPress={() => setShowTimePicker('Start Time')}
+            >
+              <Text style={styles.timePickerText}>
+                {startTime ? startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'HH:mm'}
+              </Text>
               <MaterialIcons name="access-time" size={Math.max(dimensions.iconSize * 0.8, 16)} color="#a95eff" style={styles.timePickerIcon} />
             </TouchableOpacity>
           </View>
           <View style={styles.timePickerColumn}>
             <Text style={styles.label}>End Time</Text>
-            <TouchableOpacity style={styles.timePickerButton} onPress={() => handleTimeSelect('End Time')}>
-              <Text style={styles.timePickerText}>{endTime || 'HH:mm'}</Text>
+            <TouchableOpacity
+              style={styles.timePickerButton}
+              onPress={() => setShowTimePicker('End Time')}
+            >
+              <Text style={styles.timePickerText}>
+                {endTime ? endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'HH:mm'}
+              </Text>
               <MaterialIcons name="access-time" size={Math.max(dimensions.iconSize * 0.8, 16)} color="#a95eff" style={styles.timePickerIcon} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Ticket Quantity (only if Paid or RSVP/Free) */}
-        {(ticketType === 'Paid' || ticketType === 'RSVP/Free') && (
+        {/* Time Pickers */}
+        {showTimePicker && (
+          <DateTimePicker
+            value={showTimePicker === 'Start Time' ? (startTime || new Date()) : (endTime || new Date())}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            onChange={(event, selectedTime) => handleTimeSelect(showTimePicker, event, selectedTime)}
+          />
+        )}
+
+        {/* Ticket Quantity (only if Paid or Free) */}
+        {(ticketType === 'paid' || ticketType === 'free') && (
           <View>
             <Text style={styles.label}>Ticket Quantity</Text>
             <TextInput
               style={styles.input}
               value={ticketQuantity}
               onChangeText={setTicketQuantity}
-              placeholder="500"
-              placeholderTextColor="#d1cfff"
+               placeholderTextColor="#d1cfff"
               keyboardType="number-pad"
             />
           </View>
         )}
 
         {/* GST Type (only if Paid) */}
-        {ticketType === 'Paid' && (
+        {ticketType === 'paid' && (
           <View>
             <Text style={styles.label}>GST Type</Text>
             <TouchableOpacity style={styles.gstTypeButtonRow} onPress={handleGstTypeSelect}>
-              <Text style={[styles.inputText, { color: gstType === '18%' ? '#a95eff' : '#d1cfff' }]}>{gstType || '18%'}</Text>
+              <Text style={[styles.inputText, { color: gstType === 'inclusive' ? '#a95eff' : '#d1cfff' }]}>
+                {gstType.charAt(0).toUpperCase() + gstType.slice(1)}
+              </Text>
               <Feather name="chevron-down" size={Math.max(dimensions.iconSize * 0.8, 16)} color="#a95eff" style={styles.dropdownIcon} />
             </TouchableOpacity>
           </View>
         )}
 
         {/* Price (only if Paid) */}
-        {ticketType === 'Paid' && (
+        {ticketType === 'paid' && (
           <View>
             <Text style={styles.label}>Price</Text>
             <TextInput
@@ -314,13 +483,13 @@ const HostTicketSettingScreen = ({ navigation }) => {
         )}
 
         {/* Ticket Status (only if Paid) */}
-        {ticketType === 'Paid' && (
+        {ticketType === 'paid' && (
           <View>
             <Text style={styles.label}>Ticket Status</Text>
             <View style={styles.ticketStatusContainer}>
               <TouchableOpacity
                 style={[styles.ticketStatusButton, ticketStatus.Live && styles.ticketStatusButtonActive]}
-                onPress={() => setTicketStatus({ ...ticketStatus, Live: !ticketStatus.Live })}
+                onPress={() => setTicketStatus({ Live: true, ComingSoon: false, SoldOut: false })}
               >
                 <View style={[styles.customCheckbox, ticketStatus.Live && styles.customCheckboxChecked]}>
                   {ticketStatus.Live && <Feather name="check" size={16} color="#fff" />}
@@ -329,7 +498,7 @@ const HostTicketSettingScreen = ({ navigation }) => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.ticketStatusButton, ticketStatus.ComingSoon && styles.ticketStatusButtonActive]}
-                onPress={() => setTicketStatus({ ...ticketStatus, ComingSoon: !ticketStatus.ComingSoon })}
+                onPress={() => setTicketStatus({ Live: false, ComingSoon: true, SoldOut: false })}
               >
                 <View style={[styles.customCheckbox, ticketStatus.ComingSoon && styles.customCheckboxChecked]}>
                   {ticketStatus.ComingSoon && <Feather name="check" size={16} color="#fff" />}
@@ -338,7 +507,7 @@ const HostTicketSettingScreen = ({ navigation }) => {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.ticketStatusButton, ticketStatus.SoldOut && styles.ticketStatusButtonActive]}
-                onPress={() => setTicketStatus({ ...ticketStatus, SoldOut: !ticketStatus.SoldOut })}
+                onPress={() => setTicketStatus({ Live: false, ComingSoon: false, SoldOut: true })}
               >
                 <View style={[styles.customCheckbox, ticketStatus.SoldOut && styles.customCheckboxChecked]}>
                   {ticketStatus.SoldOut && <Feather name="check" size={16} color="#fff" />}
@@ -349,29 +518,31 @@ const HostTicketSettingScreen = ({ navigation }) => {
           </View>
         )}
 
-        {/* Enable Ticket (only if Paid or RSVP/Free) */}
-        {(ticketType === 'Paid' || ticketType === 'RSVP/Free') && (
+        {/* Enable Ticket (only if Paid or Free) */}
+        {(ticketType === 'paid' || ticketType === 'free') && (
           <View style={styles.enableTicketContainer}>
             <Text style={styles.label}>Enable Ticket</Text>
             <CustomToggle value={isTicketEnabled} onValueChange={setIsTicketEnabled} />
           </View>
         )}
 
-        {(ticketType === 'Paid' || ticketType === 'RSVP/Free') && (
+        {/* Save Details Button */}
+        {(ticketType === 'paid' || ticketType === 'free') && (
           <LinearGradient
             colors={['#B15CDE', '#7952FC']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.saveDetailsButton}
           >
-            <TouchableOpacity style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <TouchableOpacity
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+              onPress={handleSaveDetails}
+            >
               <Text style={styles.saveDetailsButtonText}>Save Details</Text>
             </TouchableOpacity>
           </LinearGradient>
         )}
-
       </ScrollView>
-
     </SafeAreaView>
   );
 };

@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
+import TicketIcon from '../assets/icons/Ticket';
+
+const { width } = Dimensions.get('window');
 
 const guestLevelsData = [
   {
@@ -34,12 +38,16 @@ const ArtistFormBookingScreen = ({ navigation }) => {
   const renderGuestLevel = ({ item }) => (
     <TouchableOpacity
       key={item.id}
-      style={[styles.guestLevelCard, selectedLevel === item.id && styles.selectedCard]}
+      style={[
+        styles.guestLevelCard, 
+        selectedLevel === item.id && styles.selectedCard,
+        !item.isAvailable && styles.disabledCard
+      ]}
       onPress={() => item.isAvailable && setSelectedLevel(item.id)}
       disabled={!item.isAvailable}
     >
       <View style={styles.guestLevelIcon}>
-        <Ionicons name="ticket" size={24} color="#a95eff" />{/* Placeholder icon */}
+        <TicketIcon width={32} height={32} />
       </View>
       <View style={styles.guestLevelContent}>
         <Text style={styles.guestLevelTitle}>{item.level}</Text>
@@ -48,8 +56,12 @@ const ArtistFormBookingScreen = ({ navigation }) => {
           {item.availability}
         </Text>
       </View>
-      <View style={styles.radioButton}>
-        {selectedLevel === item.id && <View style={styles.radioButtonInner} />}
+      <View style={[
+        styles.radioButton,
+        selectedLevel === item.id && styles.radioButtonSelected,
+        !item.isAvailable && styles.radioButtonDisabled
+      ]}>
+        {selectedLevel === item.id && <Ionicons name="checkmark" size={16} color="#fff" />}
       </View>
     </TouchableOpacity>
   );
@@ -64,12 +76,15 @@ const ArtistFormBookingScreen = ({ navigation }) => {
         <View style={{ width: 24 }} />{/* Spacer */}
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Image Placeholder */}
-        <View style={styles.imagePlaceholder}>
-          {/* <Image source={...} style={styles.eventImage} /> */}
+        {/* Event Image */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={require('../assets/Images/fff.jpg')}
+            style={styles.eventImage}
+          />
           <View style={styles.dateOverlay}>
-            <Text style={styles.dateText}>May</Text>
-            <Text style={styles.dateText}>20</Text>
+            <Text style={styles.dateMonth}>May</Text>
+            <Text style={styles.dateDay}>20</Text>
           </View>
         </View>
 
@@ -87,8 +102,16 @@ const ArtistFormBookingScreen = ({ navigation }) => {
       <TouchableOpacity
         style={styles.continueButton}
         onPress={() => { /* Handle continue action */ }}
+        disabled={!selectedLevel}
       >
-        <Text style={styles.continueButtonText}>Continue</Text>
+        <LinearGradient
+          colors={selectedLevel ? ['#B15CDE', '#7952FC'] : ['#666', '#444']}
+          start={{ x: 1, y: 0 }}
+          end={{ x: 0, y: 0 }}
+          style={styles.continueButtonGradient}
+        >
+          <Text style={styles.continueButtonText}>Continue</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -103,122 +126,162 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#fff',
+    fontFamily: 'Nunito Sans',
+    marginRight:170,
   },
-  imagePlaceholder: {
+  imageContainer: {
+    height: 140,
     width: '100%',
-    height: 200, // Adjust height as needed
-    backgroundColor: '#333', // Placeholder background
-    justifyContent: 'flex-end',
-    padding: 16,
+    alignSelf: 'stretch',
+    position: 'relative',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    marginHorizontal: 2,
+    marginTop: 20,
+  },
+  eventImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   dateOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 5,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     alignItems: 'center',
     position: 'absolute',
-    top: 10,
-    left: 10,
+    top: 16,
+    left: 16,
   },
-  dateText: {
+  dateMonth: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Poppins',
+  },
+  dateDay: {
+    color: '#fff',
+    fontSize: 20,
     fontWeight: 'bold',
+    fontFamily: 'Poppins',
   },
   contentContainer: {
-    padding: 16,
+    padding: 20,
   },
   eventTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 16,
+    marginBottom: 20,
+    fontFamily: 'Poppins',
   },
   divider: {
     height: 1,
     backgroundColor: '#333',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#fff',
-    marginBottom: 12,
+    marginBottom: 20,
+    fontFamily: 'Poppins',
   },
   guestLevelCard: {
     flexDirection: 'row',
     backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   selectedCard: {
-    borderColor: '#a95eff',
-    borderWidth: 1,
+    borderColor: '#B15CDE',
+    borderWidth: 2,
+  },
+  disabledCard: {
+    opacity: 0.6,
   },
   guestLevelIcon: {
     marginRight: 16,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   guestLevelContent: {
     flex: 1,
   },
   guestLevelTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '600',
     color: '#fff',
-    marginBottom: 4,
+    marginBottom: 6,
+    fontFamily: 'Poppins',
   },
   guestLevelDescription: {
-    fontSize: 14,
-    color: '#a95eff', // Purple color
-    marginBottom: 4,
+    fontSize: 12,
+    color: '#B15CDE',
+    marginBottom: 6,
+    fontFamily: 'Poppins',
   },
   guestLevelAvailability: {
-    fontSize: 14,
-    color: '#aaa',
+    fontSize: 12,
+    color: '#888',
+    fontFamily: 'Poppins',
   },
   notAvailableText: {
-    color: '#dc3545', // Red color for filled out
+    color: '#888',
   },
   radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#aaa',
+    borderColor: '#666',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
-  radioButtonInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#a95eff',
+  radioButtonSelected: {
+    backgroundColor: '#B15CDE',
+    borderColor: '#B15CDE',
+  },
+  radioButtonDisabled: {
+    borderColor: '#444',
   },
   continueButton: {
-    backgroundColor: '#a95eff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 10,
-    paddingVertical: 14,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  continueButtonGradient: {
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#fff',
+    fontFamily: 'Poppins',
   },
 });
 

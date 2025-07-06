@@ -62,125 +62,112 @@ const dimensions = {
     medium: 14,
     large: 16,
     xlarge: 22,
-  }
+  },
 };
 
 const HomeScreen = ({ navigation }) => {
   const [showFilter, setShowFilter] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
   const insets = useSafeAreaInsets();
-  const token = useSelector(state => state.auth.token);
+  const token = useSelector((state) => state.auth.token);
   const fullName = useSelector(selectFullName);
   const location = useSelector(selectLocation);
-  console.log("token", token);
 
-  // For selected pills in each section
+  // Updated selected state to match server payload structure
   const [selected, setSelected] = React.useState({
-    filter: 'Today',
-    price: 'Low - High',
-    instrument: 'Acoustic Guitar',
-    genre: 'Soul Queen',
+    price: { ranges: [], sort: 'low-high' }, // e.g., { ranges: ["1000-2000"], sort: "low-high" }
+    instruments: [], // e.g., ["Guitar", "Piano"]
+    genres: [], // e.g., ["Rock", "Jazz"]
   });
 
   const [artistData, setArtistData] = React.useState([]);
   const [filteredArtistData, setFilteredArtistData] = React.useState([]);
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [page, setPage] = React.useState(1);
+  const limit = 10;
 
-  // Fetch artists and initialize filtered data
+  // Filter options aligned with server expectations
+  const filterOptions = {
+    priceRanges: ['under-1000', '1000-2000', '2000-3000', '3000-above'],
+    priceSort: ['low-high', 'high-low'],
+    instruments: ['Guitar', 'Saxophone', 'Piano', 'Drums', 'Trumpet', 'Banjo', 'Synthesizer'],
+    genres: ['Rock', 'Jazz', 'Pop', 'Classical', 'Hip-Hop', 'Soul'],
+  };
+
+  // Fetch artists using the filter API
   React.useEffect(() => {
     const fetchArtists = async () => {
+      setIsLoading(true);
       try {
-        const response = await axios.get('http://192.168.1.37:3000/api/artist/get-all-artists', {
+        if (!token) {
+          console.error('No token provided for artist fetch');
+          Alert.alert('Error', 'Authentication token is missing');
+          return;
+        }
+
+        // Construct filter payload
+        const filterPayload = {
+          price: selected.price.ranges.length > 0 || selected.price.sort ? selected.price : undefined,
+          instruments: selected.instruments.length > 0 ? selected.instruments : undefined,
+          genres: selected.genres.length > 0 ? selected.genres : undefined,
+          page: page,
+          limit: limit,
+        };
+
+        console.log('Fetching artists from:', 'http://192.168.1.4:3000/api/host/filter');
+        console.log('Request Headers:', JSON.stringify({
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }, null, 2));
+        console.log('Request Body:', JSON.stringify(filterPayload, null, 2));
+        console.log('Token:', token);
+
+        const response = await axios.post('http://192.168.1.4:3000/api/host/filter', filterPayload, {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          timeout: 10000,
         });
+
+        console.log('API Response:', JSON.stringify(response.data, null, 2));
+
         if (response.data.success) {
-          setArtistData(response.data.data);
-          setFilteredArtistData(response.data.data); // Initialize filtered data
+          setArtistData(response.data.data.artists || []);
+          setFilteredArtistData(response.data.data.artists || []);
+          console.log('Fetched Artist Data:', JSON.stringify(response.data.data.artists, null, 2));
+        } else {
+          console.log('API returned success=false:', response.data.message);
+          setArtistData([]);
+          setFilteredArtistData([]);
+          Alert.alert('Error', response.data.message || 'Failed to fetch artists.');
         }
       } catch (error) {
-        console.error('Error fetching artists:', error);
+        console.error('Error fetching artists:', {
+          message: error.message,
+          status: error.response?.status,
+          response: error.response ? JSON.stringify(error.response.data, null, 2) : null,
+          request: error.request ? JSON.stringify(error.request, null, 2) : null,
+        });
         setArtistData([]);
         setFilteredArtistData([]);
+        Alert.alert('Error', error.response?.status === 404
+          ? 'Artist filter endpoint not found. Please check if the server is running and the endpoint is correctly configured.'
+          : error.message === 'Network Error'
+            ? 'Unable to connect to the server. Please ensure the server is running at http://192.168.1.4:3000.'
+            : 'Failed to fetch artists. Please try again later.');
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchArtists();
-  }, [token]);
+  }, [token, selected, page]);
 
-  // Apply filters whenever selected or artistData changes
+  // Log state updates for debugging
   React.useEffect(() => {
-    const applyFilters = () => {
-      let filtered = [...artistData];
-
-      // Filter by instrument
-      if (selected.instrument !== 'Acoustic Guitar') { // Default is Acoustic Guitar, so only filter if different
-        filtered = filtered.filter(artist => artist.instrument === selected.instrument);
-      }
-
-      // Filter by type (genre)
-      if (selected.genre !== 'Soul Queen') { // Default is Soul Queen, so only filter if different
-        filtered = filtered.filter(artist => artist.artistType === selected.genre);
-      }
-
-      // Filter by price
-      switch (selected.price) {
-        case 'Low - High':
-          filtered = filtered.sort((a, b) => a.budget - b.budget);
-          break;
-        case 'High - Low':
-          filtered = filtered.sort((a, b) => b.budget - a.budget);
-          break;
-        case 'Tickets under ₹1000':
-          filtered = filtered.filter(artist => artist.budget < 1000);
-          break;
-        case '₹1000-₹2000':
-          filtered = filtered.filter(artist => artist.budget >= 1000 && artist.budget <= 2000);
-          break;
-        case '₹2000-₹3000':
-          filtered = filtered.filter(artist => artist.budget >= 2000 && artist.budget <= 3000);
-          break;
-        case '₹3000+':
-          filtered = filtered.filter(artist => artist.budget > 3000);
-          break;
-        default:
-          break;
-      }
-
-      // Filter by distance/time (simplified, as actual distance/time logic requires additional data)
-      switch (selected.filter) {
-        case 'Near - Far':
-          // Assuming address can be used for sorting (requires geolocation for actual implementation)
-          filtered = filtered.sort((a, b) => a.address.localeCompare(b.address));
-          break;
-        case 'Far - Near':
-          filtered = filtered.sort((a, b) => b.address.localeCompare(a.address));
-          break;
-        case '1km-3km':
-          // Placeholder: Actual distance filtering requires geolocation
-          filtered = filtered.filter(artist => artist.address.includes('City')); // Example condition
-          break;
-        case '3km-5km':
-          filtered = filtered.filter(artist => !artist.address.includes('City')); // Example condition
-          break;
-        case '5km+':
-          filtered = filtered.filter(artist => !artist.address.includes('City')); // Example condition
-          break;
-        case 'Today':
-        case 'This Week':
-        case 'This Weekend':
-        case 'Next Weekend':
-          // Placeholder: Actual time-based filtering requires event dates
-          break;
-        default:
-          break;
-      }
-
-      setFilteredArtistData(filtered);
-    };
-
-    applyFilters();
-  }, [selected, artistData]);
+    console.log('Updated artistData:', JSON.stringify(artistData, null, 2));
+    console.log('Updated filteredArtistData:', JSON.stringify(filteredArtistData, null, 2));
+  }, [artistData, filteredArtistData]);
 
   const handleShortlist = async () => {
     console.log('--- Shortlist Button Pressed ---');
@@ -190,7 +177,9 @@ const HomeScreen = ({ navigation }) => {
       Alert.alert('No Artists', 'There are no artists to shortlist.');
       return;
     }
-    console.log(`Current artist index: ${currentIndex}`);
+
+    console.log('Filtered Artist Data:', JSON.stringify(filteredArtistData, null, 2));
+    console.log('Current Index:', currentIndex);
 
     const artist = filteredArtistData[currentIndex];
     if (!artist || !artist.artistId) {
@@ -198,18 +187,29 @@ const HomeScreen = ({ navigation }) => {
       Alert.alert('Error', 'Could not find artist to shortlist.');
       return;
     }
-    console.log('Artist object to shortlist:', artist);
 
     const artistId = artist.artistId;
-    const url = 'http://192.168.1.37:3000/api/host/shortlistArtist';
+    if (!artistId) {
+      console.error('Invalid artistId:', artistId);
+      Alert.alert('Error', 'Invalid artist ID.');
+      return;
+    }
+    if (!token) {
+      console.error('No token provided for shortlist');
+      Alert.alert('Error', 'Authentication token is missing');
+      return;
+    }
+
+    const url = 'http://192.168.1.4:3000/api/host/shortlistArtist';
     const body = { artistId };
     const config = {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     };
 
+    console.log('Artist object to shortlist:', JSON.stringify(artist, null, 2));
     console.log(`Preparing to shortlist artist with ID: ${artistId}`);
     console.log('API Endpoint:', url);
     console.log('Request Body:', JSON.stringify(body, null, 2));
@@ -220,34 +220,30 @@ const HomeScreen = ({ navigation }) => {
 
       console.log('--- API Response Received ---');
       console.log('Response Status:', response.status);
-      console.log('Response Data:', JSON.stringify(response.data, null, 2));
+      console.log('Shortlist Success Response:', JSON.stringify(response.data, null, 2));
 
       if (response.data.success) {
         console.log('Successfully shortlisted artist.');
         Alert.alert('Success', 'Artist shortlisted successfully!');
+        setFilteredArtistData((prev) =>
+          prev.map((item, index) =>
+            index === currentIndex ? { ...item, isShortlisted: true } : item
+          )
+        );
       } else {
         console.log(`API returned success=false. Message: ${response.data.message}`);
         Alert.alert('Error', response.data.message || 'Could not shortlist the artist.');
       }
     } catch (error) {
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message === 'Artist already shortlisted.'
-      ) {
+      if (error.response && error.response.data && error.response.data.message === 'Artist already shortlisted.') {
+        console.log('Artist already shortlisted.');
         Alert.alert('Already Shortlisted', 'Artist already in shortlist.');
       } else {
-        console.log('--- API Call Failed ---');
-        if (error.response) {
-          console.error('Error Response Data:', JSON.stringify(error.response.data, null, 2));
-          console.error('Error Response Status:', error.response.status);
-          console.error('Error Response Headers:', JSON.stringify(error.response.headers, null, 2));
-        } else if (error.request) {
-          console.error('Error Request:', error.request);
-        } else {
-          console.error('Error Message:', error.message);
-        }
-        console.error('Full Error Object:', error);
+        console.error('Shortlist API Error:', {
+          message: error.message,
+          response: error.response ? JSON.stringify(error.response.data, null, 2) : null,
+          request: error.request ? error.request : null,
+        });
         Alert.alert('Error', 'An error occurred while shortlisting. Please try again.');
       }
     }
@@ -266,33 +262,86 @@ const HomeScreen = ({ navigation }) => {
     itemVisiblePercentThreshold: 50,
   }).current;
 
-  const filterOptions = {
-    filter: ['Near - Far', 'Far - Near', 'Today', 'This Week', 'This Weekend', 'Next Weekend', '1km-3km', '3km-5km', '5km+'],
-    price: ['Low - High', 'High - Low', 'Tickets under ₹1000', '₹1000-₹2000', '₹2000-₹3000', '₹3000+'],
-    instrument: ['Electric Guitar', 'Saxophone', 'Acoustic Jacket', 'Synthesizer', 'Drum Machine', 'Banjo', 'Trumpet', 'Turntables'],
-    type: ['Musician', 'Comedian', 'Magician', 'Anchor', 'Dancer', 'Poet', 'Dj', 'Other'],
+  // Handle filter selection
+  const handleFilterSelect = (category, value) => {
+    setSelected((prev) => {
+      if (category === 'priceRanges') {
+        return {
+          ...prev,
+          price: { ...prev.price, ranges: prev.price.ranges.includes(value)
+            ? prev.price.ranges.filter((r) => r !== value) // Toggle off
+            : [...prev.price.ranges, value] // Toggle on
+          },
+        };
+      } else if (category === 'priceSort') {
+        return {
+          ...prev,
+          price: { ...prev.price, sort: value },
+        };
+      } else if (category === 'instruments') {
+        return {
+          ...prev,
+          instruments: prev.instruments.includes(value)
+            ? prev.instruments.filter((i) => i !== value) // Toggle off
+            : [...prev.instruments, value] // Toggle on
+        };
+      } else if (category === 'genres') {
+        return {
+          ...prev,
+          genres: prev.genres.includes(value)
+            ? prev.genres.filter((g) => g !== value) // Toggle off
+            : [...prev.genres, value] // Toggle on
+        };
+      }
+      return prev;
+    });
   };
 
-  // Enhanced responsive dimensions with comprehensive safe area considerations
+  // Reset filters
+  const resetFilters = () => {
+    setSelected({
+      price: { ranges: [], sort: 'low-high' },
+      instruments: [],
+      genres: [],
+    });
+    setPage(1); // Reset page for new fetch
+  };
+
+  // Render filter pills
+  const renderPills = (category, options) => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      {options.map((option) => {
+        const isSelected = category === 'priceSort'
+          ? selected.price.sort === option
+          : category === 'priceRanges'
+            ? selected.price.ranges.includes(option)
+            : selected[category].includes(option);
+        return (
+          <TouchableOpacity
+            key={option}
+            style={[styles.pillOption, isSelected && styles.pillOptionActive]}
+            onPress={() => handleFilterSelect(category, option)}
+          >
+            <Text style={[styles.pillOptionText, isSelected && styles.pillOptionTextActive]}>
+              {option.replace('under-1000', 'Under $1000').replace('1000-2000', '$1000-$2000').replace('2000-3000', '$2000-$3000').replace('3000-above', '$3000+').replace('low-high', 'Low - High').replace('high-low', 'High - Low')}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
+  );
+
+  // Enhanced responsive dimensions
   const responsiveDimensions = {
     ...dimensions,
     safeAreaTop: Math.max(insets.top, 0),
     safeAreaBottom: Math.max(insets.bottom, 0),
     safeAreaLeft: Math.max(insets.left, 0),
     safeAreaRight: Math.max(insets.right, 0),
-    headerHeight: Math.max(
-      dimensions.headerHeight + insets.top * 0.3,
-      width >= 768 ? 100 : 80
-    ),
+    headerHeight: Math.max(dimensions.headerHeight + insets.top * 0.3, width >= 768 ? 100 : 80),
     containerPadding: {
-      horizontal: Math.max(
-        insets.left + insets.right + dimensions.spacing.md,
-        width >= 768 ? dimensions.spacing.lg : dimensions.spacing.md
-      ),
-      vertical: Math.max(
-        insets.top + insets.bottom + dimensions.spacing.sm,
-        dimensions.spacing.sm
-      ),
+      horizontal: Math.max(insets.left + insets.right + dimensions.spacing.md, width >= 768 ? dimensions.spacing.lg : dimensions.spacing.md),
+      vertical: Math.max(insets.top + insets.bottom + dimensions.spacing.sm, dimensions.spacing.sm),
     },
     spacing: {
       xs: Math.max(dimensions.spacing.xs, width >= 768 ? 6 : 4),
@@ -309,84 +358,54 @@ const HomeScreen = ({ navigation }) => {
     },
   };
 
-  const renderPills = (section) => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      {filterOptions[section].map((option) => (
-        <TouchableOpacity
-          key={option}
-          style={[
-            styles.pillOption,
-            selected[section] === option && styles.pillOptionActive,
-          ]}
-          onPress={() => setSelected((prev) => ({ ...prev, [section]: option }))}
-        >
-          <Text
-            style={[
-              styles.pillOptionText,
-              selected[section] === option && styles.pillOptionTextActive,
-            ]}
-          >
-            {option}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-
   const FilterModal = () => (
     <Modal visible={showFilter} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <LinearGradient
-          colors={['#B15CDE', '#7952FC']}
-          style={styles.modalContainer}
-        >
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowFilter(false)}
-          >
+        <LinearGradient colors={['#B15CDE', '#7952FC']} style={styles.modalContainer}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => setShowFilter(false)}>
             <Ionicons name="close" size={24} color="#7952FC" />
           </TouchableOpacity>
 
           <View style={styles.filterContent}>
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>FILTER</Text>
+                <Text style={styles.sectionTitle}>PRICE RANGE</Text>
                 <Icon name="chevron-right" size={20} color="#fff" />
               </View>
-              {renderPills('filter')}
+              {renderPills('priceRanges', filterOptions.priceRanges)}
             </View>
 
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>PRICE</Text>
+                <Text style={styles.sectionTitle}>PRICE SORT</Text>
                 <Icon name="chevron-right" size={20} color="#fff" />
               </View>
-              {renderPills('price')}
+              {renderPills('priceSort', filterOptions.priceSort)}
             </View>
 
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>INSTRUMENT</Text>
+                <Text style={styles.sectionTitle}>INSTRUMENTS</Text>
                 <Icon name="chevron-right" size={20} color="#fff" />
               </View>
-              {renderPills('instrument')}
+              {renderPills('instruments', filterOptions.instruments)}
             </View>
 
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>GENRE</Text>
+                <Text style={styles.sectionTitle}>GENRES</Text>
                 <Icon name="chevron-right" size={20} color="#fff" />
               </View>
-              {renderPills('type')}
+              {renderPills('genres', filterOptions.genres)}
             </View>
           </View>
 
           <View style={styles.fixedButtonContainer}>
-            <TouchableOpacity
-              style={styles.continueButton}
-              onPress={() => setShowFilter(false)}
-            >
-              <Text style={styles.continueButtonText}>Continue</Text>
+            <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
+              <Text style={styles.continueButtonText}>Reset Filters</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.continueButton} onPress={() => setShowFilter(false)}>
+              <Text style={styles.continueButtonText}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -395,40 +414,25 @@ const HomeScreen = ({ navigation }) => {
   );
 
   const renderEventCard = ({ item, index }) => {
-    const inputRange = [
-      (index - 1) * snapToInterval,
-      index * snapToInterval,
-      (index + 1) * snapToInterval,
-    ];
-  
+    const inputRange = [(index - 1) * snapToInterval, index * snapToInterval, (index + 1) * snapToInterval];
     const scale = scrollX.interpolate({
       inputRange,
       outputRange: [0.85, 1, 0.85],
       extrapolate: 'clamp',
     });
-  
     const opacity = scrollX.interpolate({
       inputRange,
       outputRange: [0.5, 1, 0.5],
       extrapolate: 'clamp',
     });
-  
-    // Use artist data for image, genre, and price
+
     const imageSource = item.profileImageUrl ? { uri: item.profileImageUrl } : require('../assets/Videos/Video.mp4');
     const genre = item.artistType || 'PERFORMANCE';
     const price = item.budget ? `$${item.budget}` : '$0';
-  
+
     return (
       <Animated.View
-        style={[
-          styles.eventCard,
-          {
-            transform: [{ scale }],
-            opacity,
-            width: dimensions.cardWidth,
-            height: 540,
-          },
-        ]}
+        style={[styles.eventCard, { transform: [{ scale }], opacity, width: dimensions.cardWidth, height: 540 }]}
       >
         <TouchableOpacity
           onPress={() => {
@@ -455,18 +459,13 @@ const HomeScreen = ({ navigation }) => {
               />
             )}
           </View>
-  
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.gradientOverlay}
-          />
-  
+
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradientOverlay} />
+
           <View style={styles.crowdGuaranteeContainer}>
-            <Text style={styles.crowdGuaranteeText}>
-              {item.isCrowdGuarantee ? 'Crowd Guarantee' : ''}
-            </Text>
+            <Text style={styles.crowdGuaranteeText}>{item.isCrowdGuarantee ? 'Crowd Guarantee' : ''}</Text>
           </View>
-  
+
           <View style={styles.cardBottomPills}>
             <View style={styles.pill}>
               <Text style={styles.pillText}>{genre}</Text>
@@ -479,24 +478,14 @@ const HomeScreen = ({ navigation }) => {
       </Animated.View>
     );
   };
+
   const availableWidth = width - (responsiveDimensions.safeAreaLeft + responsiveDimensions.safeAreaRight);
-  const availableHeight = height - (responsiveDimensions.safeAreaTop + responsiveDimensions.safeAreaBottom);
-
-  const baseCardWidthPercentage = width >= 768 ? 0.7 : 0.8;
   const eventCardWidth = 235;
-  const eventCardHeight = 430;
-
-  const eventCardMarginRight = Math.max(
-    Math.min(dimensions.spacing.sm, availableWidth * 0.02),
-    8
-  );
-
-  const basePeekingDistance = (availableWidth - eventCardWidth) / 2;
+  const eventCardMarginRight = Math.max(Math.min(dimensions.spacing.sm, availableWidth * 0.02), 8);
   const peekingDistance = Math.max(
-    basePeekingDistance,
+    (availableWidth - eventCardWidth) / 2,
     Math.max(responsiveDimensions.safeAreaLeft, responsiveDimensions.safeAreaRight) + dimensions.spacing.sm
   );
-
   const snapToInterval = eventCardWidth + eventCardMarginRight;
 
   const scrollX = React.useRef(new Animated.Value(0)).current;
@@ -505,7 +494,7 @@ const HomeScreen = ({ navigation }) => {
   const dropdownButtons = [
     { key: 'openmic', label: 'Open mic' },
     { key: 'launchpad', label: 'Launchpad' },
-    { key: 'proposal', label: 'proposal curation' },
+    { key: 'proposal', label: 'Proposal Curation' },
   ];
 
   const dropdownAnimations = React.useRef([
@@ -537,6 +526,23 @@ const HomeScreen = ({ navigation }) => {
     animateDropdowns(!showDropdowns);
   };
 
+  // Fallback UI for empty or loading state
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.noDataText}>Loading artists...</Text>
+      </View>
+    );
+  }
+
+  if (filteredArtistData.length === 0 && !isLoading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.noDataText}>No artists available</Text>
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
@@ -550,93 +556,62 @@ const HomeScreen = ({ navigation }) => {
       ]}
     >
       <View style={styles.backgroundContainer}>
-        <SignUpBackground
-          width={width}
-          height={height}
-          preserveAspectRatio="xMidYMid slice"
-        />
+        <SignUpBackground width={width} height={height} preserveAspectRatio="xMidYMid slice" />
       </View>
 
       <View
-        style={[
-          styles.header,
-          {
-            paddingTop: Math.max(dimensions.spacing.md, 15),
-            paddingHorizontal: Math.max(
-              responsiveDimensions.safeAreaLeft + dimensions.spacing.md,
-              dimensions.spacing.md
-            ),
-            paddingLeft: Math.max(
-              responsiveDimensions.safeAreaLeft + dimensions.spacing.md,
-              dimensions.spacing.md
-            ),
-            paddingRight: Math.max(
-              responsiveDimensions.safeAreaRight + dimensions.spacing.md,
-              dimensions.spacing.md
-            ),
-          },
-        ]}
-      >
-        <View>
-          <Text style={styles.greeting}>Hello {fullName || 'User'}!</Text>
-          <Text style={styles.location}>📍 {location || 'Location'}</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Notification')}
-          style={{
-            padding: dimensions.spacing.sm,
-          }}
-        >
-          <NotificationIcon width={28} height={36} />
-        </TouchableOpacity>
-      </View>
+  style={[
+    styles.header,
+    {
+      paddingTop: Math.max(dimensions.spacing.md, 15),
+      paddingHorizontal: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.md),
+    },
+  ]}
+>
+  <View>
+    <Text style={styles.greeting}>Hello {fullName || 'User'}!</Text>
+    <Text style={styles.location}>📍 {location || 'Location'}</Text>
+  </View>
+  <View style={styles.headerIcons}>
+    <TouchableOpacity
+      onPress={() => navigation.navigate('HostChatEventList')}
+      style={{ padding: dimensions.spacing.sm, marginRight: dimensions.spacing.sm }}
+    >
+      <Icon name="message-circle" size={28} color="#a95eff" />
+    </TouchableOpacity>
+    <TouchableOpacity
+      onPress={() => navigation.navigate('Notification')}
+      style={{ padding: dimensions.spacing.sm }}
+    >
+      <NotificationIcon width={28} height={36} />
+    </TouchableOpacity>
+  </View>
+</View>
 
       <View
         style={[
           styles.buttonWithDropdownContainer,
           {
-            marginLeft: Math.max(
-              responsiveDimensions.safeAreaLeft + dimensions.spacing.md,
-              dimensions.spacing.md
-            ),
-            marginRight: Math.max(
-              responsiveDimensions.safeAreaRight + dimensions.spacing.md,
-              dimensions.spacing.md
-            ),
+            marginLeft: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.md),
+            marginRight: Math.max(responsiveDimensions.safeAreaRight + dimensions.spacing.md, dimensions.spacing.md),
           },
         ]}
       >
         {showDropdowns ? (
-          <LinearGradient
-            colors={['#B15CDE', '#7952FC']}
-            style={styles.curatedButton}
-          >
+          <LinearGradient colors={['#B15CDE', '#7952FC']} style={styles.curatedButton}>
             <TouchableOpacity
-              style={{
-                flex: 1,
-                width: '100%',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
               onPress={handleCuratedPress}
               activeOpacity={0.8}
             >
-              <Text
-                style={[styles.curatedButtonText, { color: '#fff' }]}
-              >
+              <Text style={[styles.curatedButtonText, { color: '#fff' }]}>
                 Personalised Curated Events by Scenezone
               </Text>
             </TouchableOpacity>
           </LinearGradient>
         ) : (
-          <TouchableOpacity
-            style={styles.curatedButton}
-            onPress={handleCuratedPress}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.curatedButtonText}>
-              Personalised Curated Events by Scenezone
-            </Text>
+          <TouchableOpacity style={styles.curatedButton} onPress={handleCuratedPress} activeOpacity={0.8}>
+            <Text style={styles.curatedButtonText}>Personalised Curated Events by Scenezone</Text>
           </TouchableOpacity>
         )}
 
@@ -657,8 +632,7 @@ const HomeScreen = ({ navigation }) => {
                       },
                     ],
                     opacity: dropdownAnimations[index],
-                    marginBottom:
-                      index === dropdownButtons.length - 1 ? 0 : 4,
+                    marginBottom: index === dropdownButtons.length - 1 ? 0 : 4,
                   },
                 ]}
               >
@@ -672,7 +646,7 @@ const HomeScreen = ({ navigation }) => {
       </View>
 
       <Animated.FlatList
-        data={filteredArtistData} // Use filtered data
+        data={filteredArtistData}
         renderItem={renderEventCard}
         keyExtractor={(item) => item._id}
         horizontal
@@ -683,26 +657,12 @@ const HomeScreen = ({ navigation }) => {
         contentContainerStyle={[
           styles.eventListContainer,
           {
-            paddingHorizontal: Math.max(
-              peekingDistance + responsiveDimensions.safeAreaLeft,
-              peekingDistance
-            ),
+            paddingHorizontal: Math.max(peekingDistance + responsiveDimensions.safeAreaLeft, peekingDistance),
             paddingTop: 8,
             paddingBottom: 8,
-            paddingLeft: Math.max(
-              peekingDistance + responsiveDimensions.safeAreaLeft,
-              peekingDistance
-            ),
-            paddingRight: Math.max(
-              peekingDistance + responsiveDimensions.safeAreaRight,
-              peekingDistance
-            ),
           },
         ]}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         scrollEventThrottle={16}
@@ -715,15 +675,7 @@ const HomeScreen = ({ navigation }) => {
             marginTop: Math.max(dimensions.spacing.xl + 20, 40),
             marginBottom: Math.max(dimensions.spacing.lg + 60, 90),
             paddingBottom: Math.max(dimensions.spacing.md, 10),
-            paddingHorizontal: Math.max(
-              dimensions.spacing.md,
-              dimensions.spacing.md
-            ),
-            paddingLeft: Math.max(dimensions.spacing.md, dimensions.spacing.md),
-            paddingRight: Math.max(
-              dimensions.spacing.md,
-              dimensions.spacing.md
-            ),
+            paddingHorizontal: Math.max(dimensions.spacing.md, dimensions.spacing.md),
             position: 'absolute',
             bottom: 0,
             left: 0,
@@ -768,6 +720,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  noDataText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+  },
   backgroundContainer: {
     position: 'absolute',
     top: 0,
@@ -777,11 +735,6 @@ const styles = StyleSheet.create({
     zIndex: 0,
     width: '100%',
     height: '100%',
-  },
-  backgroundSvg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
   },
   header: {
     flexDirection: 'row',
@@ -939,49 +892,6 @@ const styles = StyleSheet.create({
     borderColor: '#a95eff',
     borderWidth: 1,
   },
-  middleIconButtonActive: {
-    backgroundColor: '#a95eff',
-  },
-  bottomNavBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#000',
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
-    paddingVertical: 4,
-    paddingBottom: Platform.OS === 'ios' ? 45 : 25,
-  },
-  navButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    paddingVertical: 4,
-  },
-  navButtonActive: {
-    backgroundColor: 'rgba(169, 94, 255, 0.2)',
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  navButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#aaa',
-    marginTop: 4,
-  },
-  navButtonTextActive: {
-    color: '#a95eff',
-  },
-  activeTabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    width: 30,
-    height: 3,
-    backgroundColor: '#a95eff',
-    borderRadius: 1.5,
-    marginBottom: 5,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -992,8 +902,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     width: '100%',
     maxWidth: 393,
-    height: 400,
-    maxHeight: 450,
+    height: 450,
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 8,
@@ -1051,8 +960,8 @@ const styles = StyleSheet.create({
     color: '#7952FC',
   },
   continueButton: {
-    width: '100%',
-    maxWidth: 361,
+    width: '48%',
+    maxWidth: 180,
     height: dimensions.buttonHeight,
     paddingHorizontal: 16,
     paddingVertical: 0,
@@ -1062,6 +971,19 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     borderRadius: 16,
     backgroundColor: 'transparent',
+  },
+  resetButton: {
+    width: '48%',
+    maxWidth: 180,
+    height: dimensions.buttonHeight,
+    paddingHorizontal: 16,
+    paddingVertical: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   continueButtonText: {
     color: '#fff',
@@ -1097,71 +1019,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     fontFamily: 'Nunito Sans',
-  },
-  dropdownContent: {
-    backgroundColor: '#f3eaff',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    borderWidth: 1,
-    borderColor: '#a95eff',
-    marginHorizontal: 8,
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  actionButtonsContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 8,
-  },
-  actionButton: {
-    borderRadius: 16,
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  scrollContent: {
-    flex: 1,
-  },
-  buttonContainer: {
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 24,
-  },
-  filterContent: {
-    flex: 0,
-    paddingTop: 0,
-    paddingBottom: 0,
-    width: '100%',
-    marginBottom: 0,
-  },
-  sectionContainer: {
-    marginBottom: 0,
-    width: '100%',
-    paddingVertical: 4,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  filterScrollContent: {
-    flex: 1,
-  },
-  filterContentContainer: {
-    paddingHorizontal: 0,
-    paddingTop: 50,
-    paddingBottom: 10,
-  },
-  fixedButtonContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    alignItems: 'center',
-    marginTop: 8,
   },
 });
 

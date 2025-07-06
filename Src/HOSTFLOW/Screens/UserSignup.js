@@ -25,6 +25,7 @@ import { useDispatch } from 'react-redux';
 import { loginUser } from '../Redux/slices/authSlice';
 import auth from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 
 const { width, height } = Dimensions.get('window');
 
@@ -65,11 +66,48 @@ const UserSignupScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
 
   // Input refs for focus control
   const fullNameInputRef = useRef(null);
   const mobileInputRef = useRef(null);
   const passwordInputRef = useRef(null);
+
+  const getPasswordRequirements = () => {
+    const requirements = [
+      { 
+        label: 'At least 8 characters', 
+        met: password.length >= 8,
+        icon: password.length >= 8 ? '✓' : '✗'
+      },
+      { 
+        label: 'One uppercase letter', 
+        met: /[A-Z]/.test(password),
+        icon: /[A-Z]/.test(password) ? '✓' : '✗'
+      },
+      { 
+        label: 'One lowercase letter', 
+        met: /[a-z]/.test(password),
+        icon: /[a-z]/.test(password) ? '✓' : '✗'
+      },
+      { 
+        label: 'One number', 
+        met: /\d/.test(password),
+        icon: /\d/.test(password) ? '✓' : '✗'
+      },
+      { 
+        label: 'One special character', 
+        met: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+        icon: /[!@#$%^&*(),.?":{}|<>]/.test(password) ? '✓' : '✗'
+      }
+    ];
+    return requirements;
+  };
+
+  const isPasswordValid = () => {
+    const requirements = getPasswordRequirements();
+    return requirements.every(req => req.met);
+  };
 
   // On mount, check AsyncStorage for saved credentials
   useEffect(() => {
@@ -129,22 +167,18 @@ const UserSignupScreen = ({ navigation }) => {
       console.log('[UserSignupScreen] Validation failed: Invalid full name', fullName);
       return false;
     }
-
-    // Validate mobile number with country code
-    const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
-    if (!phoneRegex.test(mobile)) {
-      Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
+    // Validate mobile number (10 digits)
+    if (!mobile || mobile.length !== 10) {
+      Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
       console.log('[UserSignupScreen] Validation failed: Invalid mobile number', mobile);
       return false;
     }
-
     // Validate password
-    if (!password.trim()) {
-      Alert.alert('Error', 'Please enter a password');
-      console.log('[UserSignupScreen] Validation failed: Password is empty');
+    if (!isPasswordValid()) {
+      Alert.alert('Error', 'Password must meet all requirements:\n• At least 8 characters\n• One uppercase letter\n• One lowercase letter\n• One number\n• One special character');
+      console.log('[UserSignupScreen] Validation failed: Password requirements not met');
       return false;
     }
-
     return { sanitizedFullName };
   };
 
@@ -156,7 +190,7 @@ const UserSignupScreen = ({ navigation }) => {
     const { sanitizedFullName } = validated;
     const signupData = {
       fullName: sanitizedFullName,
-      mobileNumber: mobile.trim(),
+      mobileNumber: '+91' + mobile.trim(),
       password: password.trim(),
       isRemember: rememberMe,
     };
@@ -171,8 +205,9 @@ const UserSignupScreen = ({ navigation }) => {
       if (response.data?.success) {
         let confirmationResult;
         try {
-          console.log('[UserSignupScreen] Initiating Firebase OTP for:', mobile);
-          confirmationResult = await auth().signInWithPhoneNumber(mobile.trim());
+          const e164Mobile = '+91' + mobile.trim();
+          console.log('[UserSignupScreen] Initiating Firebase OTP for:', e164Mobile);
+          confirmationResult = await auth().signInWithPhoneNumber(e164Mobile);
           console.log('[UserSignupScreen] Firebase OTP sent successfully:', confirmationResult);
         } catch (error) {
           console.error('[UserSignupScreen] Firebase OTP Error:', {
@@ -190,22 +225,28 @@ const UserSignupScreen = ({ navigation }) => {
           return;
         }
 
-        const otpResponse = await api.post('/user/email-number-send-otp', { mobileNumber: mobile.trim() });
+        const e164Mobile = '+91' + mobile.trim();
+        const otpResponse = await api.post('/user/email-number-send-otp', { mobileNumber: e164Mobile });
         console.log('[UserSignupScreen] OTP Response:', otpResponse.data);
 
         if (otpResponse.data) {
-          Alert.alert('Success', 'Account created successfully! Please verify your mobile number.', [
-            {
-              text: 'OK',
-              onPress: () =>
-                navigation.navigate('UserOtpVerification', {
-                  mobileNumber: mobile.trim(),
-                  confirmation: confirmationResult,
-                  userId: response.data.data.userId,
-                  fullName: sanitizedFullName,
-                }),
-            },
-          ]);
+          Toast.show({
+            type: 'success',
+            text1: 'Account Created!',
+            text2: 'Please verify your mobile number to continue.',
+            position: 'top',
+            visibilityTime: 4000,
+            autoHide: true,
+            topOffset: 60,
+          });
+          setTimeout(() => {
+            navigation.navigate('UserOtpVerification', {
+              mobileNumber: e164Mobile,
+              confirmation: confirmationResult,
+              userId: response.data.data.userId,
+              fullName: sanitizedFullName,
+            });
+          }, 1500);
         }
       }
     } catch (error) {
@@ -253,19 +294,25 @@ const UserSignupScreen = ({ navigation }) => {
 
           <View style={styles.inputContainer}>
             <MobileIcon width={dimensions.iconSize} height={dimensions.iconSize} style={styles.icon} />
+            <Text style={styles.countryCode}>+91</Text>
             <TextInput
-              style={[styles.input, { color: '#fff' }]}
-              placeholder="Mobile Number (e.g., +91XXXXXXXXXX)"
+              style={[styles.input, { color: '#fff', marginLeft: 8 }]}
+              placeholder="Enter 10-digit mobile number"
               placeholderTextColor="#aaa"
               keyboardType="phone-pad"
               value={mobile}
-              onChangeText={setMobile}
+              onChangeText={text => setMobile(text.replace(/\D/g, '').slice(0, 10))}
               ref={mobileInputRef}
               editable={!isLoading}
+              maxLength={10}
             />
           </View>
 
-          <View style={[styles.inputContainer, styles.passwordContainer]}>
+          <View style={[
+            styles.inputContainer, 
+            styles.passwordContainer,
+            password && isPasswordValid() && { borderColor: '#4CAF50' }
+          ]}>
             <LockIcon width={dimensions.iconSize} height={dimensions.iconSize} style={styles.icon} />
             <TextInput
               style={[styles.input, { color: '#fff', flex: 1 }]}
@@ -276,11 +323,32 @@ const UserSignupScreen = ({ navigation }) => {
               onChangeText={setPassword}
               ref={passwordInputRef}
               editable={!isLoading}
+              onFocus={() => setShowPasswordRequirements(true)}
+              onBlur={() => setShowPasswordRequirements(false)}
             />
+            {password && isPasswordValid() && (
+              <Ionicons name="checkmark-circle" size={dimensions.iconSize} color="#4CAF50" style={{ marginRight: 8 }} />
+            )}
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
               <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={dimensions.iconSize} color="#aaa" />
             </TouchableOpacity>
           </View>
+
+          {showPasswordRequirements && (
+            <View style={styles.passwordRequirementsContainer}>
+              <Text style={styles.passwordRequirementsTitle}>Password Requirements:</Text>
+              {getPasswordRequirements().map((requirement, index) => (
+                <View key={index} style={styles.requirementRow}>
+                  <Text style={[styles.requirementIcon, { color: requirement.met ? '#4CAF50' : '#FF5252' }]}>
+                    {requirement.icon}
+                  </Text>
+                  <Text style={[styles.requirementText, { color: requirement.met ? '#4CAF50' : '#aaa' }]}>
+                    {requirement.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.rememberMeRow}>
             <Switch
@@ -472,6 +540,60 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#A020F0',
     fontWeight: '700',
+  },
+  countryCode: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#fff',
+    backgroundColor: '#333',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  passwordRequirementsContainer: {
+    backgroundColor: 'rgba(20, 20, 20, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  passwordRequirementsTitle: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '600',
+    fontSize: 14,
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  requirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  requirementIcon: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginRight: 12,
+    width: 20,
+    textAlign: 'center',
+  },
+  requirementText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
+    fontSize: 13,
+    flex: 1,
   },
 });
 

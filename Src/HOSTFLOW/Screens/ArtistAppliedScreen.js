@@ -1,18 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Alert, ActivityIndicator, Animated, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { removeAppliedEvent } from '../Redux/slices/appliedSlice';
-import { selectToken } from '../Redux/slices/authSlice';
+import { selectToken, removeAppliedEvent } from '../Redux/slices/authSlice';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons'; // Assuming Ionicons for trash icon
 import FontAwesome from 'react-native-vector-icons/FontAwesome'; // Assuming FontAwesome for star icon
 import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import LinearGradient from 'react-native-linear-gradient';
+import HapticFeedback from 'react-native-haptic-feedback';
 import AppliedIcon from '../assets/icons/Applied';
+import SignUpBackground from '../assets/Banners/SignUp';
 import api from '../Config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MaskedView from '@react-native-masked-view/masked-view';
 
 const { width, height } = Dimensions.get('window');
+
+// Haptic feedback options
+const hapticOptions = {
+  enableVibrateFallback: true,
+  ignoreAndroidSystemSettings: false,
+};
+
+// Safe haptic feedback function
+const triggerHaptic = (type) => {
+  try {
+    HapticFeedback.trigger(type, hapticOptions);
+  } catch (error) {
+    console.log('Haptic feedback not available:', error);
+    // Silently fail - don't show error to user
+  }
+};
 
 // Responsive dimensions system for all Android devices
 const isTablet = width >= 768;
@@ -48,15 +67,86 @@ const dimensions = {
   headerHeight: Math.max(height * 0.08, 60),
 };
 
+// MusicBeatsLoader: Animated music bars loader
+const MusicBeatsLoader = () => {
+  const barAnims = [React.useRef(new Animated.Value(1)).current, React.useRef(new Animated.Value(1)).current, React.useRef(new Animated.Value(1)).current];
+
+  React.useEffect(() => {
+    const animations = barAnims.map((anim, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1.8,
+            duration: 300,
+            useNativeDriver: false,
+            delay: i * 100,
+          }),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: false,
+            delay: 0,
+          }),
+        ])
+      )
+    );
+    animations.forEach(anim => anim.start());
+    return () => animations.forEach(anim => anim.stop());
+  }, [barAnims]);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', height: 28, marginVertical: 8 }}>
+      {barAnims.map((anim, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            width: 6,
+            height: anim.interpolate({ inputRange: [1, 1.8], outputRange: [14, 24] }),
+            backgroundColor: '#a95eff',
+            borderRadius: 3,
+            marginHorizontal: 3,
+          }}
+        />
+      ))}
+    </View>
+  );
+};
+
 const ArtistAppliedScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('applied');
   const [appliedEvents, setAppliedEvents] = useState([]);
   const [savedEvents, setSavedEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [locallyAppliedFromSaved, setLocallyAppliedFromSaved] = useState(new Set());
+  const [likedEventIds, setLikedEventIds] = useState(new Set());
+  const [likingEventId, setLikingEventId] = useState(null);
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const token = useSelector(selectToken);
+  const userData = useSelector(state => state.auth.userData);
+
+  // Debug function to test API connectivity
+  const testAPIConnectivity = async () => {
+    console.log('🧪 Testing API connectivity...');
+    console.log('📍 API Base URL:', api.defaults.baseURL);
+    console.log('🔑 Token available:', !!token);
+    
+    try {
+      // Test with a simple GET request to see if API is accessible
+      const testResponse = await api.get('/artist/event/applied', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('✅ API connectivity test successful, status:', testResponse.status);
+      return true;
+    } catch (error) {
+      console.error('❌ API connectivity test failed:', error.message);
+      return false;
+    }
+  };
 
   // Fetch applied events from API
   const fetchAppliedEvents = async () => {
@@ -69,7 +159,9 @@ const ArtistAppliedScreen = ({ navigation }) => {
     setError(null);
     
     try {
-      console.log('Fetching applied events...');
+      console.log('🔍 Fetching applied events from API endpoint: /artist/event/applied');
+      console.log('🔑 Using token:', token ? 'Present' : 'Missing');
+      
       const response = await api.get('/artist/event/applied', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -78,41 +170,124 @@ const ArtistAppliedScreen = ({ navigation }) => {
       });
 
       console.log('Applied events API response:', response.data);
+      console.log('Applied events raw data structure:', JSON.stringify(response.data.data?.[0], null, 2));
 
       if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        console.log('Processing applied events data, total items:', response.data.data.length);
+        
         // Transform API data to match expected format
-        const transformedEvents = response.data.data.map((application, index) => {
-          const event = application.eventId; // Event data is nested in eventId
-          
-          // Get the first date from eventDateTime array
-          const eventDate = event.eventDateTime && event.eventDateTime.length > 0 
-            ? new Date(event.eventDateTime[0]) 
-            : new Date();
-          
-          return {
-            id: application._id || index.toString(),
-            image: event.posterUrl ? { uri: event.posterUrl } : require('../assets/Images/fff.jpg'),
-            location: event.venue || 'Unknown Venue',
-            budget: event.budget ? `$${event.budget}` : 'Budget Not Specified',
-            time: eventDate.toLocaleTimeString('en-US', { 
+        const transformedEvents = response.data.data
+          .filter(application => {
+            // Filter out applications where eventId is null or missing
+            if (!application || !application.eventId) {
+              console.warn('Skipping application with missing eventId:', {
+                applicationId: application?._id,
+                hasEventId: !!application?.eventId,
+                application: application
+              });
+              return false;
+            }
+            return true;
+          })
+          .map((application, index) => {
+            const event = application.eventId; // Event data is nested in eventId
+            
+            console.log(`Processing event ${index + 1}:`, {
+              eventId: event._id,
+              eventName: event.eventName,
+              hasEventDateTime: !!event.eventDateTime,
+              hasEventDate: !!event.eventDate,
+              hasDate: !!event.date,
+            });
+            
+            // Handle different possible date field structures
+            let eventDate = new Date();
+            
+            // Try different possible date field names from the API
+            if (event.eventDateTime && Array.isArray(event.eventDateTime) && event.eventDateTime.length > 0) {
+              eventDate = new Date(event.eventDateTime[0]);
+            } else if (event.eventDate && Array.isArray(event.eventDate) && event.eventDate.length > 0) {
+              eventDate = new Date(event.eventDate[0]);
+            } else if (event.date) {
+              eventDate = new Date(event.date);
+            } else if (event.eventTime) {
+              // If only time is available, use today's date with that time
+              eventDate = new Date();
+            }
+            
+            // Handle event time
+            let timeString = eventDate.toLocaleTimeString('en-US', { 
               hour: '2-digit', 
               minute: '2-digit',
               hour12: true 
-            }),
-            genres: Array.isArray(event.genre) ? event.genre : [event.genre || 'General'],
-            rating: event.Rating || 4,
-            status: application.status || 'pending', // Application status from the application object
-            dateMonth: eventDate.toLocaleDateString('en-US', { month: 'short' }),
-            dateDay: eventDate.getDate().toString(),
-            guestLink: event.guestLinkUrl || '',
-            eventName: event.eventName || 'Event',
-            eventId: event._id,
-            applicationId: application._id,
-          };
-        });
+            });
+            
+            if (event.eventTime) {
+              timeString = event.eventTime;
+            } else if (event.time) {
+              timeString = event.time;
+            }
+            
+            // Handle genres - try different possible field names
+            let genresList = ['General'];
+            if (Array.isArray(event.genre)) {
+              genresList = event.genre;
+            } else if (event.genre) {
+              genresList = [event.genre];
+            } else if (Array.isArray(event.genres)) {
+              genresList = event.genres;
+            } else if (event.genres) {
+              genresList = [event.genres];
+            }
+            
+            // Handle budget
+            let budgetString = 'Budget Not Specified';
+            if (event.budget) {
+              budgetString = `₹${event.budget}`;
+            } else if (event.budgetRange) {
+              budgetString = event.budgetRange;
+            }
+            
+            const finalEvent = {
+              id: application._id || index.toString(),
+              image: event.posterUrl ? { uri: event.posterUrl } : 
+                     event.poster ? { uri: event.poster } :
+                     event.image ? { uri: event.image } :
+                     event.imageUrl ? { uri: event.imageUrl } :
+                     require('../assets/Images/fff.jpg'),
+              location: event.venue || event.venueName || event.location || 'Unknown Venue',
+              budget: budgetString,
+              time: timeString,
+              genres: genresList,
+              rating: event.Rating || event.rating || 4,
+              status: application.status || 'pending', // Application status from the application object
+              dateMonth: eventDate.toLocaleDateString('en-US', { month: 'short' }),
+              dateDay: eventDate.getDate().toString(),
+              guestLink: event.guestLinkUrl || event.guestLink || '',
+              eventName: event.eventName || event.name || event.title || 'Event',
+              eventId: event._id,
+              applicationId: application._id,
+            };
+            
+            console.log(`📋 Event ${index + 1} transformed:`, {
+              id: finalEvent.id,
+              eventId: finalEvent.eventId,
+              eventName: finalEvent.eventName,
+              eventIdType: typeof finalEvent.eventId,
+              eventIdValue: finalEvent.eventId
+            });
+            
+            return finalEvent;
+          });
 
         setAppliedEvents(transformedEvents);
-        console.log('Applied events set:', transformedEvents.length);
+        console.log('✅ Applied events successfully processed:', transformedEvents.length);
+        
+        if (transformedEvents.length > 0) {
+          console.log('Sample transformed event:', transformedEvents[0]);
+        } else {
+          console.log('⚠️ No valid applied events found after filtering');
+        }
       } else {
         console.log('No applied events found or invalid response format');
         setAppliedEvents([]);
@@ -122,15 +297,30 @@ const ArtistAppliedScreen = ({ navigation }) => {
         message: err.message,
         status: err.response?.status,
         data: err.response?.data,
+        url: err.config?.url,
+        method: err.config?.method,
       });
-      setError('Failed to load applied events');
+      
+      // More specific error messages
+      let errorMessage = 'Failed to load applied events';
+      if (err.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please login again.';
+      } else if (err.response?.status === 404) {
+        errorMessage = 'Applied events endpoint not found.';
+      } else if (err.response?.status >= 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (err.message.includes('Network Error')) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      
+      setError(errorMessage);
       setAppliedEvents([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch saved events from API
+  // Fetch saved events from API and check applied status
   const fetchSavedEvents = async () => {
     if (!token) {
       console.log('No token available for fetching saved events');
@@ -141,19 +331,41 @@ const ArtistAppliedScreen = ({ navigation }) => {
     setError(null);
     
     try {
-      console.log('Fetching saved events...');
-      const response = await api.get('/artist/event/saved', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        }
-      });
+      console.log('Fetching saved events and applied events...');
+      
+      // Fetch both saved events and applied events to cross-reference
+      const [savedResponse, appliedResponse] = await Promise.all([
+        api.get('/artist/event/saved', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        }),
+        api.get('/artist/event/applied', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        })
+      ]);
 
-      console.log('Saved events API response:', response.data);
+      console.log('Saved events API response:', savedResponse.data);
+      console.log('Applied events API response for cross-reference:', appliedResponse.data);
 
-      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+      // Get set of applied event IDs
+      let appliedEventIds = new Set();
+      if (appliedResponse.data && appliedResponse.data.success && Array.isArray(appliedResponse.data.data)) {
+        appliedEventIds = new Set(
+          appliedResponse.data.data
+            .filter(application => application && application.eventId && application.eventId._id)
+            .map(application => application.eventId._id)
+        );
+        console.log('🎯 Applied Event IDs for cross-reference:', Array.from(appliedEventIds));
+      }
+
+      if (savedResponse.data && savedResponse.data.success && Array.isArray(savedResponse.data.data)) {
         // Transform API data to match expected format
-        const transformedEvents = response.data.data.map((savedEvent, index) => {
+        const transformedEvents = savedResponse.data.data.map((savedEvent, index) => {
           const event = savedEvent.eventId; // Event data is nested in eventId
           
           console.log('Saved event data:', event); // Debug log to see backend structure
@@ -192,7 +404,10 @@ const ArtistAppliedScreen = ({ navigation }) => {
             genresList = [event.genres];
           }
           
-          return {
+          // Check if this saved event is also applied
+          const isAlreadyApplied = appliedEventIds.has(event._id) || locallyAppliedFromSaved.has(event._id);
+          
+          const finalSavedEvent = {
             id: savedEvent._id || index.toString(),
             // Image: Handle different possible image field names
             image: event.posterUrl ? { uri: event.posterUrl } : 
@@ -218,7 +433,19 @@ const ArtistAppliedScreen = ({ navigation }) => {
             eventName: event.eventName || event.name || event.title || 'Event',
             eventId: event._id,
             savedId: savedEvent._id,
+            isApplied: isAlreadyApplied, // Track if this saved event is already applied
           };
+          
+          console.log(`💾 Saved Event ${index + 1} transformed:`, {
+            id: finalSavedEvent.id,
+            eventId: finalSavedEvent.eventId,
+            savedId: finalSavedEvent.savedId,
+            eventName: finalSavedEvent.eventName,
+            eventIdType: typeof finalSavedEvent.eventId,
+            eventIdValue: finalSavedEvent.eventId
+          });
+          
+          return finalSavedEvent;
         });
 
         setSavedEvents(transformedEvents);
@@ -240,6 +467,35 @@ const ArtistAppliedScreen = ({ navigation }) => {
     }
   };
 
+  // Fetch liked events from API
+  const fetchLikedEvents = async () => {
+    if (!token) {
+      console.log('No token available for fetching liked events');
+      return;
+    }
+
+    try {
+      console.log('Fetching liked events...');
+      
+      const response = await api.get('/artist/event/liked', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      console.log('Liked Events API Response:', response.data);
+
+      if (response.data && response.data.success && response.data.data) {
+        const likedEventIdsSet = new Set(response.data.data.map(likeRecord => likeRecord.eventId));
+        setLikedEventIds(likedEventIdsSet);
+        console.log('🔥 Current Liked Event IDs:', Array.from(likedEventIdsSet));
+      }
+    } catch (error) {
+      console.error('Error fetching liked events:', error);
+    }
+  };
+
   // Fetch events when component mounts or when tab changes
   useEffect(() => {
     if (activeTab === 'applied') {
@@ -247,7 +503,33 @@ const ArtistAppliedScreen = ({ navigation }) => {
     } else if (activeTab === 'saved') {
       fetchSavedEvents();
     }
+    // Also fetch liked events
+    fetchLikedEvents();
   }, [activeTab, token]);
+
+  // Handle Android back button
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('ArtistHome');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
+  // Add focus listener to refresh liked events when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('🔄 ArtistAppliedScreen focused - refreshing liked events');
+      if (token) {
+        fetchLikedEvents();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, token]);
 
   const renderAppliedItem = ({ item }) => {
     return (
@@ -258,8 +540,21 @@ const ArtistAppliedScreen = ({ navigation }) => {
             <Text style={styles.dateText}>{item.dateMonth}</Text>
             <Text style={styles.dateText}>{item.dateDay}</Text>
           </View>
-          <TouchableOpacity style={styles.heartIcon}>
-             <Icon name="heart" size={Math.max(dimensions.iconSize * 0.8, 18)} color="#fff" />
+          <TouchableOpacity 
+            style={styles.heartIcon}
+            onPress={() => handleLikePress(item.eventId)}
+            disabled={likingEventId === item.eventId}
+            activeOpacity={0.7}
+          >
+            {likingEventId === item.eventId ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons 
+                name={likedEventIds.has(item.eventId) ? "heart" : "heart-outline"} 
+                size={Math.max(dimensions.iconSize * 0.8, 18)} 
+                color={likedEventIds.has(item.eventId) ? "#FF0844" : "#fff"} 
+              />
+            )}
           </TouchableOpacity>
         </View>
         <View style={styles.cardContent}>
@@ -288,9 +583,48 @@ const ArtistAppliedScreen = ({ navigation }) => {
           </View>
           <View style={styles.buttonRow}>
             {item.status === 'saved' ? (
-              <TouchableOpacity style={styles.savedEventButton}>
-                <Text style={styles.savedEventText}>Saved Event</Text>
-              </TouchableOpacity>
+              item.isApplied ? (
+                <View style={styles.appliedButtonWrapper}>
+                  <LinearGradient
+                    colors={['#B15CDE', '#7952FC']}
+                    start={{x: 1, y: 0}}
+                    end={{x: 0, y: 0}}
+                    style={styles.appliedButtonGradientBorder}
+                  >
+                    <View style={styles.appliedButtonInner}>
+                      <MaskedView
+                        maskElement={
+                          <Text style={styles.appliedButtonTextMask}>Applied</Text>
+                        }
+                      >
+                        <LinearGradient
+                          colors={['#B15CDE', '#7952FC']}
+                          start={{x: 1, y: 0}}
+                          end={{x: 0, y: 0}}
+                          style={styles.appliedButtonTextGradient}
+                        >
+                          <Text style={styles.appliedButtonTextMask}>Applied</Text>
+                        </LinearGradient>
+                      </MaskedView>
+                    </View>
+                  </LinearGradient>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.applyButton} 
+                  onPress={() => handleApplyForEvent(item.eventId)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient 
+                    colors={['#B15CDE', '#7952FC']} 
+                    start={{x: 1, y: 0}} 
+                    end={{x: 0, y: 0}} 
+                    style={styles.applyButtonGradient}
+                  >
+                    <Text style={styles.applyButtonText}>Apply</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )
             ) : (
               <>
                 {item.status === 'pending' && (
@@ -316,8 +650,8 @@ const ArtistAppliedScreen = ({ navigation }) => {
               end={{ x: 1, y: 0.5 }}
               style={styles.deleteButtonGradient}
             >
-              <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
-                <Ionicons name="trash-outline" size={22} color="#fff" />
+              <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.eventId, item.id)}>
+                <Ionicons name="trash-outline" size={16} color="#fff" />
               </TouchableOpacity>
             </LinearGradient>
           </View>
@@ -326,46 +660,385 @@ const ArtistAppliedScreen = ({ navigation }) => {
     );
   };
 
-  const handleDelete = (id) => {
-    const isAppliedTab = activeTab === 'applied';
-    const actionText = isAppliedTab ? 'Remove Application' : 'Remove from Saved';
-    const messageText = isAppliedTab ? 
-      'Are you sure you want to remove this application?' : 
-      'Are you sure you want to remove this event from saved?';
+  const handleDelete = async (eventId, itemId) => {
+    console.log('🎯 Delete button clicked with:', {
+      eventId: eventId,
+      itemId: itemId,
+      eventIdType: typeof eventId,
+      eventIdValid: !!eventId,
+      eventIdLength: eventId ? eventId.length : 0,
+      activeTab: activeTab
+    });
     
-    Alert.alert(
-      actionText,
-      messageText,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    const isAppliedTab = activeTab === 'applied';
+    
+    // Add haptic feedback for delete action
+    triggerHaptic('impactMedium');
+    
+    if (isAppliedTab) {
+      // Remove from applied events using backend API with eventId
+      await handleRemoveAppliedEvent(eventId);
+    } else {
+      // Remove from saved events using backend API
+      await handleUnsaveEvent(eventId);
+    }
+  };
+
+  // Handle remove applied event from backend using API
+  const handleRemoveAppliedEvent = async (eventId) => {
+    if (!token) {
+      Alert.alert('Error', 'Authentication required to remove application.');
+      return;
+    }
+
+    // Enhanced validation for eventId
+    if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
+      console.error('❌ Invalid eventId provided:', {
+        eventId: eventId,
+        type: typeof eventId,
+        length: eventId ? eventId.length : 0,
+        valid: false
+      });
+      Alert.alert('Error', 'Invalid Event ID. Please try again.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Test API connectivity first
+      const isAPIReachable = await testAPIConnectivity();
+      if (!isAPIReachable) {
+        Alert.alert('Error', 'Cannot connect to server. Please check your internet connection.');
+        return;
+      }
+      
+      console.log('🗑️ Attempting to remove applied event:', {
+        eventId: eventId,
+        eventIdType: typeof eventId,
+        eventIdLength: eventId.length,
+        token: token ? 'Present' : 'Missing',
+        apiBaseURL: api.defaults.baseURL
+      });
+
+      const requestData = { eventId: eventId };
+      console.log('📤 Sending request with data:', requestData);
+
+      console.log('🌐 Making API call to remove applied event...');
+      console.log('📍 Full API URL will be:', api.defaults.baseURL + '/artist/remove-event');
+      
+      const response = await api.delete('/artist/remove-event', {
+        data: requestData,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            if (isAppliedTab) {
-              // Remove from applied events
-              setAppliedEvents(prev => prev.filter(event => event.id !== id));
-              dispatch(removeAppliedEvent(id));
-            } else {
-              // Remove from saved events
-              setSavedEvents(prev => prev.filter(event => event.id !== id));
-            }
+      });
+
+      console.log('✅ Remove Applied Event API Response Status:', response.status);
+      console.log('✅ Remove Applied Event API Response Data:', JSON.stringify(response.data, null, 2));
+
+      if (response.data && response.data.success) {
+        // Add haptic feedback for successful removal
+        triggerHaptic('notificationSuccess');
+        
+        // Remove from Redux store using the eventId
+        dispatch(removeAppliedEvent(eventId));
+        console.log('🔄 Removed event from Redux:', eventId);
+        
+        // Alert.alert('Success', 'Application removed successfully!');
+        
+        // Add a small delay to ensure backend processing is complete
+        console.log('⏳ Waiting 1 second before refreshing data...');
+        console.log('📊 Current applied events count before refresh:', appliedEvents.length);
+        
+        setTimeout(async () => {
+          console.log('🔄 Refreshing applied events from backend...');
+          await fetchAppliedEvents();
+          console.log('📊 Applied events count after refresh:', appliedEvents.length);
+        }, 1000);
+      } else {
+        console.error('❌ API returned unsuccessful response:', response.data);
+        Alert.alert('Failed', response.data?.message || 'Failed to remove application.');
+      }
+    } catch (error) {
+      console.error('❌ Error removing applied event:', error);
+      console.error('📊 Detailed error information:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method,
+        requestData: error.config?.data,
+        headers: error.config?.headers,
+      });
+      
+      let errorMessage = 'Failed to remove application. Please try again.';
+      
+      if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.message || 'Invalid request. Please check the event ID.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Authentication failed. Please login again.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Event not found or already removed.';
+      } else if (error.response?.status >= 500) {
+        errorMessage = 'Server error. Please try again later.';
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle like/unlike event with haptic feedback
+  const handleLikePress = async (eventId) => {
+    console.log('❤️ Heart button pressed!');
+    console.log('   - Event ID:', eventId);
+    
+    if (!token) {
+      Alert.alert('Not Authenticated', 'Please login to like/unlike events.');
+      return;
+    }
+    
+    // Check if event is currently liked
+    const isCurrentlyLiked = likedEventIds.has(eventId);
+    const newLikedStatus = !isCurrentlyLiked;
+    
+    console.log(`   - Current liked status: ${isCurrentlyLiked}`);
+    console.log(`   - Action: ${isCurrentlyLiked ? 'UNLIKE' : 'LIKE'}`);
+    console.log(`   - New status will be: ${newLikedStatus}`);
+    
+    // Add haptic feedback for the action
+    triggerHaptic('impactMedium');
+    
+    // Set loading state for this specific event
+    setLikingEventId(eventId);
+    
+    try {
+      let response;
+      
+      if (isCurrentlyLiked) {
+        // Event is currently liked - call UNLIKE API
+        console.log('💔 Making API call to UNLIKE event (POST /artist/event/unlike)...');
+        
+        response = await api.post('/artist/event/unlike', {
+          eventId: eventId
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
-        },
-      ],
-      { cancelable: true }
-    );
+        });
+        
+        console.log('✅ Unlike API Response:', response.data);
+      } else {
+        // Event is not liked - call LIKE API
+        console.log('❤️ Making API call to LIKE event (POST /artist/event/like)...');
+        
+        response = await api.post('/artist/event/like', {
+          eventId: eventId
+        }, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log('✅ Like API Response:', response.data);
+      }
+
+      if (response.data && response.data.success) {
+        console.log('🎉 API SUCCESS - Heart status updated!');
+        console.log(`   - Heart is now: ${newLikedStatus ? 'RED (liked)' : 'WHITE (not liked)'}`);
+        
+        // Add haptic feedback for successful action
+        triggerHaptic('notificationSuccess');
+        
+        // Update the liked events set
+        if (newLikedStatus) {
+          // Event was liked - add to liked events set
+          setLikedEventIds(prev => {
+            const updated = new Set([...prev, eventId]);
+            console.log('✅ Added event to liked set. Total liked:', updated.size);
+            return updated;
+          });
+        } else {
+          // Event was unliked - remove from liked events set
+          setLikedEventIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(eventId);
+            console.log('✅ Removed event from liked set. Total liked:', newSet.size);
+            return newSet;
+          });
+        }
+      } else {
+        console.log('❌ API FAILED - Reverting heart status');
+        // Add haptic feedback for failure
+        triggerHaptic('impactHeavy');
+        const action = isCurrentlyLiked ? 'unlike' : 'like';
+        Alert.alert('Failed', response.data?.message || `Failed to ${action} event.`);
+      }
+    } catch (error) {
+      console.error('🚨 API ERROR:', error);
+      console.log('   - Reverting heart to original status');
+      
+      // Add haptic feedback for error
+      triggerHaptic('impactHeavy');
+      const action = isCurrentlyLiked ? 'unlike' : 'like';
+      const errorMessage = error.response?.data?.message || `Failed to ${action} event.`;
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLikingEventId(null);
+    }
+  };
+
+  // Handle apply for event from saved events
+  const handleApplyForEvent = async (eventId) => {
+    if (!token) {
+      Alert.alert('Not Authenticated', 'Please login to apply for events.');
+      return;
+    }
+
+    console.log('🎯 Applying for event from saved list:', eventId);
+    
+    // Add haptic feedback for apply action
+    triggerHaptic('impactMedium');
+    
+    setLoading(true);
+    
+    try {
+      console.log('✅ Making API call to apply for event:', eventId);
+      
+      const response = await api.post(
+        '/artist/applyEvent',
+        { eventId: eventId },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      console.log('✅ Apply API Response:', response.data);
+      
+      if (response.data && response.data.success) {
+        console.log('🎉 Application successful');
+        
+        // Add haptic feedback for successful application
+        triggerHaptic('notificationSuccess');
+        
+        // Add to locally applied from saved set for immediate UI update
+        setLocallyAppliedFromSaved(prev => new Set([...prev, eventId]));
+        
+        // Refresh the saved events list to update UI
+        console.log('🔄 Refreshing saved events after successful application...');
+        await fetchSavedEvents();
+      } else {
+        console.log('❌ API returned unsuccessful response:', response.data);
+        Alert.alert('Failed', response.data?.message || 'Failed to apply for event.');
+      }
+    } catch (error) {
+      console.error('❌ Error applying for event:', error);
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to apply for event.';
+      
+      // Check if error indicates already applied
+      if (errorMessage.toLowerCase().includes('already applied') || 
+          errorMessage.toLowerCase().includes('duplicate')) {
+        console.log('✅ Event was already applied');
+        triggerHaptic('impactLight');
+        Alert.alert('Already Applied', 'You have already applied for this event.');
+      } else {
+        console.log('🚨 Showing error alert to user:', errorMessage);
+        Alert.alert('Error', errorMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle unsave event from backend using API - same as ArtistHomeScreen
+  const handleUnsaveEvent = async (eventId) => {
+    if (!token) {
+      Alert.alert('Not Authenticated', 'Please login to unsave events.');
+      return;
+    }
+
+    console.log('🗑️ Starting unsave process for eventId:', eventId);
+    setLoading(true);
+    
+    try {
+      console.log('📤 Making unsave API call with eventId:', eventId);
+      console.log('📍 API URL:', api.defaults.baseURL + '/artist/event/unsave');
+      
+      // Use the exact same API call pattern as ArtistHomeScreen
+      const response = await api.delete(
+        '/artist/event/unsave',
+        {
+          data: { eventId: eventId },
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log('✅ Unsave API Response:', response.data);
+
+      if (response.data && response.data.success) {
+        // Add haptic feedback for successful unsave
+        triggerHaptic('impactLight');
+        
+        // Alert.alert('Success', 'Event removed from saved list!');
+        
+        // Update AsyncStorage to sync with ArtistHomeScreen
+        try {
+          const userId = userData?.id || 'default';
+          const SAVED_EVENTS_KEY = `saved_events_${userId}`;
+          const savedEventsData = await AsyncStorage.getItem(SAVED_EVENTS_KEY);
+          
+          if (savedEventsData) {
+            const savedEventsArray = JSON.parse(savedEventsData);
+            const updatedSavedEvents = savedEventsArray.filter(id => id !== eventId);
+            await AsyncStorage.setItem(SAVED_EVENTS_KEY, JSON.stringify(updatedSavedEvents));
+            console.log('✅ Updated AsyncStorage - removed eventId:', eventId);
+          }
+        } catch (storageError) {
+          console.error('Error updating saved events storage:', storageError);
+        }
+        
+        // Refresh the saved events list immediately
+        console.log('🔄 Refreshing saved events after successful unsave...');
+        await fetchSavedEvents();
+      } else {
+        Alert.alert('Failed', response.data?.message || 'Failed to unsave event.');
+      }
+    } catch (error) {
+      console.error('❌ Error unsaving event:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to unsave event.';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Applied</Text>
-        <View style={{ width: dimensions.iconSize }} />
+      {/* Background */}
+      <View style={styles.backgroundContainer}>
+        <SignUpBackground width="100%" height="100%" />
       </View>
+      
+              <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.navigate('ArtistHome')} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={dimensions.iconSize} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Applied</Text>
+          <View style={{ width: dimensions.iconSize }} />
+        </View>
       {/* Tab Buttons for Applied and Saved */}
       <View style={styles.tabHeader}>
         {activeTab === 'applied' ? (
@@ -418,7 +1091,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
       </View>
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#B15CDE" />
+          <MusicBeatsLoader />
           <Text style={styles.loadingText}>Loading applied events...</Text>
         </View>
       ) : (
@@ -480,6 +1153,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
       <ArtistBottomNavBar
         navigation={navigation}
         insets={insets}
+        isLoading={loading}
       />
     </View>
   );
@@ -489,6 +1163,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  backgroundContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: -1,
   },
   header: {
     flexDirection: 'row',
@@ -500,12 +1182,18 @@ const styles = StyleSheet.create({
     borderBottomColor: '#333',
     minHeight: dimensions.headerHeight,
   },
+  backButton: {
+    padding: dimensions.spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: dimensions.spacing.sm,
+  },
   headerTitle: {
     fontSize: dimensions.fontSize.header,
     fontWeight: 'bold',
     color: '#C6C5ED',
-    marginRight:220,
-    
+    flex: 1,
+    textAlign: 'left',
   },
   listContent: {
     paddingHorizontal: dimensions.spacing.lg,
@@ -606,6 +1294,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: dimensions.spacing.sm,
+    justifyContent: 'space-between',
   },
   requestPendingButton: {
     display: 'flex',
@@ -679,6 +1368,113 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFeatureSettings: "'salt' on",
   },
+  applyButton: {
+    display: 'flex',
+    flex: 1,
+    height: 46,
+    paddingHorizontal: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
+    borderWidth: 0,
+    borderRadius: 14,
+    backgroundColor: 'transparent',
+    alignSelf: 'stretch',
+    marginRight: dimensions.spacing.sm,
+    overflow: 'hidden',
+  },
+  applyButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+    backgroundColor: 'transparent',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  applyButtonText: {
+    color: '#FFF',
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontStyle: 'normal',
+    fontWeight: '500',
+    lineHeight: 20,
+    fontFeatureSettings: "'salt' on",
+  },
+  appliedButtonWrapper: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginRight: dimensions.spacing.sm,
+  },
+  appliedButtonGradientBorder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+    padding: 1, // This creates the border thickness
+  },
+  appliedButtonInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 13, // Slightly smaller than the outer border radius
+  },
+  appliedButton: {
+    display: 'flex',
+    flex: 1,
+    height: 46,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
+    borderRadius: 13,
+    backgroundColor: '#1a1a1a',
+    alignSelf: 'stretch',
+    marginRight: dimensions.spacing.sm,
+    margin: 1,
+  },
+  appliedButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
+    height: '100%',
+  },
+  appliedButtonText: {
+    color: '#B15CDE',
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  appliedButtonTextGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+  },
+  appliedButtonTextMask: {
+    color: '#B15CDE',
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    marginTop:9,
+  },
   savedEventButton: {
     display: 'flex',
     paddingTop: 4,
@@ -704,14 +1500,15 @@ const styles = StyleSheet.create({
     fontFeatureSettings: "'salt' on",
   },
   deleteButtonGradient: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteButton: {
     flex: 1,
+    
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
@@ -734,7 +1531,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   heartIcon: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'transparent',
     borderRadius: dimensions.borderRadius.md,
     padding: dimensions.spacing.sm,
     position: 'absolute',

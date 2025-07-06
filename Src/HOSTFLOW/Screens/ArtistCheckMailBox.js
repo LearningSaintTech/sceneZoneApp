@@ -18,7 +18,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import MailboxIcon from '../assets/icons/mailbox';
 import api from '../Config/api';
-import auth from '@react-native-firebase/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,318 +26,247 @@ const isTablet = width >= 768;
 const isSmallPhone = width < 350;
 
 const responsiveDimensions = {
-  buttonWidth: Math.min(width - 40, Math.max(width * 0.9, 300)),
-  buttonHeight: Math.max(height * 0.065, 52),
-  buttonMargin: Math.max(width * 0.05, 20),
-  buttonBottom: Math.max(height * 0.05, 20),
-  borderRadius: Math.max(width * 0.035, 14),
-  paddingHorizontal: Math.max(width * 0.04, 16),
-  gap: Math.max(width * 0.025, 10),
-  otpBoxSize: Math.max(width * 0.1, 40), // Reduced size to fit 6 boxes
-  otpGap: Math.max(width * 0.015, 6),
-  otpContainerWidth: Math.min(width * 0.9, 360), // Increased to accommodate 6 boxes
-  contentTopMargin: Math.max(height * 0.08, 60),
-  contentBottomPadding: Math.max(height * 0.12, 100),
-  iconSize: Math.max(width * 0.06, 24),
-  titleFontSize: Math.max(width * 0.06, 24),
-  descriptionFontSize: Math.max(width * 0.035, 14),
-  inputFontSize: Math.max(width * 0.045, 18),
+  buttonWidth: Math.min(width - 40, Math.max(width * 0.9, 300)), // 90% of screen width, min 300px, max screen width - 40px
+  buttonHeight: Math.max(height * 0.065, 52), // 6.5% of screen height, min 52px
+  buttonMargin: Math.max(width * 0.05, 20), // 5% of screen width, min 20px
+  buttonBottom: Math.max(height * 0.05, 20), // 5% of screen height, min 20px
+  borderRadius: Math.max(width * 0.035, 14), // 3.5% of screen width, min 14px
+  paddingHorizontal: Math.max(width * 0.04, 16), // 4% of screen width, min 16px
+  gap: Math.max(width * 0.025, 10), // 2.5% of screen width, min 10px
+  // OTP specific dimensions
+  otpBoxSize: Math.max(width * 0.12, 48), // 12% of screen width, min 48px
+  otpGap: Math.max(width * 0.02, 8), // 2% of screen width, min 8px
+  otpContainerWidth: Math.min(width * 0.8, 320), // 80% of screen width, max 320px
+  // Content spacing
+  contentTopMargin: Math.max(height * 0.08, 60), // 8% of screen height, min 60px
+  contentBottomPadding: Math.max(height * 0.12, 100), // 12% of screen height, min 100px
+  iconSize: Math.max(width * 0.06, 24), // 6% of screen width, min 24px
+  titleFontSize: Math.max(width * 0.06, 24), // 6% of screen width, min 24px
+  descriptionFontSize: Math.max(width * 0.035, 14), // 3.5% of screen width, min 14px
+  inputFontSize: Math.max(width * 0.05, 20), // 5% of screen width, min 20px
 };
 
 const ArtistCheckMailbox = ({ navigation, route }) => {
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [isLoading, setIsLoading] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '']);
+  const [isResending, setIsResending] = useState(false);
   const insets = useSafeAreaInsets();
   const inputRefs = [
     useRef(null),
     useRef(null),
     useRef(null),
     useRef(null),
-    useRef(null),
-    useRef(null),
   ];
-
-  // Get inputType, value, and Firebase params from navigation
-  const { inputType = 'email', value = '', confirmation, isFirebase = false, fullName = '', isForgotPassword = false } = route?.params || {};
+  // Get email from navigation params
+  const email = route?.params?.email || '';
 
   const handleOtpChange = (text, index) => {
     const newOtp = [...otp];
     newOtp[index] = text;
     setOtp(newOtp);
-    console.log('[ArtistCheckMailbox] OTP input updated:', { index, value: text, currentOtp: newOtp });
-
     if (text !== '' && index < otp.length - 1) {
       inputRefs[index + 1].current.focus();
     }
     if (text === '' && index > 0) {
       inputRefs[index - 1].current.focus();
     }
-
-    // Auto-submit if all digits are entered
-    if (newOtp.every(digit => digit !== '') && index === otp.length - 1) {
-      console.log('[ArtistCheckMailbox] All OTP digits entered, triggering handleConfirm');
-      handleConfirm(newOtp.join(''));
-    }
   };
 
   const handleResendOTP = async () => {
-    if (!value) {
-      Alert.alert('Error', `Please provide your ${inputType === 'email' ? 'email' : 'mobile number'}.`);
-      console.log('[ArtistCheckMailbox] Resend OTP failed: Missing input value', { inputType, value });
+    if (!email) {
+      Alert.alert('Error', 'Email is missing.');
       return;
     }
     try {
-      setIsLoading(true);
-      if (isFirebase) {
-        console.log('[ArtistCheckMailbox] Resending Firebase OTP for:', value);
-        const confirmationResult = await auth().signInWithPhoneNumber(value);
-        console.log('[ArtistCheckMailbox] Firebase OTP resent successfully:', confirmationResult);
+      setIsResending(true);
+      
+      const resendData = {
+        email: email
+      };
 
-        Alert.alert('Success', 'OTP resent successfully!');
-        setOtp(['', '', '', '', '', '']);
+      console.log("Resending Artist OTP:", resendData); // Debug log
+
+      const response = await api.post('/artist/auth/resend-otp', resendData);
+
+      console.log("Resend Artist OTP Response:", response.data); // Debug log
+
+      if (response.data) {
+        Alert.alert('Success', 'OTP has been resent successfully!');
+        // Clear existing OTP
+        setOtp(['', '', '', '']);
+        // Focus on first input
         inputRefs[0]?.current?.focus();
-
-        // Update route params with new confirmation
-        navigation.setParams({ confirmation: confirmationResult });
-      } else {
-        const otpData = inputType === 'email' ? { email: value } : { mobileNumber: value };
-        console.log('[ArtistCheckMailbox] Resending OTP:', { endpoint: '/artist/email-number-send-otp', data: otpData });
-
-        const response = await api.post('/artist/email-number-send-otp', otpData);
-
-        console.log('[ArtistCheckMailbox] Resend OTP response:', response.data);
-
-        if (response.data) {
-          Alert.alert('Success', 'OTP resent successfully!');
-          setOtp(['', '', '', '', '', '']);
-          inputRefs[0]?.current?.focus();
-        } else {
-          Alert.alert('Error', response.data.message || 'Failed to resend OTP');
-          console.log('[ArtistCheckMailbox] Resend OTP failed:', response.data.message);
-        }
       }
     } catch (error) {
-      console.error('[ArtistCheckMailbox] Resend OTP error:', {
-        message: error.message,
-        response: error.response?.data,
-        firebaseCode: error.code,
-      });
-      let errorMessage = error.response?.data?.message || 'Failed to resend OTP';
-      if (error.code === 'auth/invalid-phone-number') {
-        errorMessage = 'Invalid phone number format';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many requests. Please try again later';
-      }
-      Alert.alert('Error', errorMessage);
+      console.error("Resend Artist OTP Error:", error.message);
+      console.error("Error Response:", error.response?.data);
+      
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to resend OTP. Please try again.'
+      );
     } finally {
-      setIsLoading(false);
+      setIsResending(false);
     }
   };
 
-  const handleConfirm = async (code) => {
-    const otpCode = code || otp.join('');
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const mobileRegex = /^\+\d{1,3}\d{9,15}$/;
-
-    if (!value || otpCode.length !== 6) {
-      Alert.alert('Error', `Please enter the 6-digit OTP and ensure ${inputType === 'email' ? 'email' : 'mobile number'} is present.`);
-      console.log('[ArtistCheckMailbox] OTP verification failed: Invalid input', { value, otpCode });
+  const handleConfirm = async () => {
+    const code = otp.join('');
+    if (!email || code.length !== 4) {
+      Alert.alert('Error', 'Please enter the 4-digit OTP and make sure email is present.');
       return;
     }
-
-    if (inputType === 'email' && !emailRegex.test(value)) {
-      Alert.alert('Error', 'Invalid email format.');
-      console.log('[ArtistCheckMailbox] OTP verification failed: Invalid email', { value });
-      return;
-    }
-
-    if (inputType === 'mobile' && !mobileRegex.test(value)) {
-      Alert.alert('Error', 'Invalid mobile number. It must include country code (e.g., +91XXXXXXXXXX).');
-      console.log('[ArtistCheckMailbox] OTP verification failed: Invalid mobile number', { value });
-      return;
-    }
-
-    // Proceed with OTP verification
     try {
-      setIsLoading(true);
-      if (isFirebase) {
-        if (!confirmation) {
-          Alert.alert('Error', 'OTP session expired. Please request a new OTP.');
-          console.log('[ArtistCheckMailbox] OTP verification failed: Missing confirmation object');
-          return;
-        }
-
-        console.log('[ArtistCheckMailbox] Verifying Firebase OTP with code:', otpCode);
-        const credential = await confirmation.confirm(otpCode);
-        const idToken = await auth().currentUser.getIdToken();
-        console.log('[ArtistCheckMailbox] Firebase OTP verified, ID token:', idToken);
-
-        const verifyData = {
-          mobileNumber: value,
-          idToken,
-          fullName,
-        };
-        console.log('[ArtistCheckMailbox] Verifying Firebase OTP:', { endpoint: '/artist/firebase-auth/firebase-verify-otp', data: verifyData });
-
-        const response = await api.post('/artist/firebase-auth/firebase-verify-otp', verifyData);
-
-        console.log('[ArtistCheckMailbox] Firebase OTP verification response:', response.data);
-
-        if (response.data.success) {
-          console.log('[ArtistCheckMailbox] Firebase OTP verified successfully, navigating to ArtistCreateNewPassword');
-          Alert.alert('Success', 'OTP verified successfully!', [
-            {
-              text: 'OK',
-              onPress: () =>
-                navigation.navigate('ArtistCreateNewPassword', {
-                  inputType,
-                  value,
-                  token: response.headers['authorization']?.replace('Bearer ', '') || '',
-                  isForgotPassword: true,
-                }),
-            },
-          ]);
-        } else {
-          Alert.alert('Error', response.data.message || 'Firebase OTP verification failed');
-          console.log('[ArtistCheckMailbox] Firebase OTP verification failed:', response.data.message);
-        }
+      const response = await api.post('/artist/email-verifyOtp', {
+        email,
+        code
+      });
+      if (response.data.success) {
+        Alert.alert('Success', 'OTP verified successfully!', [
+          { text: 'OK', onPress: () => navigation.navigate('ArtistCreateNewPassword', { email }) }
+        ]);
       } else {
-        const verifyData = inputType === 'email' ? { email: value, code: otpCode } : { mobileNumber: value, code: otpCode };
-        console.log('[ArtistCheckMailbox] Verifying OTP:', { endpoint: '/artist/verify-email-number-otp', data: verifyData });
-
-        const response = await api.post('/artist/verify-email-number-otp', verifyData);
-
-        console.log('[ArtistCheckMailbox] OTP verification response:', response.data);
-
-        if (response.data.success) {
-          console.log('[ArtistCheckMailbox] OTP verified successfully, navigating to ArtistCreateNewPassword');
-          Alert.alert('Success', 'OTP verified successfully!', [
-            {
-              text: 'OK',
-              onPress: () =>
-                navigation.navigate('ArtistCreateNewPassword', {
-                  inputType,
-                  value,
-                  token: response.headers['authorization']?.replace('Bearer ', '') || '',
-                  isForgotPassword: true,
-                }),
-            },
-          ]);
-        } else {
-          Alert.alert('Error', response.data.message || 'OTP verification failed');
-          console.log('[ArtistCheckMailbox] OTP verification failed:', response.data.message);
-        }
+        Alert.alert('Error', response.data.message || 'OTP verification failed');
       }
     } catch (error) {
-      console.error('[ArtistCheckMailbox] OTP verification error:', {
-        message: error.message,
-        response: error.response?.data,
-        firebaseCode: error.code,
-      });
-      let errorMessage = error.response?.data?.message || 'OTP verification failed';
-      if (error.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Invalid OTP code';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many requests. Please try again later';
-      }
-      Alert.alert('Error', errorMessage);
-    } finally {
-      setIsLoading(false);
+      Alert.alert('Error', error.response?.data?.message || 'OTP verification failed');
     }
   };
-
-  // Mask the email or mobile number for display
-  const maskedValue =
-    inputType === 'email'
-      ? value.replace(/(.{2}).*?@/, '***@')
-      : value.replace(/(\+\d{1,3}\d{3})\d{4}(\d{3})/, '$1****$2');
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
+    <KeyboardAvoidingView 
+      style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <SignUpBackground style={styles.backgroundSvg} width={width} height={height} />
+      <SignUpBackground 
+        style={styles.backgroundSvg}
+        width={width}
+        height={height}
+      />
       <SafeAreaView style={styles.overlay}>
-        <ScrollView
+        <ScrollView 
           contentContainerStyle={[
             styles.scrollViewContent,
-            {
+            { 
               paddingBottom: responsiveDimensions.contentBottomPadding,
               paddingHorizontal: responsiveDimensions.paddingHorizontal,
-            },
+            }
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+          <View style={[styles.header, { paddingTop: insets.top + 20 }]}> 
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Icon name="arrow-left" size={responsiveDimensions.iconSize} color="#fff" />
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.contentArea, { marginTop: responsiveDimensions.contentTopMargin }]}>
+          <View style={[
+            styles.contentArea,
+            { 
+              marginTop: responsiveDimensions.contentTopMargin,
+              minHeight: height * 0.6, // Ensure minimum content height
+            }
+          ]}>
+            {/* Central Icon */}
             <View style={styles.iconContainer}>
               <MailboxIcon width={53} height={52} />
             </View>
 
-            <Text style={[styles.title, { fontSize: responsiveDimensions.titleFontSize }]}>
-              Check Your {inputType === 'email' ? 'Mailbox' : 'Messages'}
+            <Text style={[
+              styles.title,
+              { fontSize: responsiveDimensions.titleFontSize }
+            ]}>
+              Check Your Mailbox
             </Text>
-            <Text style={[styles.description, { fontSize: responsiveDimensions.descriptionFontSize }]}>
-              Please enter the 6-digit OTP code sent to your{' '}
-              {inputType === 'email' ? 'email' : 'mobile number'} ({maskedValue})
+            <Text style={[
+              styles.description,
+              { fontSize: responsiveDimensions.descriptionFontSize }
+            ]}>
+              Please enter the 4 digit OTP code that we sent to your
+              email (**********n@gmail.com)
             </Text>
 
             {/* OTP Input Fields */}
-            <View style={[styles.otpContainer, { width: responsiveDimensions.otpContainerWidth, gap: responsiveDimensions.otpGap }]}>
+            <View style={[
+              styles.otpContainer,
+              { 
+                width: responsiveDimensions.otpContainerWidth,
+                gap: responsiveDimensions.otpGap,
+              }
+            ]}>
               {otp.map((digit, index) => (
                 <TextInput
                   key={index}
                   style={[
                     styles.otpInput,
-                    {
+                    { 
                       width: responsiveDimensions.otpBoxSize,
                       height: responsiveDimensions.otpBoxSize,
                       fontSize: responsiveDimensions.inputFontSize,
-                    },
+                    }
                   ]}
                   keyboardType="number-pad"
                   maxLength={1}
                   onChangeText={(text) => handleOtpChange(text, index)}
                   value={digit}
                   ref={inputRefs[index]}
-                  textAlign="center"
-                  selectionColor="#a95eff"
-                  editable={!isLoading}
+                  textAlign={'center'}
+                  selectionColor={'#a95eff'}
                 />
               ))}
             </View>
           </View>
         </ScrollView>
 
-        <View style={[styles.buttonContainer, { bottom: insets.bottom + responsiveDimensions.buttonBottom, paddingHorizontal: responsiveDimensions.buttonMargin }]}>
-          <TouchableOpacity
-            style={[styles.resendButton, { width: responsiveDimensions.buttonWidth, height: responsiveDimensions.buttonHeight, borderRadius: responsiveDimensions.borderRadius }]}
+        {/* Buttons at bottom - Responsive */}
+        <View style={[
+          styles.buttonContainer, 
+          { 
+            bottom: insets.bottom + responsiveDimensions.buttonBottom,
+            paddingHorizontal: responsiveDimensions.buttonMargin,
+          }
+        ]}> 
+          <TouchableOpacity 
+            style={[
+              styles.resendButton,
+              {
+                marginBottom: responsiveDimensions.gap,
+                opacity: isResending ? 0.7 : 1,
+                width: responsiveDimensions.buttonWidth,
+                height: responsiveDimensions.buttonHeight,
+                borderRadius: responsiveDimensions.borderRadius,
+              }
+            ]} 
             onPress={handleResendOTP}
-            disabled={isLoading}
+            disabled={isResending}
           >
-            <LinearGradient
-              colors={['#B15CDE', '#7952FC']}
-              start={{ x: 1, y: 0 }}
-              end={{ x: 0, y: 0 }}
-              style={[styles.resendButtonGradient, { borderRadius: responsiveDimensions.borderRadius, opacity: isLoading ? 0.7 : 1 }]}
+            <LinearGradient 
+              colors={['#B15CDE', '#7952FC']} 
+              start={{x: 1, y: 0}}
+              end={{x: 0, y: 0}}
+              style={[
+                styles.resendButtonGradient,
+                { borderRadius: responsiveDimensions.borderRadius }
+              ]}
             >
-              <Text style={styles.resendButtonText}>{isLoading ? 'Resending...' : 'Resend OTP'}</Text>
+              <Text style={styles.resendButtonText}>
+                {isResending ? 'Resending...' : 'Resend OTP'}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.confirmButton, { width: responsiveDimensions.buttonWidth, height: responsiveDimensions.buttonHeight, borderRadius: responsiveDimensions.borderRadius }]}
-            onPress={() => handleConfirm()}
-            disabled={isLoading}
+          <TouchableOpacity 
+            style={[
+              styles.confirmButton,
+              {
+                width: responsiveDimensions.buttonWidth,
+                height: responsiveDimensions.buttonHeight,
+                borderRadius: responsiveDimensions.borderRadius,
+              }
+            ]} 
+            onPress={handleConfirm}
           >
-            <Text style={styles.confirmButtonTextBorder}>{isLoading ? 'Verifying...' : 'Confirm'}</Text>
+            <Text style={styles.confirmButtonTextBorder}>Confirm</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -347,7 +275,7 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  container: { 
     flex: 1,
     backgroundColor: '#121212',
   },
@@ -365,7 +293,9 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     flexGrow: 1,
   },
-  header: {},
+  header: {
+    // paddingTop will be set dynamically with safe area insets
+  },
   contentArea: {
     flex: 1,
     justifyContent: 'flex-start',
@@ -409,6 +339,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     backgroundColor: '#1a1a1a',
+    minWidth: 44,
+    minHeight: 44,
   },
   buttonContainer: {
     position: 'absolute',
@@ -424,7 +356,6 @@ const styles = StyleSheet.create({
     gap: 10,
     alignSelf: 'stretch',
     overflow: 'hidden',
-    marginBottom: 12,
   },
   resendButtonGradient: {
     width: '100%',

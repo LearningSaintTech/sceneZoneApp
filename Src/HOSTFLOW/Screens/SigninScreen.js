@@ -270,7 +270,7 @@ const SignInScreen = ({ navigation }) => {
 
           <Text style={[styles.subtitle, { color: placeholder }]}>
             Don't have an account?{' '}
-            <Text style={styles.signup} onPress={() => navigation.navigate('HostSignup')}>
+            <Text style={styles.signup} onPress={() => navigation.navigate('Signup')}>
               Sign Up
             </Text>
           </Text>

@@ -1,562 +1,421 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  Image,
-  Alert,
-  Dimensions,
-  StatusBar,
+  ScrollView,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { toggleFavorite, selectIsFavorite } from '../Redux/slices/favoritesSlice';
 import GoogleIcon from '../assets/icons/Google';
 import AppleIcon from '../assets/icons/Apple';
 import VisaIcon from '../assets/icons/Visa';
 import MasterIcon from '../assets/icons/Mater';
+import BackButtonIcon from '../assets/icons/backbutton';
+import ArrowIcon from '../assets/icons/arrow';
 
-// Enhanced responsive system with device orientation support
-const getScreenDimensions = () => {
-  const { width, height } = Dimensions.get('window');
-  return { width, height };
+const { width, height } = Dimensions.get('window');
+const isTablet = width >= 768;
+const isSmallPhone = width < 350;
+
+const dimensions = {
+  spacing: {
+    xs: Math.max(width * 0.01, 4),
+    sm: Math.max(width * 0.02, 8),
+    md: Math.max(width * 0.03, 12),
+    lg: Math.max(width * 0.04, 16),
+    xl: Math.max(width * 0.05, 20),
+    xxl: Math.max(width * 0.06, 24),
+  },
+  fontSize: {
+    tiny: Math.max(width * 0.025, 10),
+    small: Math.max(width * 0.03, 12),
+    body: Math.max(width * 0.035, 14),
+    title: Math.max(width * 0.04, 16),
+    header: Math.max(width * 0.045, 18),
+    large: Math.max(width * 0.05, 20),
+  },
+  borderRadius: {
+    sm: Math.max(width * 0.015, 6),
+    md: Math.max(width * 0.025, 10),
+    lg: Math.max(width * 0.04, 15),
+    xl: Math.max(width * 0.06, 20),
+  },
+  buttonHeight: Math.max(height * 0.065, 50),
+  iconSize: Math.max(width * 0.06, 20),
+  cardMargin: Math.max(width * 0.04, 16),
+  iconContainerSize: Math.max(width * 0.12, 40),
 };
 
 const UserPaymentSettingsContent = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const dispatch = useDispatch();
-  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState(null);
-  const [screenData, setScreenData] = useState(getScreenDimensions());
-  
-  // Enhanced responsive system with real-time updates
-  useEffect(() => {
-    const subscription = Dimensions.addEventListener('change', ({ window }) => {
-      setScreenData({ width: window.width, height: window.height });
-    });
-    return () => subscription?.remove();
-  }, []);
-
-  // Enhanced responsive dimensions with device-specific optimization
-  const { width, height } = screenData;
-  const isTablet = width >= 768;
-  const isSmallPhone = width < 350;
-  const isLargePhone = width >= 414;
-  const isLandscape = width > height;
-  
-  // Device-specific safe area multipliers
-  const safeAreaMultiplier = {
-    top: isTablet ? 0.8 : isSmallPhone ? 1.2 : 1.0,
-    bottom: isTablet ? 0.6 : isSmallPhone ? 1.3 : 1.0,
-    horizontal: isTablet ? 0.7 : isSmallPhone ? 1.1 : 1.0,
-  };
-
-  const dimensions = {
-    spacing: {
-      xs: Math.max(width * 0.01, isSmallPhone ? 3 : 4),
-      sm: Math.max(width * 0.02, isSmallPhone ? 6 : 8),
-      md: Math.max(width * 0.03, isSmallPhone ? 10 : 12),
-      lg: Math.max(width * 0.04, isSmallPhone ? 14 : 16),
-      xl: Math.max(width * 0.05, isSmallPhone ? 18 : 20),
-      xxl: Math.max(width * 0.06, isSmallPhone ? 22 : 24),
-    },
-    fontSize: {
-      small: Math.max(width * 0.03, isSmallPhone ? 11 : 12),
-      body: Math.max(width * 0.035, isSmallPhone ? 13 : 14),
-      title: Math.max(width * 0.04, isSmallPhone ? 15 : 16),
-      header: Math.max(width * 0.045, isSmallPhone ? 17 : 18),
-      large: Math.max(width * 0.05, isSmallPhone ? 19 : 20),
-    },
-    borderRadius: {
-      sm: Math.max(width * 0.015, isSmallPhone ? 5 : 6),
-      md: Math.max(width * 0.025, isSmallPhone ? 8 : 10),
-      lg: Math.max(width * 0.04, isSmallPhone ? 12 : 15),
-    },
-    buttonHeight: Math.max(height * (isLandscape ? 0.08 : 0.06), isSmallPhone ? 48 : 50),
-    iconSize: Math.max(width * 0.06, isSmallPhone ? 22 : 24),
-    paymentIconSize: Math.max(width * 0.08, isSmallPhone ? 28 : 32),
-    cardIconContainer: Math.max(width * 0.1, isSmallPhone ? 36 : 40),
-    marginHorizontal: Math.max(width * 0.04, isSmallPhone ? 14 : 16),
-    // Enhanced safe area calculations
-    safeAreaTop: Math.max(insets.top * safeAreaMultiplier.top, isSmallPhone ? 16 : 20),
-    safeAreaBottom: Math.max(insets.bottom * safeAreaMultiplier.bottom + 20, isSmallPhone ? 25 : 30),
-    headerPadding: Math.max(insets.top * 0.3 + (isTablet ? 16 : 12), isSmallPhone ? 18 : 20),
-  };
-  
-  // Get favorite status for each payment method
-  const isGoogleFavorite = useSelector(state => selectIsFavorite(state, 'google'));
-  const isAppleFavorite = useSelector(state => selectIsFavorite(state, 'apple'));
-  const isVisaFavorite = useSelector(state => selectIsFavorite(state, 'visa'));
-  const isMastercardFavorite = useSelector(state => selectIsFavorite(state, 'mastercard'));
-
-  const handleFavoriteToggle = (paymentId) => {
-    try {
-      dispatch(toggleFavorite(paymentId));
-      navigation.navigate('UserFavorite');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update favorite status');
-      console.error('Error updating favorite:', error);
-    }
-  };
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('googlepay');
 
   return (
     <View style={[
       styles.container,
       {
-        // Enhanced safe area handling with device-specific optimization
-        paddingTop: Platform.OS === 'ios' ? 0 : Math.max(insets.top, StatusBar.currentHeight || 0),
+        paddingTop: Math.max(insets.top, 0),
       }
     ]}>
-      {/* Enhanced Header with Improved Safe Area Handling */}
+      {/* Header */}
       <View style={[
         styles.header,
         {
-          paddingTop: dimensions.headerPadding + (Platform.OS === 'ios' ? 10 : 0),
-          paddingHorizontal: dimensions.marginHorizontal,
-          paddingVertical: Math.max(dimensions.spacing.md, 12),
-          minHeight: Math.max(height * 0.08, isSmallPhone ? 60 : 70),
+          paddingTop: Math.max(dimensions.spacing.xl, 20),
+          paddingBottom: Math.max(dimensions.spacing.md, 12),
+          marginTop: Math.max(dimensions.spacing.sm, 8),
         }
       ]}>
         <TouchableOpacity 
-          onPress={() => navigation.goBack()}
           style={[
-            styles.backButton,
+            styles.backButtonContainer,
             {
-              padding: Math.max(dimensions.spacing.sm, 8),
-              borderRadius: dimensions.borderRadius.sm,
-              minWidth: Math.max(width * 0.12, 44),
-              minHeight: Math.max(width * 0.12, 44),
+              minWidth: 46,
+              minHeight: 46,
+              padding: 2
             }
           ]}
+          onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={dimensions.iconSize} color="#fff" />
+          <BackButtonIcon width={28} height={28} />
         </TouchableOpacity>
-        <Text style={[
-          styles.headerTitle,
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Payment Method</Text>
+        </View>
+        <View style={[
+          styles.headerSpacer,
           {
-            fontSize: Math.max(dimensions.fontSize.header, isTablet ? 22 : 18),
+            width: Math.max(dimensions.iconSize, 24),
           }
-        ]}>
-          Payment Settings
-        </Text>
-        <View style={{ width: Math.max(width * 0.12, 44) }} />
+        ]} />
       </View>
 
       <ScrollView 
+        style={styles.paymentMethodsContainer}
         contentContainerStyle={[
-          styles.scrollViewContent,
+          styles.scrollContent,
           {
-            paddingHorizontal: dimensions.marginHorizontal,
-            paddingTop: Math.max(dimensions.spacing.lg, 20),
-            // Enhanced bottom padding with device-specific safe area handling
-            paddingBottom: Math.max(
-              insets.bottom + (isLandscape ? 100 : 130), 
-              isSmallPhone ? 120 : isTablet ? 150 : 140
-            ),
+            paddingBottom: Math.max(insets.bottom + 120, 140),
           }
         ]}
         showsVerticalScrollIndicator={false}
-        // Enhanced scroll behavior for better responsiveness
-        bounces={Platform.OS === 'ios'}
-        overScrollMode={Platform.OS === 'android' ? 'never' : 'auto'}
+        bounces={true}
+        scrollEventThrottle={16}
       >
-        {/* Enhanced Google Pay with Improved Responsiveness */}
-        <TouchableOpacity 
+        {/* Google Pay */}
+        <TouchableOpacity
           style={[
-            styles.paymentMethodCard,
+            styles.paymentMethodCard, 
+            selectedPaymentMethod === 'googlepay' && styles.paymentMethodCardSelected,
             {
-              borderRadius: dimensions.borderRadius.md,
-              marginBottom: Math.max(dimensions.spacing.md, 10),
-              minHeight: Math.max(height * 0.1, isSmallPhone ? 85 : 95),
+              marginBottom: Math.max(dimensions.spacing.md, 12),
             }
           ]}
+          onPress={() => setSelectedPaymentMethod('googlepay')}
           activeOpacity={0.8}
         >
           <View style={[
             styles.paymentMethodContent,
             {
-              paddingVertical: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
-              paddingHorizontal: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
+              padding: Math.max(dimensions.spacing.lg, 15),
             }
           ]}>
             <View style={[
               styles.paymentIconContainer,
               {
-                width: dimensions.cardIconContainer,
-                height: dimensions.cardIconContainer,
-                marginRight: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
+                width: 34,
+                height: 34,
+                borderRadius: dimensions.iconContainerSize / 2,
+                marginRight: Math.max(dimensions.spacing.lg, 15),
               }
             ]}>
               <GoogleIcon
                 style={styles.paymentIcon}
-                width={dimensions.paymentIconSize}
-                height={dimensions.paymentIconSize}
+                width={24}
+                height={24}
               />
             </View>
             <View style={styles.paymentDetails}>
               <View style={[
                 styles.paymentMethodTitleContainer,
                 {
-                  marginBottom: Math.max(dimensions.spacing.xs, 2),
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
                 }
               ]}>
-                <Text style={[
-                  styles.paymentMethodTitle,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.title, isTablet ? 18 : 16),
-                  }
-                ]}>
-                  Google Pay
-                </Text>
+                <Text style={styles.paymentMethodTitle}>Google Pay</Text>
               </View>
               <View style={[
                 styles.paymentMethodInfoContainer,
                 {
-                  marginBottom: Math.max(dimensions.spacing.xs, 2),
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
                 }
               ]}>
-                <Text style={[
-                  styles.paymentMethodInfo,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  }
-                ]}>
-                  f************n@gmail.com
-                </Text>
+                <Text style={styles.paymentMethodInfo}>f************n@gmail.com</Text>
               </View>
-              <View style={[
-                styles.paymentMethodBalanceContainer,
-                {
-                  marginTop: Math.max(dimensions.spacing.xs, 2),
-                }
-              ]}>
-                <Text style={[
-                  styles.paymentMethodBalance,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  }
-                ]}>
-                  Balance: $1,234.00
+              <View style={styles.paymentMethodBalanceContainer}>
+                <Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>$1,234.00</Text>
                 </Text>
               </View>
             </View>
-            <View style={styles.editButtonContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.editButton,
-                  {
-                    padding: Math.max(dimensions.spacing.sm, 8),
-                    borderRadius: dimensions.borderRadius.sm,
-                    minWidth: Math.max(width * 0.15, 60),
-                    minHeight: Math.max(width * 0.1, 40),
-                  }
-                ]}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.editButtonText,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  }
-                ]}>
-                  Edit
-                </Text>
-              </TouchableOpacity>
+            <View style={[
+              styles.checkmarkContainer,
+              {
+                marginLeft: Math.max(dimensions.spacing.sm, 10),
+              }
+            ]}>
+              <ArrowIcon width={14} height={15} />
             </View>
           </View>
         </TouchableOpacity>
 
-        {/* Enhanced Apple Pay with Improved Responsiveness */}
-        <TouchableOpacity 
+        {/* Apple Pay */}
+        <TouchableOpacity
           style={[
-            styles.paymentMethodCard,
+            styles.paymentMethodCard, 
+            selectedPaymentMethod === 'applepay' && styles.paymentMethodCardSelected,
             {
-              borderRadius: dimensions.borderRadius.md,
-              marginBottom: Math.max(dimensions.spacing.md, 10),
-              minHeight: Math.max(height * 0.1, isSmallPhone ? 85 : 95),
+              marginBottom: Math.max(dimensions.spacing.md, 12),
             }
           ]}
+          onPress={() => setSelectedPaymentMethod('applepay')}
           activeOpacity={0.8}
         >
           <View style={[
             styles.paymentMethodContent,
             {
-              paddingVertical: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
-              paddingHorizontal: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
+              padding: Math.max(dimensions.spacing.lg, 15),
             }
           ]}>
             <View style={[
               styles.paymentIconContainer,
               {
-                width: dimensions.cardIconContainer,
-                height: dimensions.cardIconContainer,
-                marginRight: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
+                width: 34,
+                height: 34,
+                borderRadius: dimensions.iconContainerSize / 2,
+                marginRight: Math.max(dimensions.spacing.lg, 15),
               }
             ]}>
               <AppleIcon
                 style={styles.paymentIcon}
-                width={dimensions.paymentIconSize}
-                height={dimensions.paymentIconSize}
+                width={24}
+                height={24}
               />
             </View>
             <View style={styles.paymentDetails}>
               <View style={[
                 styles.paymentMethodTitleContainer,
                 {
-                  marginBottom: Math.max(dimensions.spacing.xs, 2),
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
                 }
               ]}>
-                <Text style={[
-                  styles.paymentMethodTitle,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.title, isTablet ? 18 : 16),
-                  }
-                ]}>
-                  Apple Pay
-                </Text>
+                <Text style={styles.paymentMethodTitle}>Apple Pay</Text>
               </View>
               <View style={[
                 styles.paymentMethodInfoContainer,
                 {
-                  marginBottom: Math.max(dimensions.spacing.xs, 2),
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
                 }
               ]}>
-                <Text style={[
-                  styles.paymentMethodInfo,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  }
-                ]}>
-                  f************n@gmail.com
-                </Text>
+                <Text style={styles.paymentMethodInfo}>f************n@gmail.com</Text>
               </View>
-              <View style={[
-                styles.paymentMethodBalanceContainer,
-                {
-                  marginTop: Math.max(dimensions.spacing.xs, 2),
-                }
-              ]}>
-                <Text style={[
-                  styles.paymentMethodBalance,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  }
-                ]}>
-                  Balance: $2,766.00
+              <View style={styles.paymentMethodBalanceContainer}>
+                <Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>$2,766.00</Text>
                 </Text>
               </View>
             </View>
-            <View style={styles.editButtonContainer}>
-              <TouchableOpacity 
-                style={[
-                  styles.editButton,
-                  {
-                    padding: Math.max(dimensions.spacing.sm, 8),
-                    borderRadius: dimensions.borderRadius.sm,
-                    minWidth: Math.max(width * 0.15, 60),
-                    minHeight: Math.max(width * 0.1, 40),
-                  }
-                ]}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.editButtonText,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  }
-                ]}>
-                  Edit
-                </Text>
-              </TouchableOpacity>
+            <View style={[
+              styles.checkmarkContainer,
+              {
+                marginLeft: Math.max(dimensions.spacing.sm, 10),
+              }
+            ]}>
+              <ArrowIcon width={14} height={15} />
             </View>
           </View>
         </TouchableOpacity>
 
-        {/* Enhanced Visa Card with Superior Responsiveness */}
-        <TouchableOpacity 
+        {/* Visa */}
+        <TouchableOpacity
           style={[
-            styles.paymentMethodItem,
+            styles.paymentMethodCard, 
+            selectedPaymentMethod === 'visa' && styles.paymentMethodCardSelected,
             {
-              borderRadius: dimensions.borderRadius.md,
-              marginBottom: Math.max(dimensions.spacing.md, 10),
-              minHeight: Math.max(height * 0.1, isSmallPhone ? 85 : 95),
+              marginBottom: Math.max(dimensions.spacing.md, 12),
             }
           ]}
-          onPress={() => setSelectedPaymentMethodId('visa')}
+          onPress={() => setSelectedPaymentMethod('visa')}
           activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={['#B15CDE', '#7952FC']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.paymentMethodBackground, selectedPaymentMethodId !== 'visa' && { opacity: 0 }]}
-          />
           <View style={[
             styles.paymentMethodContent,
             {
-              paddingVertical: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
-              paddingHorizontal: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
+              padding: Math.max(dimensions.spacing.lg, 15),
             }
           ]}>
             <View style={[
-              styles.paymentMethodIconContainer,
+              styles.paymentIconContainer,
               {
-                width: dimensions.cardIconContainer,
-                height: dimensions.cardIconContainer,
-                marginRight: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
+                width:34,
+                height: 34,
+                borderRadius: dimensions.iconContainerSize / 2,
+                marginRight: Math.max(dimensions.spacing.lg, 15),
               }
             ]}>
               <VisaIcon
-                width={Math.max(dimensions.paymentIconSize * 1.25, isSmallPhone ? 35 : 40)}
-                height={Math.max(dimensions.paymentIconSize * 0.5, isSmallPhone ? 14 : 16)}
+                style={styles.paymentIcon}
+                width={24}
+                height={24}
               />
             </View>
-            <View style={styles.paymentMethodDetails}>
-              <Text style={[
-                styles.paymentMethodTitle,
+            <View style={styles.paymentDetails}>
+              <View style={[
+                styles.paymentMethodTitleContainer,
                 {
-                  fontSize: Math.max(dimensions.fontSize.title, isTablet ? 18 : 16),
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
                 }
               ]}>
-                Visa
-              </Text>
-              <Text style={[
-                styles.paymentMethodInfo,
+                <Text style={styles.paymentMethodTitle}>Visa</Text>
+              </View>
+              <View style={[
+                styles.paymentMethodInfoContainer,
                 {
-                  fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  marginTop: Math.max(dimensions.spacing.xs, 2),
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
                 }
               ]}>
-                **** **** **** 1234
-              </Text>
-              <Text style={[
-                styles.paymentMethodBalance,
-                {
-                  fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  marginTop: Math.max(dimensions.spacing.xs, 2),
-                }
-              ]}>
-                Balance: <Text style={{color: '#a95eff'}}>$1,876,766.00</Text>
-              </Text>
+                <Text style={styles.paymentMethodInfo}>**** **** **** 1234</Text>
+              </View>
+              <View style={styles.paymentMethodBalanceContainer}>
+                <Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>$1,876,766.00</Text>
+                </Text>
+              </View>
             </View>
-            <MaterialIcons 
-              name="chevron-right" 
-              size={dimensions.iconSize} 
-              color="#555" 
-            />
+            <View style={[
+              styles.checkmarkContainer,
+              {
+                marginLeft: Math.max(dimensions.spacing.sm, 10),
+              }
+            ]}>
+              <ArrowIcon width={14} height={15} />
+            </View>
           </View>
         </TouchableOpacity>
 
-        {/* Enhanced Master Card with Superior Responsiveness */}
-        <TouchableOpacity 
+        {/* Master Card */}
+        <TouchableOpacity
           style={[
-            styles.paymentMethodItem,
+            styles.paymentMethodCard, 
+            selectedPaymentMethod === 'mastercard' && styles.paymentMethodCardSelected,
             {
-              borderRadius: dimensions.borderRadius.md,
-              marginBottom: Math.max(dimensions.spacing.md, 10),
-              minHeight: Math.max(height * 0.1, isSmallPhone ? 85 : 95),
+              marginBottom: Math.max(dimensions.spacing.md, 12),
             }
           ]}
-          onPress={() => setSelectedPaymentMethodId('mastercard')}
+          onPress={() => setSelectedPaymentMethod('mastercard')}
           activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={['#B15CDE', '#7952FC']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.paymentMethodBackground, selectedPaymentMethodId !== 'mastercard' && { opacity: 0 }]}
-          />
           <View style={[
             styles.paymentMethodContent,
             {
-              paddingVertical: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
-              paddingHorizontal: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
+              padding: Math.max(dimensions.spacing.lg, 15),
             }
           ]}>
             <View style={[
-              styles.paymentMethodIconContainer,
+              styles.paymentIconContainer,
               {
-                width: dimensions.cardIconContainer,
-                height: dimensions.cardIconContainer,
-                marginRight: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
+                width: 34,
+                height: 34,
+                borderRadius: dimensions.iconContainerSize / 2,
+                marginRight: Math.max(dimensions.spacing.lg, 15),
               }
             ]}>
               <MasterIcon
-                width={dimensions.paymentIconSize}
-                height={dimensions.paymentIconSize}
+                style={styles.paymentIcon}
+                width={24}
+                height={24}
               />
             </View>
-            <View style={styles.paymentMethodDetails}>
-              <Text style={[
-                styles.paymentMethodTitle,
+            <View style={styles.paymentDetails}>
+              <View style={[
+                styles.paymentMethodTitleContainer,
                 {
-                  fontSize: Math.max(dimensions.fontSize.title, isTablet ? 18 : 16),
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
                 }
               ]}>
-                Master Card
-              </Text>
-              <Text style={[
-                styles.paymentMethodInfo,
+                <Text style={styles.paymentMethodTitle}>Master Card</Text>
+              </View>
+              <View style={[
+                styles.paymentMethodInfoContainer,
                 {
-                  fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  marginTop: Math.max(dimensions.spacing.xs, 2),
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
                 }
               ]}>
-                **** **** **** 1234
-              </Text>
-              <Text style={[
-                styles.paymentMethodBalance,
-                {
-                  fontSize: Math.max(dimensions.fontSize.body, isTablet ? 16 : 14),
-                  marginTop: Math.max(dimensions.spacing.xs, 2),
-                }
-              ]}>
-                Balance: <Text style={{color: '#a95eff'}}>$2,876,766.00</Text>
-              </Text>
+                <Text style={styles.paymentMethodInfo}>**** **** **** 1234</Text>
+              </View>
+              <View style={styles.paymentMethodBalanceContainer}>
+                <Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>$2,876,766.00</Text>
+                </Text>
+              </View>
             </View>
-            <MaterialIcons 
-              name="chevron-right" 
-              size={dimensions.iconSize} 
-              color="#555" 
-            />
+            <View style={[
+              styles.checkmarkContainer,
+              {
+                marginLeft: Math.max(dimensions.spacing.sm, 10),
+              }
+            ]}>
+              <ArrowIcon width={14} height={15} />
+            </View>
           </View>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Enhanced Add Payment Method Button with Superior Safe Area Handling */}
-      <TouchableOpacity 
-        style={[
-          styles.addPaymentButton,
-          {
-            marginHorizontal: dimensions.marginHorizontal,
-            borderRadius: dimensions.borderRadius.md,
-            // Enhanced bottom safe area with device-specific optimization
-            marginBottom: dimensions.safeAreaBottom,
-            minHeight: Math.max(dimensions.buttonHeight, isTablet ? 60 : 54),
-            backgroundColor: '#B15CDE',
-            paddingVertical: Math.max(dimensions.spacing.lg, isSmallPhone ? 12 : 15),
-            alignItems: 'center',
-            justifyContent: 'center',
-          }
-        ]} 
-        onPress={() => navigation.navigate('AddPaymentMethodScreen')}
-        activeOpacity={0.8}
-      >
-        <Text style={[
-          styles.addPaymentButtonText,
-          {
-            fontSize: Math.max(dimensions.fontSize.header, isTablet ? 20 : 18),
-          }
-        ]}>
-          Add Payment Method
-        </Text>
-      </TouchableOpacity>
+      {/* Add Payment Method Button */}
+      <View style={[
+        styles.buttonContainer,
+        {
+          padding: dimensions.cardMargin,
+          marginBottom: Math.max(insets.bottom + 20, 30),
+        }
+      ]}>
+        <LinearGradient
+          colors={['#B15CDE', '#7952FC']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.confirmButtonGradient,
+            {
+              borderRadius: dimensions.borderRadius.lg,
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('AddPaymentMethodScreen')} 
+            style={[
+              styles.confirmButton,
+              {
+                paddingVertical: Math.max(dimensions.spacing.lg, 15),
+                minHeight: Math.max(dimensions.buttonHeight, 54),
+              }
+            ]}
+            activeOpacity={0.9}
+          >
+            <View style={styles.confirmButtonTextContainer}>
+              <Text style={styles.confirmButtonText}>Add Payment Method</Text>
+            </View>
+          </TouchableOpacity>
+        </LinearGradient>
+      </View>
     </View>
   );
 };
@@ -575,138 +434,154 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
+    display: 'flex',
+    width: 393,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingLeft: 16,
+    paddingRight: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 16,
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderColor: '#333',
   },
-  backButton: {
-    // Enhanced touch target for better accessibility
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
+  backButtonContainer: {
+    padding: Math.max(dimensions.spacing.xs, 4),
+    borderRadius: dimensions.borderRadius.md,
     justifyContent: 'center',
-  },
-  headerTitle: {
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    flex: 1,
-  },
-  scrollViewContent: {
-    flexGrow: 1,
-  },
-  paymentMethodItem: {
-    overflow: 'hidden',
-    backgroundColor: '#1a1a1a',
-    // Enhanced shadow
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.5,
+    shadowRadius: 2,
     elevation: 2,
   },
-  paymentMethodBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerSpacer: {},
+  headerTitle: {
+    color: '#C6C5ED',
+    fontFamily: 'Nunito Sans',
+    fontSize: 16,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    lineHeight: 24,
+    overflow: 'hidden',
+    marginRight:120,
+  },
+  paymentMethodsContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: dimensions.cardMargin,
+    paddingTop: Math.max(dimensions.spacing.lg, 16),
+  },
+  paymentMethodCard: {
+    display: 'flex',
+    height: 110,
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+    minHeight: 0,
+    alignSelf: 'stretch',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#34344A',
+    backgroundColor: '#1A1A1F',
+    overflow: 'hidden',
+  },
+  paymentMethodCardSelected: {
+    borderWidth: 1,
+    borderColor: '#B15CDE',
+    backgroundColor: '#1A1A1F',
   },
   paymentMethodContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    position: 'relative',
+    zIndex: 1,
   },
-  paymentMethodIconContainer: {
+  paymentIconContainer: {
+    backgroundColor: '#191919',
+    width: 22,
+    height: 22,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
-  paymentMethodIcon: {
-    width: '100%',
-    height: '100%',
+  paymentIcon: {},
+  paymentDetails: {
+    flex: 2,
   },
-  paymentMethodDetails: {
-    flex: 1,
-  },
+  paymentMethodTitleContainer: {},
   paymentMethodTitle: {
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  paymentMethodInfo: {
-    color: '#aaa',
-  },
-  paymentMethodBalance: {
-    color: '#aaa',
-  },
-  addPaymentButton: {
+    color: '#C6C5ED',
+    fontFamily: 'Nunito Sans',
+    fontSize: 12,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    lineHeight: 21,
     overflow: 'hidden',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    // Enhanced shadow for button prominence
+  },
+  paymentMethodInfoContainer: {},
+  paymentMethodInfo: {
+    color: '#7A7A90',
+    fontFamily: 'Nunito Sans',
+    fontSize: 12,
+    fontStyle: 'normal',
+    fontWeight: '400',
+    lineHeight: 21,
+    overflow: 'hidden',
+  },
+  paymentMethodBalanceContainer: {},
+  paymentMethodBalanceLabel: {
+    color: '#B4B4C1',
+    fontFamily: 'Nunito Sans',
+    fontSize: 10,
+    fontStyle: 'normal',
+    fontWeight: '400',
+    lineHeight: 18,
+    overflow: 'hidden',
+  },
+  paymentMethodBalanceValue: {
+    color: '#8D6BFC',
+    fontFamily: 'Nunito Sans',
+    fontSize: 12,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    lineHeight: 21,
+    overflow: 'hidden',
+  },
+  checkmarkContainer: {},
+  buttonContainer: {},
+  confirmButtonGradient: {
+    overflow: 'hidden',
     shadowColor: '#7952FC',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
   },
-  gradientButton: {
+  confirmButton: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addPaymentButtonText: {
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  heartIconPlaceholder: {
-    padding: 8,
-    marginRight: 8,
-  },
-  paymentMethodCard: {
-    overflow: 'hidden',
-    backgroundColor: '#1a1a1a',
-    // Enhanced shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  paymentIconContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  paymentDetails: {
-    flex: 1,
-  },
-  paymentMethodTitleContainer: {
-    // Margin handled dynamically
-  },
-  paymentMethodInfoContainer: {
-    // Margin handled dynamically
-  },
-  paymentMethodBalanceContainer: {
-    // Margin handled dynamically
-  },
-  editButtonContainer: {
-    marginLeft: 'auto',
-  },
-  editButton: {
-    // Enhanced touch target for better accessibility
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editButtonText: {
-    fontWeight: 'bold',
-    color: '#fff',
+  confirmButtonTextContainer: {},
+  confirmButtonText: {
+    color: '#FFF',
+    textAlign: 'center',
+    fontFamily: 'Nunito Sans',
+    fontSize: 14,
+    fontStyle: 'normal',
+    fontWeight: '500',
+    lineHeight: 21,
   },
 });
 

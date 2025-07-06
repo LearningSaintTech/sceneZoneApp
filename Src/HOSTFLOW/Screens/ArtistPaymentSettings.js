@@ -1,14 +1,26 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Dimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/Feather';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  Dimensions,
+} from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
+import GoogleIcon from '../assets/icons/Google';
+import AppleIcon from '../assets/icons/Apple';
+import VisaIcon from '../assets/icons/Visa';
+import MasterIcon from '../assets/icons/Mater';
+import BackButtonIcon from '../assets/icons/backbutton';
+import ArrowIcon from '../assets/icons/arrow';
 
 const { width, height } = Dimensions.get('window');
 
-// Responsive dimensions system for all Android devices
+// Enhanced responsive dimensions system for all Android devices
 const isTablet = width >= 768;
 const isSmallPhone = width < 350;
 
@@ -30,88 +42,404 @@ const dimensions = {
     large: Math.max(width * 0.05, 20),
   },
   borderRadius: {
-    sm: Math.max(width * 0.015, 5),
-    md: Math.max(width * 0.025, 10),  
-    lg: Math.max(width * 0.04, 16),
-    xl: Math.max(width * 0.05, 20),
+    sm: Math.max(width * 0.015, 6),
+    md: Math.max(width * 0.025, 10),
+    lg: Math.max(width * 0.04, 15),
+    xl: Math.max(width * 0.06, 20),
   },
-  buttonHeight: Math.max(height * 0.06, 44),
+  buttonHeight: Math.max(height * 0.065, 50),
   iconSize: Math.max(width * 0.06, 20),
-  inputHeight: Math.max(height * 0.055, 44),
-  headerHeight: Math.max(height * 0.08, 60),
-  qrCodeHeight: Math.max(height * 0.18, 150),
+  cardMargin: Math.max(width * 0.04, 16),
+  iconContainerSize: Math.max(width * 0.12, 40),
 };
 
-const ArtistPaymentSettingsScreen = ({ navigation }) => {
+const ArtistAddPayment = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('googlepay'); // Default selected
+
+  // Get booking details from navigation parameters
+  const { bookingDetails } = route.params || {};
+
+  const handleConfirmPayment = () => {
+    // Implement payment confirmation logic here
+    console.log('Confirming payment with:', selectedPaymentMethod);
+    // Navigation removed as per request
+  };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-left" size={dimensions.iconSize} color="#fff" />
+    <View style={[
+      styles.container,
+      {
+        // Comprehensive safe area handling for main container
+        paddingTop: Math.max(insets.top, 0),
+      }
+    ]}>
+      {/* Enhanced Header with comprehensive safe area handling */}
+      <View style={[
+        styles.header,
+        {
+          // Dynamic header positioning based on safe area
+          paddingTop: Math.max(dimensions.spacing.xl, 20),
+          paddingBottom: Math.max(dimensions.spacing.md, 12),
+          marginTop: Math.max(dimensions.spacing.sm, 8),
+        }
+      ]}>
+        <TouchableOpacity 
+          style={[
+            styles.backButtonContainer,
+            {
+              minWidth: 46,
+              minHeight: 46,
+              padding: 2
+            }
+          ]}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <BackButtonIcon width={28} height={28} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payment Settings</Text>
-      </View>
-      <ScrollView 
-        style={styles.scrollViewContent}
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 20, 40) }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* UPI ID */}
-        <Text style={styles.label}>UPI ID</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="user01@ybl"
-          placeholderTextColor="#aaa"
-        />
-
-        {/* Account Number */}
-        <Text style={styles.label}>Account Number</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="1234 5678 9012 3456"
-          placeholderTextColor="#aaa"
-          keyboardType="numeric"
-        />
-
-        {/* Account Holder and IFSC */}
-        <View style={styles.row}>
-          <View style={styles.halfInputContainer}>
-            <Text style={styles.label}>Account Holder</Text>
-            <TextInput
-              style={styles.halfInput}
-              placeholder="User 001"
-              placeholderTextColor="#aaa"
-            />
-          </View>
-          <View style={styles.halfInputContainer}>
-            <Text style={styles.label}>IFSC</Text>
-            <TextInput
-              style={styles.halfInput}
-              placeholder="BKYD"
-              placeholderTextColor="#aaa"
-            />
-          </View>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Payment Method</Text>
         </View>
+        <View style={[
+          styles.headerSpacer,
+          {
+            width: Math.max(dimensions.iconSize, 24),
+          }
+        ]} />
+      </View>
 
-        {/* Upload QR Code */}
-        <Text style={styles.label}>Upload Your QR Code</Text>
-        <TouchableOpacity style={styles.uploadQrCodeContainer}>
-          <View style={styles.uploadQrCodeContent}>
-            <Ionicons name="camera-outline" size={Math.max(dimensions.iconSize * 1.4, 28)} color="#a95eff" />
-            <Text style={styles.uploadQrCodeText}>Upload QR Code</Text>
+      <ScrollView 
+        style={styles.paymentMethodsContainer}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            // Enhanced content padding with proper safe area consideration
+            paddingBottom: Math.max(insets.bottom + 120, 140),
+          }
+        ]}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        scrollEventThrottle={16}
+      >
+        {/* Enhanced Google Pay with responsive design */}
+        <TouchableOpacity
+          style={[
+            styles.paymentMethodCard, 
+            selectedPaymentMethod === 'googlepay' && styles.paymentMethodCardSelected,
+            {
+              marginBottom: Math.max(dimensions.spacing.md, 12),
+            }
+          ]}
+          onPress={() => setSelectedPaymentMethod('googlepay')}
+          activeOpacity={0.8}
+        >
+          <View style={[
+            styles.paymentMethodContent,
+            {
+              padding: Math.max(dimensions.spacing.lg, 15),
+            }
+          ]}>
+            <View style={[
+              styles.paymentIconContainer,
+              {
+                width: 34,
+                height: 34,
+                borderRadius: dimensions.iconContainerSize / 2,
+                marginRight: Math.max(dimensions.spacing.lg, 15),
+              }
+            ]}>
+              <GoogleIcon
+                style={styles.paymentIcon}
+                width={24}
+                height={24}
+              />
+            </View>
+            <View style={styles.paymentDetails}>
+              <View style={[
+                styles.paymentMethodTitleContainer,
+                {
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
+                }
+              ]}>
+                <Text style={styles.paymentMethodTitle}>Google Pay</Text>
+              </View>
+              <View style={[
+                styles.paymentMethodInfoContainer,
+                {
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
+                }
+              ]}>
+                <Text style={styles.paymentMethodInfo}>f************n@gmail.com</Text>
+              </View>
+              <View style={styles.paymentMethodBalanceContainer}>
+                <Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>$1,234.00</Text>
+                </Text>
+              </View>
+            </View>
+            <View style={[
+              styles.checkmarkContainer,
+              {
+                marginLeft: Math.max(dimensions.spacing.sm, 10),
+              }
+            ]}>
+              <ArrowIcon width={14} height={15} />
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Enhanced Apple Pay with responsive design */}
+        <TouchableOpacity
+          style={[
+            styles.paymentMethodCard, 
+            selectedPaymentMethod === 'applepay' && styles.paymentMethodCardSelected,
+            {
+              marginBottom: Math.max(dimensions.spacing.md, 12),
+            }
+          ]}
+          onPress={() => setSelectedPaymentMethod('applepay')}
+          activeOpacity={0.8}
+        >
+          <View style={[
+            styles.paymentMethodContent,
+            {
+              padding: Math.max(dimensions.spacing.lg, 15),
+            }
+          ]}>
+            <View style={[
+              styles.paymentIconContainer,
+              {
+                width: 34,
+                height: 34,
+                borderRadius: dimensions.iconContainerSize / 2,
+                marginRight: Math.max(dimensions.spacing.lg, 15),
+              }
+            ]}>
+              <AppleIcon
+                style={styles.paymentIcon}
+                width={24}
+                height={24}
+              />
+            </View>
+            <View style={styles.paymentDetails}>
+              <View style={[
+                styles.paymentMethodTitleContainer,
+                {
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
+                }
+              ]}>
+                <Text style={styles.paymentMethodTitle}>Apple Pay</Text>
+              </View>
+              <View style={[
+                styles.paymentMethodInfoContainer,
+                {
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
+                }
+              ]}>
+                <Text style={styles.paymentMethodInfo}>f************n@gmail.com</Text>
+              </View>
+              <View style={styles.paymentMethodBalanceContainer}>
+                <Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>$2,766.00</Text>
+                </Text>
+              </View>
+            </View>
+            <View style={[
+              styles.checkmarkContainer,
+              {
+                marginLeft: Math.max(dimensions.spacing.sm, 10),
+              }
+            ]}>
+              <ArrowIcon width={14} height={15} />
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Enhanced Visa with proper icon replacement */}
+        <TouchableOpacity
+          style={[
+            styles.paymentMethodCard, 
+            selectedPaymentMethod === 'visa' && styles.paymentMethodCardSelected,
+            {
+              marginBottom: Math.max(dimensions.spacing.md, 12),
+            }
+          ]}
+          onPress={() => setSelectedPaymentMethod('visa')}
+          activeOpacity={0.8}
+        >
+          <View style={[
+            styles.paymentMethodContent,
+            {
+              padding: Math.max(dimensions.spacing.lg, 15),
+            }
+          ]}>
+            <View style={[
+              styles.paymentIconContainer,
+              {
+                width:34,
+                height: 34,
+                borderRadius: dimensions.iconContainerSize / 2,
+                marginRight: Math.max(dimensions.spacing.lg, 15),
+              }
+            ]}>
+              <VisaIcon
+                style={styles.paymentIcon}
+                width={24}
+                height={24}
+              />
+            </View>
+            <View style={styles.paymentDetails}>
+              <View style={[
+                styles.paymentMethodTitleContainer,
+                {
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
+                }
+              ]}>
+                <Text style={styles.paymentMethodTitle}>Visa</Text>
+              </View>
+              <View style={[
+                styles.paymentMethodInfoContainer,
+                {
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
+                }
+              ]}>
+                <Text style={styles.paymentMethodInfo}>**** **** **** 1234</Text>
+              </View>
+              <View style={styles.paymentMethodBalanceContainer}>
+                <Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>$1,876,766.00</Text>
+                </Text>
+              </View>
+            </View>
+            <View style={[
+              styles.checkmarkContainer,
+              {
+                marginLeft: Math.max(dimensions.spacing.sm, 10),
+              }
+            ]}>
+              <ArrowIcon width={14} height={15} />
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Enhanced Master Card with proper icon replacement */}
+        <TouchableOpacity
+          style={[
+            styles.paymentMethodCard, 
+            selectedPaymentMethod === 'mastercard' && styles.paymentMethodCardSelected,
+            {
+              marginBottom: Math.max(dimensions.spacing.md, 12),
+            }
+          ]}
+          onPress={() => setSelectedPaymentMethod('mastercard')}
+          activeOpacity={0.8}
+        >
+          <View style={[
+            styles.paymentMethodContent,
+            {
+              padding: Math.max(dimensions.spacing.lg, 15),
+            }
+          ]}>
+            <View style={[
+              styles.paymentIconContainer,
+              {
+                width: 34,
+                height: 34,
+                borderRadius: dimensions.iconContainerSize / 2,
+                marginRight: Math.max(dimensions.spacing.lg, 15),
+              }
+            ]}>
+              <MasterIcon
+                style={styles.paymentIcon}
+                width={24}
+                height={24}
+              />
+            </View>
+            <View style={styles.paymentDetails}>
+              <View style={[
+                styles.paymentMethodTitleContainer,
+                {
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
+                }
+              ]}>
+                <Text style={styles.paymentMethodTitle}>Master Card</Text>
+              </View>
+              <View style={[
+                styles.paymentMethodInfoContainer,
+                {
+                  marginBottom: Math.max(dimensions.spacing.xs, 4),
+                }
+              ]}>
+                <Text style={styles.paymentMethodInfo}>**** **** **** 1234</Text>
+              </View>
+              <View style={styles.paymentMethodBalanceContainer}>
+                <Text>
+                  <Text style={styles.paymentMethodBalanceLabel}>Balance </Text>
+                  <Text style={styles.paymentMethodBalanceValue}>$2,876,766.00</Text>
+                </Text>
+              </View>
+            </View>
+            <View style={[
+              styles.checkmarkContainer,
+              {
+                marginLeft: Math.max(dimensions.spacing.sm, 10),
+              }
+            ]}>
+              <ArrowIcon width={14} height={15} />
+            </View>
           </View>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Save Details Button - Updated to match UserProfile style */}
-      <View style={styles.saveButtonContainer}>
-        <TouchableOpacity style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>Save Details</Text>
-        </TouchableOpacity>
+      {/* Enhanced Confirm Payment Button with comprehensive safe area handling */}
+      <View style={[
+        styles.buttonContainer,
+        {
+          padding: dimensions.cardMargin,
+          marginBottom: Math.max(insets.bottom + 20, 30),
+        }
+      ]}>
+        <LinearGradient
+          colors={['#B15CDE', '#7952FC']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.confirmButtonGradient,
+            {
+              borderRadius: dimensions.borderRadius.lg,
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('HostAddPayment')} 
+            style={[
+              styles.confirmButton,
+              {
+                paddingVertical: Math.max(dimensions.spacing.lg, 15),
+                minHeight: Math.max(dimensions.buttonHeight, 54),
+              }
+            ]}
+            activeOpacity={0.9}
+          >
+            <View style={styles.confirmButtonTextContainer}>
+              <Text style={styles.confirmButtonText}>Add Payment Method</Text>
+            </View>
+          </TouchableOpacity>
+        </LinearGradient>
       </View>
     </View>
+  );
+};
+
+const HostShortBookPaymentMethodScreen = ({ navigation, route }) => {
+  return (
+    <SafeAreaProvider>
+      <HostShortBookPaymentMethodContent navigation={navigation} route={route} />
+    </SafeAreaProvider>
   );
 };
 
@@ -121,101 +449,174 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
+    display: 'flex',
+    width: 393,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingLeft: 16,
+    paddingRight: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: dimensions.spacing.lg,
-    paddingVertical: dimensions.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    minHeight: dimensions.headerHeight,
+    gap: 16,
+    justifyContent: 'space-between',
   },
-  backButton: {
-    minWidth: dimensions.iconSize,
-    minHeight: dimensions.iconSize,
+  backButtonContainer: {
+    padding: Math.max(dimensions.spacing.xs, 4),
+    borderRadius: dimensions.borderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: dimensions.spacing.xs,
+    // Enhanced shadow for better visual feedback
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.5,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerSpacer: {
+    // Dynamic width set in component
   },
   headerTitle: {
-    fontSize: dimensions.fontSize.header,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginLeft: dimensions.spacing.lg,
+    color: '#C6C5ED',
+    fontFamily: 'Nunito Sans',
+    fontSize: 16,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    lineHeight: 24,
+    overflow: 'hidden',
+    marginRight:120,
   },
-  scrollViewContent: {
-    paddingHorizontal: dimensions.spacing.lg,
-    paddingVertical: dimensions.spacing.xl,
-  },
-  label: {
-    fontSize: dimensions.fontSize.body,
-    color: '#aaa',
-    marginBottom: dimensions.spacing.sm,
-    fontWeight: '500',
-  },
-  input: {
-    backgroundColor: '#1a1a1a',
-    color: '#fff',
-    borderRadius: dimensions.borderRadius.md,
-    paddingHorizontal: dimensions.spacing.lg,
-    paddingVertical: dimensions.spacing.md,
-    fontSize: dimensions.fontSize.title,
-    marginBottom: dimensions.spacing.xl,
-    minHeight: dimensions.inputHeight,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: dimensions.spacing.xl,
-    gap: dimensions.spacing.md,
-  },
-  halfInputContainer: {
+  paymentMethodsContainer: {
     flex: 1,
   },
-  halfInput: {
-    backgroundColor: '#1a1a1a',
-    color: '#fff',
-    borderRadius: dimensions.borderRadius.md,
-    paddingHorizontal: dimensions.spacing.lg,
-    paddingVertical: dimensions.spacing.md,
-    fontSize: dimensions.fontSize.title,
-    minHeight: dimensions.inputHeight,
+  scrollContent: {
+    paddingHorizontal: dimensions.cardMargin,
+    paddingTop: Math.max(dimensions.spacing.lg, 16),
   },
-  uploadQrCodeContainer: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: dimensions.borderRadius.md,
+  paymentMethodCard: {
+    display: 'flex',
+    height: 110,
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+    minHeight: 0,
+    alignSelf: 'stretch',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#a95eff',
-    height: dimensions.qrCodeHeight,
+    borderColor: '#34344A',
+    backgroundColor: '#1A1A1F',
+    overflow: 'hidden',
+  },
+  paymentMethodCardSelected: {
+    borderWidth: 1,
+    borderColor: '#B15CDE',
+    backgroundColor: '#1A1A1F',
+  },
+  paymentMethodContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative', // Needed for zIndex to make content visible over gradient
+    zIndex: 1, // Ensure content is above gradient
+  },
+  paymentIconContainer: {
+    backgroundColor: '#191919',
+    width: 22,
+    height: 22,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: dimensions.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
   },
-  uploadQrCodeContent: {
+  paymentIcon: {
+   
+  },
+  paymentDetails: {
+    flex: 2, // Take available space
+  },
+  paymentMethodTitleContainer: {
+    // Margin set in component
+  },
+  paymentMethodTitle: {
+    color: '#C6C5ED',
+    fontFamily: 'Nunito Sans',
+    fontSize: 12,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    lineHeight: 21,
+    overflow: 'hidden',
+  },
+  paymentMethodInfoContainer: {
+    // Margin set in component
+  },
+  paymentMethodInfo: {
+    color: '#7A7A90',
+    fontFamily: 'Nunito Sans',
+    fontSize: 12,
+    fontStyle: 'normal',
+    fontWeight: '400',
+    lineHeight: 21,
+    overflow: 'hidden',
+  },
+  paymentMethodBalanceContainer: {
+    // No additional styling needed
+  },
+  paymentMethodBalanceLabel: {
+    color: '#B4B4C1',
+    fontFamily: 'Nunito Sans',
+    fontSize: 10,
+    fontStyle: 'normal',
+    fontWeight: '400',
+    lineHeight: 18,
+    overflow: 'hidden',
+  },
+  paymentMethodBalanceValue: {
+    color: '#8D6BFC',
+    fontFamily: 'Nunito Sans',
+    fontSize: 12,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    lineHeight: 21,
+    overflow: 'hidden',
+    
+  },
+  checkmarkContainer: {
+    // Margin set in component
+  },
+  buttonContainer: {
+    // Padding and margin set in component
+  },
+  confirmButtonGradient: {
+    overflow: 'hidden',
+    // Enhanced shadow for better visual prominence
+    shadowColor: '#7952FC',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  confirmButton: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  uploadQrCodeText: {
-    fontSize: dimensions.fontSize.title,
-    color: '#a95eff',
-    marginTop: dimensions.spacing.sm,
+  confirmButtonTextContainer: {
+    // No additional styling needed
+  },
+  confirmButtonText: {
+    color: '#FFF',
+    textAlign: 'center',
+    fontFamily: 'Nunito Sans',
+    fontSize: 14,
+    fontStyle: 'normal',
     fontWeight: '500',
-  },
-  saveButtonContainer: {
-    paddingHorizontal: dimensions.spacing.lg,
-    paddingBottom: Math.max(dimensions.spacing.xl, 20),
-  },
-  saveButton: {
-    paddingVertical: dimensions.spacing.lg,
-    alignItems: 'center',
-    borderRadius: dimensions.borderRadius.md,
-    borderWidth: 1,
-    borderColor: '#a95eff',
-    backgroundColor: 'transparent',
-  },
-  saveButtonText: {
-    fontSize: dimensions.fontSize.header,
-    fontWeight: 'bold',
-    color: '#a95eff',
+    lineHeight: 21,
   },
 });
 
-export default ArtistPaymentSettingsScreen;
+export default ArtistAddPayment; 

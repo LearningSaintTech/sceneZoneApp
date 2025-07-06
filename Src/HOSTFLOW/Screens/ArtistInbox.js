@@ -1,363 +1,179 @@
-// import React, { useState } from 'react';
-// import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, TextInput, Image, Switch } from 'react-native';
-// import Icon from 'react-native-vector-icons/Feather';
-// import Ionicons from 'react-native-vector-icons/Ionicons';
-
-// const messagesData = [
-//   {
-//     id: '1',
-//     image: null, // Placeholder image
-//     name: 'Maya',
-//     lastMessage: '$7500',
-//     unreadCount: 3,
-//   },
-//   {
-//     id: '2',
-//     image: null, // Placeholder image
-//     name: 'Sophia',
-//     lastMessage: '800',
-//     unreadCount: 2,
-//   },
-//   {
-//     id: '3',
-//     image: null, // Placeholder image
-//     name: 'Ella',
-//     lastMessage: '6000',
-//     unreadCount: 0,
-//   },
-//    {
-//     id: '4',
-//     image: null, // Placeholder image
-//     name: 'Luna',
-//     lastMessage: '200',
-//     unreadCount: 0,
-//   },
-//    {
-//     id: '5',
-//     image: null, // Placeholder image
-//     name: 'Zara',
-//     lastMessage: '5000',
-//     unreadCount: 0,
-//   },
-//     {
-//     id: '6',
-//     image: null, // Placeholder image
-//     name: 'Nina',
-//     lastMessage: '',
-//     unreadCount: 0,
-//   },
-//   // Add more placeholder message data here
-// ];
-
-// const ArtistInboxScreen = ({ navigation }) => {
-//   const [searchText, setSearchText] = useState('');
-//   const [isNegotiationEnabled, setIsNegotiationEnabled] = useState(false);
-
-//   const renderMessageItem = ({ item }) => (
-//     <TouchableOpacity style={styles.messageCard} onPress={() => navigation.navigate('Chat')}>
-//       <View style={styles.profileImagePlaceholder}>
-//          <Image source={item.image} style={styles.profileImage} />
-//       </View>
-//       <View style={styles.messageContent}>
-//         <Text style={styles.userName}>{item.name}</Text>
-//         <Text style={styles.lastMessage}>{item.lastMessage}</Text>
-//       </View>
-//       {item.unreadCount > 0 && (
-//         <View style={styles.unreadBadge}>
-//           <Text style={styles.unreadText}>{item.unreadCount}</Text>
-//         </View>
-//       )}
-//     </TouchableOpacity>
-//   );
-
-//   return (
-//     <SafeAreaView style={styles.container}>
-//       <View style={styles.header}>
-//         <TouchableOpacity onPress={() => navigation.goBack()}>
-//           <Icon name="arrow-left" size={24} color="#fff" />
-//         </TouchableOpacity>
-//         <Text style={styles.headerTitle}>Messages</Text>
-//         <View style={{ width: 24 }} />{/* Spacer */}
-//       </View>
-
-//       <View style={styles.negotiationToggleContainer}>
-//         <Text style={styles.negotiationToggleText}>Enable Negotiation</Text>
-//         <Switch
-//           trackColor={{ false: '#C6C5ED', true: '#C6C5ED' }}
-//           thumbColor={'#18171D'}
-//           ios_backgroundColor="#C6C5ED"
-//           onValueChange={setIsNegotiationEnabled}
-//           value={isNegotiationEnabled}
-//         />
-//       </View>
-
-//       <View style={styles.searchContainer}>
-//         <Icon name="search" size={20} color="#aaa" />
-//         <TextInput
-//           style={styles.searchInput}
-//           placeholder="Search Message"
-//           placeholderTextColor="#aaa"
-//           value={searchText}
-//           onChangeText={setSearchText}
-//         />
-//       </View>
-//       <View style={styles.searchSeparator} />
-
-//       <FlatList
-//         data={messagesData}
-//         renderItem={renderMessageItem}
-//         keyExtractor={(item) => item.id}
-//         contentContainerStyle={styles.listContent}
-//       />
-//     </SafeAreaView>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#000',
-//   },
-//   header: {
-//     paddingTop:40,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//     paddingHorizontal: 16,
-//     paddingVertical: 12,
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#333',
-//   },
-//   headerTitle: {
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//     color: '#fff',
-//   },
-//   negotiationToggleContainer: {
-//     flexDirection: 'row',
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     paddingHorizontal: 16,
-//     paddingVertical: 12,
-//   },
-//   negotiationToggleText: {
-//     fontSize: 15,
-//     fontWeight:600,
-//     color: '#fff',
-//   },
-//   searchContainer: {
-//     display: 'flex',
-//     flexDirection: 'row',
-//     width: 361,
-//     height: 52,
-//     paddingTop: 0,
-//     paddingBottom: 0,
-//     paddingLeft: 16,
-//     paddingRight: 16,
-//     alignItems: 'center',
-//     gap: 12,
-//     flexShrink: 0,
-//     borderRadius: 12,
-//     borderWidth: 1,
-//     borderColor: '#24242D',
-//     backgroundColor: '#121212',
-//     marginHorizontal: 16,
-//     marginTop: 12,
-//   },
-//   searchInput: {
-//     flex: 1,
-//     marginLeft: 10,
-//     color: '#fff',
-//     fontSize: 14,
-//   },
-//   searchSeparator: {
-//     width: 361,
-//     height: 1,
-//     backgroundColor: '#24242D',
-//     alignSelf: 'center',
-//     marginBottom: 8,
-//     marginTop:12,
-//   },
-//   listContent: {
-//     paddingHorizontal: 16,
-//     paddingVertical: 12,
-//   },
-//   messageCard: {
-//     display: 'flex',
-//     flexDirection: 'row',
-//     paddingTop: 8,
-//     paddingBottom: 8,
-//     paddingLeft: 8,
-//     paddingRight: 16,
-//     justifyContent: 'space-between',
-//     alignItems: 'center',
-//     alignSelf: 'stretch',
-//     borderRadius: 12,
-//     borderWidth: 1,
-//     borderColor: '#34344A',
-//     backgroundColor: '#1A1A1F',
-//     marginBottom: 12,
-//   },
-//   profileImagePlaceholder: {
-//     width: 50,
-//     height: 50,
-//     borderRadius: 25,
-//     marginRight: 12,
-//     backgroundColor: '#555',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   profileImage: {
-//     width: 50,
-//     height: 50,
-//     borderRadius: 25,
-//   },
-//   messageContent: {
-//     flex: 1,
-//   },
-//   userName: {
-//     fontSize: 16,
-//     fontWeight: 'bold',
-//     color: '#fff',
-//     marginBottom: 4,
-//   },
-//   lastMessage: {
-//     fontSize: 14,
-//     color: '#aaa',
-//   },
-//   unreadBadge: {
-//     backgroundColor: '#a95eff',
-//     borderRadius: 10,
-//     paddingHorizontal: 8,
-//     paddingVertical: 4,
-//     marginLeft: 8,
-//   },
-//   unreadText: {
-//     fontSize: 12,
-//     color: '#fff',
-//     fontWeight: 'bold',
-//   },
-// });
-
-// export default ArtistInboxScreen; 
-
-
-
-
-
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, TextInput, Image, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, TextInput, Image, Switch, Animated, BackHandler } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomToggle from '../Components/CustomToggle';
+import SignUpBackground from '../assets/Banners/SignUp';
 
 const messagesData = [
   {
     id: '1',
-    image: null, // Placeholder image
-    name: 'Maya',
-    lastMessage: '$7500',
-    unreadCount: 3,
+    image: require('../assets/Images/fff.jpg'),
+    eventName: 'GenrAcoustic Moments',
+    eventDate: '07 Feb 2025',
   },
   {
     id: '2',
-    image: null, // Placeholder image
-    name: 'Sophia',
-    lastMessage: '800',
-    unreadCount: 2,
+    image: require('../assets/Images/fff.jpg'),
+    eventName: 'GenrUrban Beats',
+    eventDate: '08 Feb 2025',
   },
   {
     id: '3',
-    image: null, // Placeholder image
-    name: 'Ella',
-    lastMessage: '6000',
-    unreadCount: 0,
+    image: require('../assets/Images/fff.jpg'),
+    eventName: 'GenrClassical Rhythms',
+    eventDate: '09 Feb 2025',
   },
-   {
+  {
     id: '4',
-    image: null, // Placeholder image
-    name: 'Luna',
-    lastMessage: '200',
-    unreadCount: 0,
+    image: require('../assets/Images/fff.jpg'),
+    eventName: "GenrNature's Echoes",
+    eventDate: '10 Feb 2025',
   },
-   {
+  {
     id: '5',
-    image: null, // Placeholder image
-    name: 'Zara',
-    lastMessage: '5000',
-    unreadCount: 0,
+    image: require('../assets/Images/fff.jpg'),
+    eventName: 'GenrRetro Vibes',
+    eventDate: '11 Feb 2025',
   },
-    {
-    id: '6',
-    image: null, // Placeholder image
-    name: 'Nina',
-    lastMessage: '',
-    unreadCount: 0,
-  },
-  // Add more placeholder message data here
 ];
+
+// MusicBeatsLoader: Animated music bars loader
+const MusicBeatsLoader = () => {
+  const barAnims = [React.useRef(new Animated.Value(1)).current, React.useRef(new Animated.Value(1)).current, React.useRef(new Animated.Value(1)).current];
+
+  React.useEffect(() => {
+    const animations = barAnims.map((anim, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1.8,
+            duration: 300,
+            useNativeDriver: false,
+            delay: i * 100,
+          }),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: false,
+            delay: 0,
+          }),
+        ])
+      )
+    );
+    animations.forEach(anim => anim.start());
+    return () => animations.forEach(anim => anim.stop());
+  }, [barAnims]);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', height: 28, marginVertical: 8 }}>
+      {barAnims.map((anim, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            width: 6,
+            height: anim.interpolate({ inputRange: [1, 1.8], outputRange: [14, 24] }),
+            backgroundColor: '#a95eff',
+            borderRadius: 3,
+            marginHorizontal: 3,
+          }}
+        />
+      ))}
+    </View>
+  );
+};
 
 const ArtistInboxScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
   const [isNegotiationEnabled, setIsNegotiationEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle Android back button
+  useEffect(() => {
+    const backAction = () => {
+      navigation.navigate('ArtistHome');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
   const renderMessageItem = ({ item }) => (
-    <TouchableOpacity style={styles.messageCard} onPress={() => navigation.navigate('Chat')}>
-      <View style={styles.profileImagePlaceholder}>
-         <Image source={item.image} style={styles.profileImage} />
+    <TouchableOpacity style={styles.eventCard} onPress={() => navigation.navigate('HostArtistInbox')}>
+      <Image source={item.image} style={styles.eventImage} />
+      <View style={styles.eventContent}>
+        <Text style={styles.eventDate}>{item.eventDate}</Text>
+        <Text style={styles.eventName}>{item.eventName}</Text>
       </View>
-      <View style={styles.messageContent}>
-        <Text style={styles.userName}>{item.name}</Text>
-        <Text style={styles.lastMessage}>{item.lastMessage}</Text>
-      </View>
-      {item.unreadCount > 0 && (
-        <View style={styles.unreadBadge}>
-          <Text style={styles.unreadText}>{item.unreadCount}</Text>
-        </View>
-      )}
     </TouchableOpacity>
-  );
+  );  
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
-        <View style={{ width: 24 }} />{/* Spacer */}
+      {/* SVG Background */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <SignUpBackground width="100%" height="100%" />
       </View>
+      {/* Foreground Content */}
+      <View style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.navigate('ArtistHome')} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Messages</Text>
+          <View style={{ width: 24 }} />{/* Spacer */}
+        </View>
 
-      <View style={styles.negotiationToggleContainer}>
-        <Text style={styles.negotiationToggleText}>Enable Negotiation</Text>
-        <CustomToggle
-          value={isNegotiationEnabled}
-          onValueChange={setIsNegotiationEnabled}
+        <View style={styles.negotiationToggleContainer}>
+          <Text style={styles.negotiationToggleText}>Enable Negotiation</Text>
+          <CustomToggle
+            value={isNegotiationEnabled}
+            onValueChange={setIsNegotiationEnabled}
+          />
+        </View>
+
+        <View style={styles.searchContainer}>
+          <Icon name="search" size={20} color="#aaa" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search Message"
+            placeholderTextColor="#aaa"
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </View>
+        <View style={styles.searchSeparator} />
+
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <MusicBeatsLoader />
+            <Text style={{ color: '#fff', marginTop: 10 }}>Loading messages...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={messagesData}
+            renderItem={renderMessageItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
+        <ArtistBottomNavBar
+          navigation={navigation}
+          insets={insets}
+          isLoading={false}
         />
       </View>
-
-      <View style={styles.searchContainer}>
-        <Icon name="search" size={20} color="#aaa" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search Message"
-          placeholderTextColor="#aaa"
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-      </View>
-      <View style={styles.searchSeparator} />
-
-      <FlatList
-        data={messagesData}
-        renderItem={renderMessageItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-      />
-      <ArtistBottomNavBar
-        navigation={navigation}
-        insets={insets}
-      />
     </SafeAreaView>
   );
 };
@@ -368,14 +184,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    paddingTop:40,
+    paddingTop:20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 1,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+  },
+  backButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   headerTitle: {
     fontFamily: 'Nunito Sans',
@@ -384,6 +206,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 24,
     color: '#C6C5ED',
+    flex: 1,
+    textAlign: 'left',
   },
   negotiationToggleContainer: {
     flexDirection: 'row',
@@ -393,7 +217,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   negotiationToggleText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight:700,
     color: '#C6C5ED',
     fontFamily:'Nunito Sans',
@@ -402,7 +226,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     display: 'flex',
     flexDirection: 'row',
-    width: 361,
+    width: '90%',
     height: 52,
     paddingTop: 0,
     paddingBottom: 0,
@@ -412,7 +236,7 @@ const styles = StyleSheet.create({
     gap: 12,
     flexShrink: 0,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#24242D',
     backgroundColor: '#121212',
     marginHorizontal: 16,
@@ -436,60 +260,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  messageCard: {
-    display: 'flex',
+  eventCard: {
     flexDirection: 'row',
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingLeft: 8,
-    paddingRight: 16,
-    justifyContent: 'space-between',
     alignItems: 'center',
-    alignSelf: 'stretch',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#34344A',
-    backgroundColor: '#1A1A1F',
-    marginBottom: 12,
+    backgroundColor: '#23232A',
+    borderRadius: 20,
+    marginBottom: 20,
+    padding: 0,
+    borderWidth: 0,
+    minHeight: 90,
   },
-  profileImagePlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-    backgroundColor: '#555',
-    justifyContent: 'center',
-    alignItems: 'center',
+  eventImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 16,
+    margin: 12,
+    backgroundColor: '#333',
   },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  messageContent: {
+  eventContent: {
     flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingLeft: 0,
   },
-  userName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  lastMessage: {
-    fontSize: 14,
-    color: '#aaa',
-  },
-  unreadBadge: {
-    backgroundColor: '#a95eff',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginLeft: 8,
-  },
-  unreadText: {
+  eventDate: {
+    color: '#A084E8',
     fontSize: 12,
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  eventName: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
   },
 });
 

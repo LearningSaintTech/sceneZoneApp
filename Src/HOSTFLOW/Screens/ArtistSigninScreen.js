@@ -75,6 +75,19 @@ const ArtistSigninScreen = ({ navigation }) => {
   const mobileInputRef = useRef(null);
   const passwordInputRef = useRef(null);
 
+  const handleMobileChange = (text) => {
+    // Remove any non-digit characters
+    const cleanedText = text.replace(/\D/g, '');
+    // Limit to 10 digits
+    if (cleanedText.length <= 10) {
+      setMobileNumber(cleanedText);
+    }
+  };
+
+  const getFullMobileNumber = () => {
+    return mobileNumber ? `+91${mobileNumber}` : '';
+  };
+
   // On mount, check AsyncStorage for saved credentials
   useEffect(() => {
     const loadRemembered = async () => {
@@ -82,7 +95,9 @@ const ArtistSigninScreen = ({ navigation }) => {
         const saved = await AsyncStorage.getItem('artistRememberMe');
         if (saved) {
           const { mobileNumber, password } = JSON.parse(saved);
-          setMobileNumber(mobileNumber);
+          // Extract 10-digit number if stored with +91
+          const cleanMobile = mobileNumber.startsWith('+91') ? mobileNumber.slice(3) : mobileNumber;
+          setMobileNumber(cleanMobile);
           setPassword(password);
           setRememberMe(true);
         }
@@ -134,8 +149,8 @@ const ArtistSigninScreen = ({ navigation }) => {
   const handleSignIn = async () => {
     try {
       // Input validation
-      if (!mobileNumber.trim() || isNaN(mobileNumber) || mobileNumber.length < 10) {
-        Alert.alert('Error', 'Please enter a valid mobile number (at least 10 digits)');
+      if (!mobileNumber.trim() || mobileNumber.length !== 10) {
+        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
         return;
       }
 
@@ -146,12 +161,13 @@ const ArtistSigninScreen = ({ navigation }) => {
 
       setIsLoading(true);
 
+      const fullMobileNumber = getFullMobileNumber();
       const loginData = {
-        mobileNumber: parseInt(mobileNumber),
+        mobileNumber: fullMobileNumber,
         password: password.trim(),
       };
 
-      // If rememberMe is checked, save credentials
+      // If rememberMe is checked, save credentials (store 10-digit format)
       if (rememberMe) {
         await AsyncStorage.setItem('artistRememberMe', JSON.stringify({ mobileNumber, password }));
       } else {
@@ -181,8 +197,8 @@ const ArtistSigninScreen = ({ navigation }) => {
           id: response.data.data.user._id || response.data.data.user.id,
           name: response.data.data.user.fullName || 'Artist User',
           email: response.data.data.user.email || 'artist@example.com',
-          phone: response.data.data.user.mobileNumber || mobileNumber,
-          mobileNumber: mobileNumber,
+          phone: response.data.data.user.mobileNumber || fullMobileNumber,
+          mobileNumber: fullMobileNumber,
           location: null,
           role: response.data.data.user.role || 'artist',
           token: token,
@@ -207,15 +223,15 @@ const ArtistSigninScreen = ({ navigation }) => {
   const handleOtpLogin = async () => {
     try {
       // Input validation
-      const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
-      if (!phoneRegex.test(mobileNumber)) {
-        Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
+      if (!mobileNumber.trim() || mobileNumber.length !== 10) {
+        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
         return;
       }
 
       setIsLoading(true);
 
-      const loginData = { mobileNumber };
+      const fullMobileNumber = getFullMobileNumber();
+      const loginData = { mobileNumber: fullMobileNumber };
 
       console.log('Artist OTP Login Data:', loginData);
 
@@ -223,8 +239,8 @@ const ArtistSigninScreen = ({ navigation }) => {
       console.log('Artist OTP Login Response:', response.data);
 
       if (response.data.success) {
-        console.log('Initiating Firebase phone auth for:', mobileNumber);
-        const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber);
+        console.log('Initiating Firebase phone auth for:', fullMobileNumber);
+        const confirmationResult = await auth().signInWithPhoneNumber(fullMobileNumber);
         console.log('Firebase OTP sent successfully:', confirmationResult);
 
         Alert.alert('Success', 'OTP sent to your mobile number', [
@@ -232,7 +248,7 @@ const ArtistSigninScreen = ({ navigation }) => {
             text: 'OK',
             onPress: () =>
               navigation.navigate('ArtistOtpVerificationScreen', {
-                mobileNumber,
+                mobileNumber: fullMobileNumber,
                 confirmation: confirmationResult,
                 isFirebase: true,
                 fullName: response.data.data.user?.fullName || '',
@@ -281,13 +297,15 @@ const ArtistSigninScreen = ({ navigation }) => {
           {/* Phone Input */}
           <View style={[styles.inputContainer, { backgroundColor: cardBg, borderColor: border }]}>
             <MobileIcon width={20} height={20} style={styles.inputIcon} />
+            <Text style={styles.countryCode}>+91</Text>
             <TextInput
-              placeholder="Mobile Number (e.g., +91XXXXXXXXXX)"
+              placeholder="Enter 10-digit mobile number"
               placeholderTextColor={placeholder}
-              style={[styles.input, { color: text }]}
+              style={[styles.input, { color: text, marginLeft: 8 }]}
               keyboardType="phone-pad"
               value={mobileNumber}
-              onChangeText={setMobileNumber}
+              onChangeText={handleMobileChange}
+              maxLength={10}
               ref={mobileInputRef}
             />
           </View>
@@ -566,6 +584,17 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textAlign: 'center',
     marginBottom: 18,
+  },
+  countryCode: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#fff',
+    backgroundColor: '#333',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 8,
   },
 });
 

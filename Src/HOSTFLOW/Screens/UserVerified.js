@@ -112,4 +112,3 @@ color: 'rgba(198, 197, 237, 1)',
 });
 
 export default UserVerifiedScreen;
-

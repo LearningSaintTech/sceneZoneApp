@@ -1,3 +1,4 @@
+// This file is a copy of UserOtpVerification.js
 import React, { useRef, useState } from 'react';
 import {
   View,
@@ -6,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useDispatch } from 'react-redux';
@@ -17,7 +19,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import api from '../Config/api';
 import auth from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
 
 const { width, height } = Dimensions.get('window');
 
@@ -55,7 +56,7 @@ const dimensions = {
   imageSize: Math.max(width * 0.25, 100),
 };
 
-const UserOtpVerificationScreen = ({ navigation, route }) => {
+const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -111,22 +112,22 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
   const handleVerify = async () => {
     try {
       if (!mobileNumber) {
-        Toast.show({ type: 'error', text1: 'Error', text2: 'Mobile number is missing. Please try signing up again.' });
-        console.log('[UserOtpVerificationScreen] Validation failed: mobileNumber is undefined');
+        Alert.alert('Error', 'Mobile number is missing. Please try signing up again.');
+        console.log('[UserLoginOtpVerificationScreen] Validation failed: mobileNumber is undefined');
         return;
       }
       if (otp.some(digit => !digit)) {
-        Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter the complete 6-digit OTP' });
-        console.log('[UserOtpVerificationScreen] Validation failed: Incomplete OTP');
+        Alert.alert('Error', 'Please enter the complete 6-digit OTP');
+        console.log('[UserLoginOtpVerificationScreen] Validation failed: Incomplete OTP');
         return;
       }
 
       setIsLoading(true);
 
-      console.log('[UserOtpVerificationScreen] Verifying Firebase OTP with code:', otp.join(''));
+      console.log('[UserLoginOtpVerificationScreen] Verifying Firebase OTP with code:', otp.join(''));
       const credential = await confirmation.confirm(otp.join(''));
       const idToken = await credential.user.getIdToken();
-      console.log('[UserOtpVerificationScreen] Firebase OTP verified, ID token:', idToken);
+      console.log('[UserLoginOtpVerificationScreen] Firebase OTP verified, ID token:', idToken);
 
       const response = await api.post('/user/firebase-auth/firebase-verify-otp', {
         mobileNumber,
@@ -134,7 +135,7 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
         fullName,
       });
 
-      console.log('[UserOtpVerificationScreen] Firebase OTP Verification Response:', response.data);
+      console.log('[UserLoginOtpVerificationScreen] Firebase OTP Verification Response:', response.data);
 
       if (response.data.success) {
         const userData = response.data.data.user;
@@ -155,12 +156,23 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
         }));
 
         await AsyncStorage.setItem('token', token);
+
+        // Check if user already has a complete profile
+        const hasCompleteProfile = userData.fullName && userData.email && userData.address && userData.dob;
+
         setTimeout(() => {
-          navigation.navigate('UserVerifiedScreen');
+          if (hasCompleteProfile) {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'UserHome', params: { isLoggedIn: true } }],
+            });
+          } else {
+            navigation.navigate('UserHome');
+          }
         }, 1500);
       }
     } catch (error) {
-      console.error('[UserOtpVerificationScreen] Firebase OTP Verification Error:', error);
+      console.error('[UserLoginOtpVerificationScreen] Firebase OTP Verification Error:', error);
       let errorMessage = 'Failed to verify OTP. Please try again.';
       if (error.code === 'auth/invalid-verification-code') {
         errorMessage = 'Invalid OTP. Please check and try again.';
@@ -169,7 +181,7 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please try again later.';
       }
-      Toast.show({ type: 'error', text1: 'Error', text2: errorMessage });
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -178,36 +190,36 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
   const handleResendOtp = async () => {
     try {
       if (!mobileNumber) {
-        Toast.show({ type: 'error', text1: 'Error', text2: 'Mobile number is missing. Please try signing up again.' });
-        console.log('[UserOtpVerificationScreen] Resend failed: mobileNumber is undefined');
+        Alert.alert('Error', 'Mobile number is missing. Please try signing up again.');
+        console.log('[UserLoginOtpVerificationScreen] Resend failed: mobileNumber is undefined');
         return;
       }
 
       setIsResending(true);
 
-      console.log('[UserOtpVerificationScreen] Resending Firebase OTP for:', mobileNumber);
+      console.log('[UserLoginOtpVerificationScreen] Resending Firebase OTP for:', mobileNumber);
       const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber);
-      console.log('[UserOtpVerificationScreen] Firebase OTP resent successfully:', confirmationResult);
-      Toast.show({ type: 'success', text1: 'Success', text2: 'OTP has been resent successfully!' });
+      console.log('[UserLoginOtpVerificationScreen] Firebase OTP resent successfully:', confirmationResult);
+      Alert.alert('Success', 'OTP has been resent successfully!');
       setOtp(['', '', '', '', '', '']);
       inputs.current[0]?.focus();
 
       // Navigate back to the same screen with updated confirmation
-      navigation.replace('UserOtpVerificationScreen', {
+      navigation.replace('UserLoginOtpVerificationScreen', {
         mobileNumber,
         confirmation: confirmationResult,
         userId,
         fullName,
       });
     } catch (error) {
-      console.error('[UserOtpVerificationScreen] Resend Firebase OTP Error:', error);
+      console.error('[UserLoginOtpVerificationScreen] Resend Firebase OTP Error:', error);
       let errorMessage = 'Failed to resend OTP. Please try again.';
       if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please wait and try again later.';
       } else if (error.code === 'auth/invalid-phone-number') {
         errorMessage = 'Invalid phone number format';
       }
-      Toast.show({ type: 'error', text1: 'Error', text2: errorMessage });
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsResending(false);
     }
@@ -297,7 +309,7 @@ const styles = StyleSheet.create({
     paddingTop: dimensions.spacing.xxxl * 2,
   },
   iconImage: {
-    width: 82,
+    width: 52,
     height: 52,
     resizeMode: 'contain',
     marginBottom: dimensions.spacing.md,
@@ -409,4 +421,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UserOtpVerificationScreen;
+export default UserLoginOtpVerificationScreen;

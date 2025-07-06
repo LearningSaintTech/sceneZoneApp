@@ -1,11 +1,11 @@
 // navigation/UserBottomTabNavigator.js
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import UserHomeScreen from '../Screens/UserHomeScreen';
 import UserFavoriteScreen from '../Screens/UserFavorite';
 import UserTicketScreen from '../Screens/UserTicket';
 import UserProfileScreen from '../Screens/UserProfile';
-import { View, Dimensions, Platform } from 'react-native';
+import { View, Dimensions, Platform, Animated, Easing } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +18,104 @@ const { width, height } = Dimensions.get('window');
 
 const UserTabs = () => {
   const insets = useSafeAreaInsets();
-  
+  const [screensLoaded, setScreensLoaded] = useState(false);
+
+  // Animation values for each tab
+  const homeAnim = useRef(new Animated.Value(0)).current;
+  const favoriteAnim = useRef(new Animated.Value(0)).current;
+  const ticketAnim = useRef(new Animated.Value(1)).current;
+  const profileAnim = useRef(new Animated.Value(0)).current;
+
+  // Animation effect for active tab - stop after screens are loaded
+  useEffect(() => {
+    // Set screens as loaded after a brief delay
+    const loadTimer = setTimeout(() => {
+      setScreensLoaded(true);
+    }, 2000); // 2 seconds delay
+
+    // Run initial animations
+    Animated.sequence([
+      Animated.timing(homeAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+      Animated.timing(homeAnim, {
+        toValue: 0,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    Animated.sequence([
+      Animated.timing(favoriteAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+      Animated.timing(favoriteAnim, {
+        toValue: 0,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    Animated.sequence([
+      Animated.timing(ticketAnim, {
+        toValue: 1.2,
+        duration: 800,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.timing(ticketAnim, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.timing(ticketAnim, {
+        toValue: 1.2,
+        duration: 800,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.timing(ticketAnim, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    Animated.sequence([
+      Animated.timing(profileAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+      Animated.timing(profileAnim, {
+        toValue: 0,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ]).start();
+
+    return () => {
+      clearTimeout(loadTimer);
+      // Stop all animations
+      homeAnim.stopAnimation();
+      favoriteAnim.stopAnimation();
+      ticketAnim.stopAnimation();
+      profileAnim.stopAnimation();
+    };
+  }, [homeAnim, favoriteAnim, ticketAnim, profileAnim]);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -49,6 +146,7 @@ const UserTabs = () => {
         tabBarIcon: ({ color, size, focused }) => {
           const iconSize = Math.max(24, width * 0.06);
           let IconComponent;
+          let animatedStyle = {};
 
           if (route.name === 'UserHome') {
             IconComponent = (
@@ -58,6 +156,10 @@ const UserTabs = () => {
                 color={focused ? "#a95eff" : "#aaa"} 
               />
             );
+            // Only animate if screens are not loaded yet
+            animatedStyle = (focused && !screensLoaded) ? { 
+              transform: [{ rotate: homeAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] 
+            } : {};
           }
           else if (route.name === 'UserFavorite') {
             IconComponent = (
@@ -67,6 +169,10 @@ const UserTabs = () => {
                 color={focused ? "#a95eff" : "#aaa"} 
               />
             );
+            // Only animate if screens are not loaded yet
+            animatedStyle = (focused && !screensLoaded) ? { 
+              transform: [{ rotate: favoriteAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] 
+            } : {};
           }
           else if (route.name === 'UserTicket') {
             IconComponent = (
@@ -76,6 +182,10 @@ const UserTabs = () => {
                 color={focused ? "#a95eff" : "#aaa"} 
               />
             );
+            // Only animate if screens are not loaded yet
+            animatedStyle = (focused && !screensLoaded) ? { 
+              transform: [{ scale: ticketAnim }] 
+            } : {};
           }
           else if (route.name === 'UserProfile') {
             IconComponent = (
@@ -85,19 +195,25 @@ const UserTabs = () => {
                 color={focused ? "#a95eff" : "#aaa"} 
               />
             );
+            // Only animate if screens are not loaded yet
+            animatedStyle = (focused && !screensLoaded) ? { 
+              transform: [{ rotate: profileAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] 
+            } : {};
           }
 
           return (
-            <View style={{
-              backgroundColor: focused ? 'rgba(169, 94, 255, 0.2)' : 'transparent',
-              borderRadius: 8,
-              paddingHorizontal: 4,
-              paddingVertical: 4,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}>
-              {IconComponent}
-            </View>
+            <Animated.View style={animatedStyle}>
+              <View style={{
+                backgroundColor: focused ? 'rgba(169, 94, 255, 0.1)' : 'transparent',
+                borderRadius: 8,
+                paddingHorizontal: 4,
+                paddingVertical: 4,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+                {IconComponent}
+              </View>
+            </Animated.View>
           );
         },
         tabBarActiveTintColor: '#a95eff',
