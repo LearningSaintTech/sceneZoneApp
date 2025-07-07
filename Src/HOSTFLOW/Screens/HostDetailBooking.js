@@ -86,11 +86,11 @@ const HostDetailBookingContent = ({ navigation, route }) => {
       setLoading(true);
       try {
         console.log('Fetching artist profile', {
-          url: `http://192.168.1.4:3000/api/artist/get-profile/${artistId}`,
+          url: `http://192.168.1.9:3000/api/artist/get-profile/${artistId}`,
           headers: { Authorization: `Bearer ${token}` },
         });
         const artistResponse = await axios.get(
-          `http://192.168.1.4:3000/api/artist/get-profile/${artistId}`,
+          `http://192.168.1.9:3000/api/artist/get-profile/${artistId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -100,10 +100,10 @@ const HostDetailBookingContent = ({ navigation, route }) => {
         console.log('Artist profile API response received', artistResponse.data.data);
 
         console.log('Fetching invoices', {
-          url: 'http://192.168.1.4:3000/api/invoices',
+          url: 'http://192.168.1.9:3000/api/invoices',
           headers: { Authorization: `Bearer ${token}` },
         });
-        const invoicesResponse = await axios.get('http://192.168.1.4:3000/api/invoices', {
+        const invoicesResponse = await axios.get('http://192.168.1.9:3000/api/invoices', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -379,7 +379,7 @@ const HostDetailBookingContent = ({ navigation, route }) => {
              try {
                // Call the create-chat API
                const response = await axios.post(
-                 'http://192.168.1.4:3000/api/chat/create-chat',
+                 'http://192.168.1.9:3000/api/chat/create-chat',
                  {
                    eventId,
                    artistId: artist.artistId,

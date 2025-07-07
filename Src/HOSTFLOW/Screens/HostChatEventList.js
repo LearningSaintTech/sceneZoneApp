@@ -74,7 +74,7 @@ const HostChatEventList = ({ navigation }) => {
   const [error, setError] = useState('');
   const insets = useSafeAreaInsets();
   const token = useSelector(state => state.auth.token);
-  const BASE_URL = 'http://192.168.1.4:3000';
+  const BASE_URL = 'http://192.168.1.9:3000';
 
   // Fetch events from API
   useEffect(() => {
@@ -178,7 +178,7 @@ const HostChatEventList = ({ navigation }) => {
   // Handle Android back button
   useEffect(() => {
     const backAction = () => {
-      navigation.navigate('ArtistHome');
+      navigation.navigate('MainTabs');
       return true;
     };
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -232,7 +232,7 @@ const HostChatEventList = ({ navigation }) => {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.navigate('ArtistHome')}
+              onPress={() => navigation.navigate('MainTabs')}
             >
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </TouchableOpacity>
@@ -276,8 +276,7 @@ const HostChatEventList = ({ navigation }) => {
             />
           )}
 
-          <ArtistBottomNavBar navigation={navigation} insets={insets} isLoading={false} />
-        </View>
+         </View>
       </ErrorBoundary>
     </SafeAreaView>
   );

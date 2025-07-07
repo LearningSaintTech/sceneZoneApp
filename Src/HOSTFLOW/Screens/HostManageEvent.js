@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,20 @@ import {
   FlatList,
   Dimensions,
   ScrollView,
-} from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Feather from 'react-native-vector-icons/Feather';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import LinearGradient from 'react-native-linear-gradient';
-import TrashIcon from '../assets/icons/trash';
-import MaskedView from '@react-native-masked-view/masked-view';
+} from "react-native";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import Feather from "react-native-vector-icons/Feather";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import LinearGradient from "react-native-linear-gradient";
+import TrashIcon from "../assets/icons/trash";
+import MaskedView from "@react-native-masked-view/masked-view";
+import { useSelector } from "react-redux";
+import api from "../Config/api";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 // Enhanced responsive dimensions system for all Android devices
 const isTablet = width >= 768;
@@ -57,37 +62,92 @@ const dimensions = {
 
 // Sample data for artist status cards
 const artistStatusData = [
-  { id: '1', image: require('../assets/Images/frame1.png'), budget: '$500', genre: 'Rock', status: 'Pending', date: '06 Feb 2025' },
-  { id: '2', image: require('../assets/Images/frame1.png'), budget: '$500', genre: 'Rock', status: 'Pay Booking Amount', date: '06 Feb 2025' },
-  { id: '3', image: require('../assets/Images/frame1.png'), budget: '$500', genre: 'Rock', status: 'Booked', date: '06 Feb 2025' },
-  { id: '4', image: require('../assets/Images/frame1.png'), budget: '$500', genre: 'Rock', status: 'Rejected', date: '06 Feb 2025' },
+  {
+    id: "1",
+    image: require("../assets/Images/frame1.png"),
+    budget: "$500",
+    genre: "Rock",
+    status: "Pending",
+    date: "06 Feb 2025",
+  },
+  {
+    id: "2",
+    image: require("../assets/Images/frame1.png"),
+    budget: "$500",
+    genre: "Rock",
+    status: "Pay Booking Amount",
+    date: "06 Feb 2025",
+  },
+  {
+    id: "3",
+    image: require("../assets/Images/frame1.png"),
+    budget: "$500",
+    genre: "Rock",
+    status: "Booked",
+    date: "06 Feb 2025",
+  },
+  {
+    id: "4",
+    image: require("../assets/Images/frame1.png"),
+    budget: "$500",
+    genre: "Rock",
+    status: "Rejected",
+    date: "06 Feb 2025",
+  },
 ];
 
 // GradientText component for gradient text rendering
-const GradientText = ({ text, style, colors = ['#B15CDE', '#7952FC'] }) => (
-  <MaskedView maskElement={<Text style={[style, { backgroundColor: 'transparent' }]}>{text}</Text>}>
-    <LinearGradient
-      colors={colors}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
-    >
+const GradientText = ({ text, style, colors = ["#B15CDE", "#7952FC"] }) => (
+  <MaskedView
+    maskElement={
+      <Text style={[style, { backgroundColor: "transparent" }]}>{text}</Text>
+    }
+  >
+    <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
       <Text style={[style, { opacity: 0 }]}>{text}</Text>
     </LinearGradient>
   </MaskedView>
 );
 
 const HostManageEventContent = ({ navigation, route }) => {
+  const token = useSelector((state) => state.auth.token);
+  console.log("this is the token", token);
   const insets = useSafeAreaInsets();
   // Retrieve eventId from route.params or use fallback
-  const eventId = route.params?.eventId ;
-console.log("manage events ",eventId)
-  // Sample event data
-  const eventData = {
-    image: require('../assets/Images/ffff.jpg'),
-    title: 'Sounds of Celebration',
-    date: 'May 20',
-  };
+  const eventId = route.params?.eventId;
+  console.log("manage events xxx ", eventId);
 
+  const [eventData, setEvenstData] = useState(null);
+
+  useEffect(() => {
+    const fetchEventById = async () => {
+      try {
+        const response = await api.get(`/host/events/get-event/${eventId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        console.log("this is api response", response.data);
+        setEvenstData(response?.data?.data);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchEventById();
+  }, [eventId]);
+
+  // Safely extract date
+  const rawDate = eventData?.eventDateTime?.[0]; // '2025-07-10T22:29:00.000Z'
+  const dateObj = rawDate ? new Date(rawDate) : null;
+
+  // Format parts
+  const month = dateObj
+    ? dateObj.toLocaleString("en-US", { month: "short" })
+    : "";
+  const day = dateObj ? dateObj.getDate() : "";
+
+  console.log("this is to apply", eventData);
   const renderArtistStatusCard = ({ item }) => {
     let statusButton;
     let statusButtonStyle = {};
@@ -95,19 +155,19 @@ console.log("manage events ",eventId)
     let showPlusButton = false;
 
     switch (item.status) {
-      case 'Pending':
+      case "Pending":
         statusButtonStyle = styles.statusButtonPending;
         statusButtonTextStyle = styles.statusButtonTextPending;
         break;
-      case 'Pay Booking Amount':
+      case "Pay Booking Amount":
         statusButtonStyle = styles.statusButtonPayBooking;
         statusButtonTextStyle = styles.statusButtonTextPayBooking;
         break;
-      case 'Booked':
+      case "Booked":
         statusButtonStyle = styles.statusButtonBooked;
         statusButtonTextStyle = styles.statusButtonTextBooked;
         break;
-      case 'Rejected':
+      case "Rejected":
         statusButtonStyle = styles.statusButtonRejected;
         statusButtonTextStyle = styles.statusButtonTextRejected;
         showPlusButton = true;
@@ -117,16 +177,18 @@ console.log("manage events ",eventId)
     }
 
     return (
-      <View style={[
-        styles.artistCard,
-        {
-          padding: dimensions.cardPadding,
-          marginBottom: Math.max(dimensions.spacing.lg, 15),
-          borderRadius: dimensions.borderRadius.md,
-        }
-      ]}>
-        <Image 
-          source={item.image} 
+      <View
+        style={[
+          styles.artistCard,
+          {
+            padding: dimensions.cardPadding,
+            marginBottom: Math.max(dimensions.spacing.lg, 15),
+            borderRadius: dimensions.borderRadius.md,
+          },
+        ]}
+      >
+        <Image
+          source={item.image}
           style={[
             styles.artistImage,
             {
@@ -134,127 +196,150 @@ console.log("manage events ",eventId)
               height: dimensions.artistImageSize,
               borderRadius: dimensions.borderRadius.sm,
               marginRight: Math.max(dimensions.spacing.md, 10),
-            }
-          ]} 
+            },
+          ]}
         />
         <View style={styles.artistInfo}>
-          <Text style={[
-            styles.artistBudget,
-            {
-              fontSize: Math.max(dimensions.fontSize.body, 14),
-            }
-          ]}>
-            Budget : {item.budget}
-          </Text>
-          <Text style={[
-            styles.artistGenre,
-            {
-              color: '#A6A6A6',
-              fontSize: Math.max(dimensions.fontSize.body, 14),
-              marginVertical: Math.max(dimensions.spacing.xs, 2),
-              fontWeight: '400',
-              fontFamily: 'Poppins',
-            }
-          ]}>
-            Genre : <Text style={{ color: '#000', fontFamily: 'Poppins', fontSize: 16, fontWeight: '600' }}>{item.genre}</Text>
-          </Text>
-          <View style={[
-            styles.artistStatusRow,
-            {
-              marginTop: Math.max(dimensions.spacing.xs, 5),
-            }
-          ]}>
-            <Text style={[
-              styles.artistStatusLabel,
+          <Text
+            style={[
+              styles.artistBudget,
               {
                 fontSize: Math.max(dimensions.fontSize.body, 14),
-              }
-            ]}>
-              Status : 
+              },
+            ]}
+          >
+            Budget : {item.budget}
+          </Text>
+          <Text
+            style={[
+              styles.artistGenre,
+              {
+                color: "#A6A6A6",
+                fontSize: Math.max(dimensions.fontSize.body, 14),
+                marginVertical: Math.max(dimensions.spacing.xs, 2),
+                fontWeight: "400",
+                fontFamily: "Poppins",
+              },
+            ]}
+          >
+            Genre :{" "}
+            <Text
+              style={{
+                color: "#000",
+                fontFamily: "Poppins",
+                fontSize: 16,
+                fontWeight: "600",
+              }}
+            >
+              {item.genre}
             </Text>
-            <TouchableOpacity 
+          </Text>
+          <View
+            style={[
+              styles.artistStatusRow,
+              {
+                marginTop: Math.max(dimensions.spacing.xs, 5),
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.artistStatusLabel,
+                {
+                  fontSize: Math.max(dimensions.fontSize.body, 14),
+                },
+              ]}
+            >
+              Status :
+            </Text>
+            <TouchableOpacity
               style={[
                 statusButtonStyle,
                 {
                   // Remove extra minWidth/padding for Pay Booking Amount and Booked
-                }
+                },
               ]}
-              onPress={() => item.status === 'Pay Booking Amount' && navigation.navigate('HostManageEventDetailBooking')}
+              onPress={() =>
+                item.status === "Pay Booking Amount" &&
+                navigation.navigate("HostManageEventDetailBooking")
+              }
               activeOpacity={0.8}
             >
-              {item.status === 'Pay Booking Amount' ? (
+              {item.status === "Pay Booking Amount" ? (
                 <GradientText
                   text={item.status}
                   style={[
                     styles.statusButtonTextPayBooking,
                     {
-                      fontFamily: 'Poppins',
+                      fontFamily: "Poppins",
                       fontSize: 10,
-                      fontWeight: '400',
-                      textTransform: 'capitalize',
+                      fontWeight: "400",
+                      textTransform: "capitalize",
                       lineHeight: undefined,
                     },
                   ]}
                 />
-              ) : item.status === 'Booked' ? (
+              ) : item.status === "Booked" ? (
                 <GradientText
                   text={item.status}
-                  colors={['#28a745', '#43e97b']}
+                  colors={["#28a745", "#43e97b"]}
                   style={[
                     styles.statusButtonTextBooked,
                     {
-                      fontFamily: 'Poppins',
+                      fontFamily: "Poppins",
                       fontSize: 10,
-                      fontWeight: '400',
-                      textTransform: 'capitalize',
+                      fontWeight: "400",
+                      textTransform: "capitalize",
                       lineHeight: undefined,
                     },
                   ]}
                 />
-              ) : item.status === 'Rejected' ? (
+              ) : item.status === "Rejected" ? (
                 <GradientText
                   text={item.status}
-                  colors={['#FF3B30', '#FF3B30']}
+                  colors={["#FF3B30", "#FF3B30"]}
                   style={[
                     styles.statusButtonTextRejected,
                     {
-                      fontFamily: 'Poppins',
+                      fontFamily: "Poppins",
                       fontSize: 10,
-                      fontWeight: '400',
-                      textTransform: 'capitalize',
+                      fontWeight: "400",
+                      textTransform: "capitalize",
                       lineHeight: undefined,
                     },
                   ]}
                 />
-              ) : item.status === 'Pending' ? (
+              ) : item.status === "Pending" ? (
                 <GradientText
                   text={item.status}
-                  colors={['#FF9500', '#FFC371']}
+                  colors={["#FF9500", "#FFC371"]}
                   style={[
                     styles.statusButtonTextPending,
                     {
-                      fontFamily: 'Poppins',
+                      fontFamily: "Poppins",
                       fontSize: 10,
-                      fontWeight: '400',
-                      textTransform: 'capitalize',
+                      fontWeight: "400",
+                      textTransform: "capitalize",
                       lineHeight: undefined,
                     },
                   ]}
                 />
               ) : (
-                <Text style={[
-                  statusButtonTextStyle,
-                  {
-                    fontSize: Math.max(dimensions.fontSize.small, 12),
-                    fontWeight: 'bold',
-                  }
-                ]}>
+                <Text
+                  style={[
+                    statusButtonTextStyle,
+                    {
+                      fontSize: Math.max(dimensions.fontSize.small, 12),
+                      fontWeight: "bold",
+                    },
+                  ]}
+                >
                   {item.status}
                 </Text>
               )}
             </TouchableOpacity>
             {showPlusButton && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
                   styles.plusButton,
                   {
@@ -262,29 +347,32 @@ console.log("manage events ",eventId)
                     width: Math.max(dimensions.spacing.xxl + 6, 30),
                     height: Math.max(dimensions.spacing.xxl + 6, 30),
                     marginLeft: Math.max(dimensions.spacing.md, 10),
-                  }
+                  },
                 ]}
                 activeOpacity={0.8}
               >
-                <Feather name="plus" size={Math.max(dimensions.iconSize * 0.8, 18)} color="#fff" />
+                <Feather
+                  name="plus"
+                  size={Math.max(dimensions.iconSize * 0.8, 18)}
+                  color="#fff"
+                />
               </TouchableOpacity>
             )}
           </View>
         </View>
         <View style={styles.artistActions}>
-          <Text style={[
-            styles.artistDate,
-            {
-              fontSize: Math.max(dimensions.fontSize.small, 12),
-              marginBottom: Math.max(dimensions.spacing.xs, 5),
-            }
-          ]}>
+          <Text
+            style={[
+              styles.artistDate,
+              {
+                fontSize: Math.max(dimensions.fontSize.small, 12),
+                marginBottom: Math.max(dimensions.spacing.xs, 5),
+              },
+            ]}
+          >
             {item.date}
           </Text>
-          <TouchableOpacity 
-            style={styles.trashButton}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity style={styles.trashButton} activeOpacity={0.7}>
             <TrashIcon width={14} height={14} />
           </TouchableOpacity>
         </View>
@@ -293,151 +381,195 @@ console.log("manage events ",eventId)
   };
 
   return (
-    <View style={[
-      styles.container,
-      {
-        paddingTop: Math.max(insets.top, 0),
-      }
-    ]}>
-      <ScrollView 
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: Math.max(insets.top, 0),
+        },
+      ]}
+    >
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           {
             paddingBottom: Math.max(insets.bottom + 30, 50),
-          }
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={[
-          styles.header,
-          {
-            width: 393,
-            paddingTop: 20,
-            paddingBottom: 20,
-            paddingRight: 90,
-            alignItems: 'center',
-            gap: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: '#C6C5ED',
-            backgroundColor: '#121212',
-            shadowColor: '#683BFC',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.05,
-            shadowRadius: 12,
-            elevation: 4,
-          }
-        ]}>
-          <TouchableOpacity 
+        <View
+          style={[
+            styles.header,
+            {
+              width: 393,
+              paddingTop: 20,
+              paddingBottom: 20,
+              paddingRight: 90,
+              alignItems: "center",
+              gap: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: "#C6C5ED",
+              backgroundColor: "#121212",
+              shadowColor: "#683BFC",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.05,
+              shadowRadius: 12,
+              elevation: 4,
+            },
+          ]}
+        >
+          <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={[
               styles.backButton,
               {
                 padding: Math.max(dimensions.spacing.sm, 8),
                 borderRadius: dimensions.borderRadius.sm,
-              }
+              },
             ]}
             activeOpacity={0.7}
           >
-            <Feather name="arrow-left" size={Math.max(dimensions.iconSize + 4, 24)} color="#fff" />
+            <Feather
+              name="arrow-left"
+              size={Math.max(dimensions.iconSize + 4, 24)}
+              color="#fff"
+            />
           </TouchableOpacity>
-          <Text style={[
-            styles.headerTitle,
-            {
-              fontSize: Math.max(dimensions.fontSize.header, 18),
-            }
-          ]}>
-            {eventData.title}
+          <Text
+            style={[
+              styles.headerTitle,
+              {
+                fontSize: Math.max(dimensions.fontSize.header, 18),
+              },
+            ]}
+          >
+            {eventData?.about}
           </Text>
           <View style={{ width: Math.max(dimensions.iconSize + 4, 24) }} />
         </View>
 
         {/* Event Image with Date Overlay */}
-        <View style={[
-          styles.imageContainer,
-          {
-            marginHorizontal: dimensions.marginHorizontal,
-            marginTop: Math.max(dimensions.spacing.lg, 15),
-            borderRadius: dimensions.borderRadius.lg,
-          }
-        ]}>
-          <Image 
-            source={eventData.image} 
+        <View
+          style={[
+            styles.imageContainer,
+            {
+              marginHorizontal: dimensions.marginHorizontal,
+              marginTop: Math.max(dimensions.spacing.lg, 15),
+              borderRadius: dimensions.borderRadius.lg,
+            },
+          ]}
+        >
+          <Image
+            source={{ uri: eventData?.posterUrl }}
             style={[
               styles.eventImage,
               {
                 height: dimensions.imageHeight,
                 borderRadius: dimensions.borderRadius.lg,
-              }
-            ]} 
-            resizeMode="cover" 
+              },
+            ]}
+            resizeMode="cover"
           />
-          <View style={[
-            styles.dateOverlay,
-            {
-              top: Math.max(dimensions.spacing.md, 10),
-              left: Math.max(dimensions.spacing.md, 10),
-              borderRadius: dimensions.borderRadius.sm,
-              paddingHorizontal: Math.max(dimensions.spacing.sm, 8),
-              paddingVertical: Math.max(dimensions.spacing.xs, 4),
-              minWidth: dimensions.dateOverlaySize,
-            }
-          ]}>
-            <Text style={[
-              styles.dateMonth,
+
+          <View
+            style={[
+              styles.dateOverlay,
               {
-                fontSize: Math.max(dimensions.fontSize.small, 12),
-              }
-            ]}>
-              {eventData.date.split(' ')[0]}
+                top: Math.max(dimensions.spacing.md, 10),
+                left: Math.max(dimensions.spacing.md, 10),
+                borderRadius: dimensions.borderRadius.sm,
+                paddingHorizontal: Math.max(dimensions.spacing.sm, 8),
+                paddingVertical: Math.max(dimensions.spacing.xs, 4),
+                minWidth: dimensions.dateOverlaySize,
+              },
+            ]}
+          >
+            {/* <Text
+              style={[
+                styles.dateMonth,
+                {
+                  fontSize: Math.max(dimensions.fontSize.small, 12),
+                },
+              ]}
+            >
+              {eventData.date.split(" ")[0]}
             </Text>
-            <Text style={[
-              styles.dateDay,
-              {
-                fontSize: Math.max(dimensions.fontSize.header, 18),
-              }
-            ]}>
-              {eventData.date.split(' ')[1]}
+            <Text
+              style={[
+                styles.dateDay,
+                {
+                  fontSize: Math.max(dimensions.fontSize.header, 18),
+                },
+              ]}
+            >
+              {eventData.date.split(" ")[1]}
+            </Text> */}
+
+            <Text
+              style={[
+                styles.dateMonth,
+                {
+                  fontSize: Math.max(dimensions.fontSize.small, 12),
+                },
+              ]}
+            >
+              {month}
+            </Text>
+            <Text
+              style={[
+                styles.dateDay,
+                {
+                  fontSize: Math.max(dimensions.fontSize.header, 18),
+                },
+              ]}
+            >
+              {day}
             </Text>
           </View>
         </View>
 
         {/* Event Title */}
-        <Text style={[
-          styles.eventTitle,
-          {
-            fontSize: Math.max(dimensions.fontSize.large, 20),
-            marginHorizontal: dimensions.marginHorizontal,
-            marginTop: Math.max(dimensions.spacing.md, 10),
-          }
-        ]}>
-          {eventData.title}
+        <Text
+          style={[
+            styles.eventTitle,
+            {
+              fontSize: Math.max(dimensions.fontSize.large, 20),
+              marginHorizontal: dimensions.marginHorizontal,
+              marginTop: Math.max(dimensions.spacing.md, 10),
+            },
+          ]}
+        >
+          {eventData?.about}
         </Text>
         <View style={styles.sectionSeparator} />
 
         {/* Artists Status Section */}
-        <Text style={[
-          styles.sectionTitle,
-          {
-            fontSize: Math.max(dimensions.fontSize.title, 16),
-            marginBottom: Math.max(dimensions.spacing.md, 10),
-            marginLeft: dimensions.marginHorizontal,
-          }
-        ]}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              fontSize: Math.max(dimensions.fontSize.title, 16),
+              marginBottom: Math.max(dimensions.spacing.md, 10),
+              marginLeft: dimensions.marginHorizontal,
+            },
+          ]}
+        >
           Artists Status :
         </Text>
-        <View style={[
-          styles.artistStatusSection,
-          {
-            marginTop: Math.max(dimensions.spacing.lg, 15),
-            paddingHorizontal: dimensions.marginHorizontal,
-          }
-        ]}>
+        <View
+          style={[
+            styles.artistStatusSection,
+            {
+              marginTop: Math.max(dimensions.spacing.lg, 15),
+              paddingHorizontal: dimensions.marginHorizontal,
+            },
+          ]}
+        >
           {artistStatusData.map((item) => (
-            <View key={item.id}>
-              {renderArtistStatusCard({ item })}
-            </View>
+            <View key={item.id}>{renderArtistStatusCard({ item })}</View>
           ))}
         </View>
 
@@ -445,30 +577,29 @@ console.log("manage events ",eventId)
         <View style={styles.sectionSeparator} />
 
         {/* Action Buttons */}
-        <View style={[
-          styles.eventActionButtonsContainer,
-          {
-            marginTop: Math.max(dimensions.spacing.lg, 15),
-            marginHorizontal: dimensions.marginHorizontal,
-          }
-        ]}>
+        <View
+          style={[
+            styles.eventActionButtonsContainer,
+            {
+              marginTop: Math.max(dimensions.spacing.lg, 15),
+              marginHorizontal: dimensions.marginHorizontal,
+            },
+          ]}
+        >
           <View style={styles.topActionButtonsContainer}>
             <LinearGradient
-              colors={['#B15CDE', '#7952FC']}
+              colors={["#B15CDE", "#7952FC"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={[styles.gradientBorderButton, { marginRight: 5 }]}
             >
               <LinearGradient
-                colors={['#b33bf6', '#a95eff']}
+                colors={["#b33bf6", "#a95eff"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.cancelEventButton}
               >
-                <TouchableOpacity
-                  style={{ width: '100%' }}
-                  activeOpacity={0.8}
-                >
+                <TouchableOpacity style={{ width: "100%" }} activeOpacity={0.8}>
                   <Text style={styles.cancelEventButtonText}>Cancel Event</Text>
                 </TouchableOpacity>
               </LinearGradient>
@@ -479,7 +610,7 @@ console.log("manage events ",eventId)
             >
               <GradientText
                 text="Event Completed"
-                colors={['#B15CDE', '#7952FC']}
+                colors={["#B15CDE", "#7952FC"]}
                 style={styles.eventCompletedButtonText}
               />
             </TouchableOpacity>
@@ -487,11 +618,11 @@ console.log("manage events ",eventId)
           <TouchableOpacity
             style={styles.ticketSettingsButton}
             onPress={() => {
-              console.log('Navigating to HostTicketSettingScreen', {
+              console.log("Navigating to HostTicketSettingScreen", {
                 timestamp: new Date().toISOString(),
                 eventId,
               });
-              navigation.navigate('HostTicketSetting', { eventId });
+              navigation.navigate("HostTicketSetting", { eventId });
             }}
             activeOpacity={0.8}
           >
@@ -514,7 +645,7 @@ const HostManageEventScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1e1e1e',
+    backgroundColor: "#1e1e1e",
   },
   scrollView: {
     flex: 1,
@@ -523,20 +654,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     width: 393,
     paddingTop: 20,
     paddingBottom: 20,
     paddingLeft: 16,
     paddingRight: 16,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#C6C5ED',
-    backgroundColor: '#121212',
-    shadowColor: '#683BFC',
+    borderBottomColor: "#C6C5ED",
+    backgroundColor: "#121212",
+    shadowColor: "#683BFC",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.05,
     shadowRadius: 12,
@@ -546,53 +677,51 @@ const styles = StyleSheet.create({
     // Enhanced touch target for better accessibility
     minWidth: 44,
     minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontWeight: 600,
-    color: '#fff',
-    textAlign: 'center',
+    color: "#fff",
+    textAlign: "center",
     flex: 1,
-    
-    
   },
   separator: {
     height: 1,
-    backgroundColor: '#333',
+    backgroundColor: "#333",
   },
   imageContainer: {
-    overflow: 'hidden',
-    position: 'relative',
+    overflow: "hidden",
+    position: "relative",
     // Enhanced shadow for better depth perception
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
   eventImage: {
-    width: '100%',
+    width: "100%",
   },
   dateOverlay: {
-    position: 'absolute',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: "absolute",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   dateMonth: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
   },
   dateDay: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
   },
   eventTitle: {
     fontWeight: 500,
-    
-    color: '#fff',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+
+    color: "#fff",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -600,15 +729,15 @@ const styles = StyleSheet.create({
     // Container styles handled dynamically
   },
   sectionTitle: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
   },
   artistCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    alignItems: 'center',
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    alignItems: "center",
     // Enhanced shadow
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -621,129 +750,128 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   artistBudget: {
-    color: '#6A6A6A',
-    fontFamily: 'Poppins',
+    color: "#6A6A6A",
+    fontFamily: "Poppins",
     fontSize: 10,
-    fontWeight: '400',
+    fontWeight: "400",
     lineHeight: undefined, // normal
   },
   artistGenre: {
-    color: '#888',
-    fontFamily: 'Poppins',
+    color: "#888",
+    fontFamily: "Poppins",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: undefined, // normal
   },
   artistStatusLabel: {
-    color: '#888',
+    color: "#888",
   },
   artistStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   // Status Button Styles
   statusButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   statusButtonPending: {
-    display: 'flex',
+    display: "flex",
     width: 78,
     height: 20,
-    marginLeft:10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginLeft: 10,
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: '#FF9500',
-    backgroundColor: 'transparent',
+    borderColor: "#FF9500",
+    backgroundColor: "transparent",
   },
   statusButtonTextPending: {
-    color: '#FF9500',
-    fontFamily: 'Poppins',
+    color: "#FF9500",
+    fontFamily: "Poppins",
     fontSize: 10,
-    fontWeight: '400',
+    fontWeight: "400",
     lineHeight: undefined, // normal
-    textTransform: 'capitalize',
-    
+    textTransform: "capitalize",
   },
   statusButtonPayBooking: {
     height: 20,
     paddingHorizontal: 12,
-    marginLeft:10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginLeft: 10,
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: '#B15CDE',
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
+    borderColor: "#B15CDE",
+    backgroundColor: "transparent",
+    flexDirection: "row",
   },
   statusButtonBooked: {
     height: 20,
     paddingHorizontal: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 6,
-    marginLeft:10,
+    marginLeft: 10,
     borderWidth: 0.5,
-    borderColor: '#28a745',
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
+    borderColor: "#28a745",
+    backgroundColor: "transparent",
+    flexDirection: "row",
   },
   statusButtonTextBooked: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontSize: 10,
-    fontWeight: '400',
-    textTransform: 'capitalize',
+    fontWeight: "400",
+    textTransform: "capitalize",
     lineHeight: undefined, // normal
   },
   statusButtonRejected: {
     height: 20,
     paddingHorizontal: 12,
-    marginLeft:10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginLeft: 10,
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: '#FF3B30',
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
+    borderColor: "#FF3B30",
+    backgroundColor: "transparent",
+    flexDirection: "row",
   },
   statusButtonTextRejected: {
-    fontFamily: 'Poppins',
+    fontFamily: "Poppins",
     fontSize: 10,
-    fontWeight: '400',
-    textTransform: 'capitalize',
+    fontWeight: "400",
+    textTransform: "capitalize",
     lineHeight: undefined, // normal
   },
   plusButton: {
-    backgroundColor: '#a95eff',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#a95eff",
+    justifyContent: "center",
+    alignItems: "center",
   },
   artistActions: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   artistDate: {
-    color: '#a95eff',
+    color: "#a95eff",
   },
   trashButton: {
-    display: 'flex',
+    display: "flex",
     width: 20,
     height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: '#FF3B30',
+    borderColor: "#FF3B30",
   },
   eventActionButtonsContainer: {
     // Margins handled dynamically
   },
   topActionButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 24,
   },
   gradientBorderButton: {
@@ -756,62 +884,62 @@ const styles = StyleSheet.create({
   cancelEventButton: {
     flex: 1,
     borderRadius: 12,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
   },
   cancelEventButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     paddingVertical: 16,
   },
   eventCompletedButton: {
     flex: 1,
     borderRadius: 12,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: '#A95EFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: "#A95EFF",
+    justifyContent: "center",
+    alignItems: "center",
   },
   eventCompletedButtonText: {
-    color: '#A95EFF',
-    fontWeight: '600',
+    color: "#A95EFF",
+    fontWeight: "600",
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     paddingVertical: 16,
   },
   ticketSettingsButton: {
-    width: '100%',
+    width: "100%",
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#C6C5ED',
-    backgroundColor: 'transparent',
+    borderColor: "#C6C5ED",
+    backgroundColor: "transparent",
     marginTop: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   ticketSettingsButtonText: {
-    color: '#C6C5ED',
-    fontWeight: '600',
+    color: "#C6C5ED",
+    fontWeight: "600",
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     paddingVertical: 14,
   },
   buttonTouchableOpacity: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionSeparator: {
     width: 319,
     height: 1,
-    backgroundColor: '#4F4F59',
-    alignSelf: 'center',
+    backgroundColor: "#4F4F59",
+    alignSelf: "center",
     marginVertical: 16, // optional, for spacing
   },
 });
 
-export default HostManageEventScreen; 
+export default HostManageEventScreen;

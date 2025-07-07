@@ -9,7 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const settings = [
   { icon: 'user', label: 'Edit Profile', nav: 'HostEditProfile' },
-  { icon: 'star', label: 'Ticket Settings', nav: 'HostTicketSetting' },
+  // { icon: 'star', label: 'Ticket Settings', nav: 'HostTicketSetting' },
   { icon: 'shield', label: 'Account Security', nav: 'HostAccountSecurity' }, 
   { icon: 'credit-card', label: 'Payment Settings', nav: 'hostPaymentSetting' },
   { icon: 'settings', label: 'General Settings', nav: 'HostGeneralSetting' },
@@ -27,6 +27,9 @@ const ProfileScreen = ({ navigation }) => {
   const location = useSelector(selectLocation);
   const fullName = useSelector(selectFullName);
   const mobileNumber = useSelector(selectMobileNumber);
+
+  console.log("token for profile page ",token)
+console.log("host profile",userData)
 
   useFocusEffect(
     React.useCallback(() => {
@@ -57,21 +60,22 @@ const ProfileScreen = ({ navigation }) => {
         setLoading(false);
         return;
       }
-
       console.log('ProfileScreen: Making API request with token:', token);
-
-      const response = await api.get('/host/get-profile', {
+      // Set token in headers as per Postman configuration
+      const config = {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      });
+      };
+
+      const response = await api.get('/host/auth/getHost', config);
       
       console.log('ProfileScreen: Profile API Response:', response.data);
       
       if (response.data.success) {
         console.log('ProfileScreen: API call successful, setting profileData:', response.data.data);
-        setProfileData(response.data.data);
+        setProfileData(response?.data?.data?.user);
       } else {
         console.error('ProfileScreen: API returned success: false', response.data);
         Alert.alert('Error', response.data.message || 'Failed to fetch profile data');
@@ -123,14 +127,13 @@ const ProfileScreen = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={[styles.container, { flexGrow: 1, paddingBottom: 100 }]}
-        showsVerticalScrollIndicator={false}
-      >
+        showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>Profile </Text>
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <Image 
-            source={profileData?.profileImageUrl ? { uri: profileData.profileImageUrl } : require('../assets/Images/Profile1.png')} 
+            source={require('../assets/Images/Profile1.png')} 
             style={styles.profileBg} 
             resizeMode="cover" 
           />

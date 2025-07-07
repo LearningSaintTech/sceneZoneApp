@@ -26,7 +26,9 @@ import NotificationIcon from '../assets/icons/NotificationIcon';
 import SignUpBackground from '../assets/Banners/SignUp';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
-import { selectFullName, selectLocation } from '../Redux/slices/authSlice';
+import { selectFullName, selectLocation, selectUserData } from '../Redux/slices/authSlice';
+import { API_BASE_URL } from '../Config/env';
+
 
 const { width, height } = Dimensions.get('window');
 const isBigScreen = width >= 600;
@@ -72,7 +74,8 @@ const HomeScreen = ({ navigation }) => {
   const token = useSelector((state) => state.auth.token);
   const fullName = useSelector(selectFullName);
   const location = useSelector(selectLocation);
-
+ const userData = useSelector(selectUserData);
+ console.log("for name ",userData)
   // Updated selected state to match server payload structure
   const [selected, setSelected] = React.useState({
     price: { ranges: [], sort: 'low-high' }, // e.g., { ranges: ["1000-2000"], sort: "low-high" }
@@ -114,7 +117,7 @@ const HomeScreen = ({ navigation }) => {
           limit: limit,
         };
 
-        console.log('Fetching artists from:', 'http://192.168.1.4:3000/api/host/filter');
+        console.log('Fetching artists from:', 'http://192.168.1.9:3000/api/host/filter');
         console.log('Request Headers:', JSON.stringify({
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -122,7 +125,7 @@ const HomeScreen = ({ navigation }) => {
         console.log('Request Body:', JSON.stringify(filterPayload, null, 2));
         console.log('Token:', token);
 
-        const response = await axios.post('http://192.168.1.4:3000/api/host/filter', filterPayload, {
+        const response = await axios.post(`${API_BASE_URL}/host/filter`, filterPayload, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -154,7 +157,7 @@ const HomeScreen = ({ navigation }) => {
         Alert.alert('Error', error.response?.status === 404
           ? 'Artist filter endpoint not found. Please check if the server is running and the endpoint is correctly configured.'
           : error.message === 'Network Error'
-            ? 'Unable to connect to the server. Please ensure the server is running at http://192.168.1.4:3000.'
+            ? 'Unable to connect to the server. Please ensure the server is running at http://192.168.1.9:3000.'
             : 'Failed to fetch artists. Please try again later.');
       } finally {
         setIsLoading(false);
@@ -200,7 +203,7 @@ const HomeScreen = ({ navigation }) => {
       return;
     }
 
-    const url = 'http://192.168.1.4:3000/api/host/shortlistArtist';
+    const url = `${API_BASE_URL}/host/shortlistArtist`;
     const body = { artistId };
     const config = {
       headers: {
@@ -432,7 +435,7 @@ const HomeScreen = ({ navigation }) => {
 
     return (
       <Animated.View
-        style={[styles.eventCard, { transform: [{ scale }], opacity, width: dimensions.cardWidth, height: 540 }]}
+        style={[styles.eventCard, { transform: [{ scale }], opacity, width: dimensions.cardWidth, height: 440 }]}
       >
         <TouchableOpacity
           onPress={() => {
@@ -568,9 +571,9 @@ const HomeScreen = ({ navigation }) => {
     },
   ]}
 >
-  <View>
-    <Text style={styles.greeting}>Hello {fullName || 'User'}!</Text>
-    <Text style={styles.location}>📍 {location || 'Location'}</Text>
+  <View style={styles.headerContent}>
+    <Text style={styles.greeting}>Hello {userData.name || 'User'}!</Text>
+    <Text style={styles.location}>📍 H-70, Sector 63, Noida</Text>
   </View>
   <View style={styles.headerIcons}>
     <TouchableOpacity
@@ -720,6 +723,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  filterContent: {
+  flex: 1,
+  paddingTop: 20,
+},
+  fixedButtonContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  paddingHorizontal: 20,
+  marginTop: 16,
+},
   noDataText: {
     color: '#fff',
     fontSize: 16,
@@ -744,7 +757,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 80,
     zIndex: 1,
+    backgroundColor: '#000',
   },
+  headerContent: {
+    flexDirection: 'column',
+  },
+  sectionHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 8,
+},
+
   greeting: {
     fontSize: 22,
     fontWeight: 'bold',
@@ -754,6 +778,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#aaa',
     marginTop: 4,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   buttonWithDropdownContainer: {
     position: 'relative',
