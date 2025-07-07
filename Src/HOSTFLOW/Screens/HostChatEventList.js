@@ -178,7 +178,7 @@ const HostChatEventList = ({ navigation }) => {
   // Handle Android back button
   useEffect(() => {
     const backAction = () => {
-      navigation.navigate('ArtistHome');
+      navigation.navigate('MainTabs');
       return true;
     };
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -232,7 +232,7 @@ const HostChatEventList = ({ navigation }) => {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.navigate('ArtistHome')}
+              onPress={() => navigation.navigate('MainTabs')}
             >
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </TouchableOpacity>
@@ -276,8 +276,7 @@ const HostChatEventList = ({ navigation }) => {
             />
           )}
 
-          <ArtistBottomNavBar navigation={navigation} insets={insets} isLoading={false} />
-        </View>
+         </View>
       </ErrorBoundary>
     </SafeAreaView>
   );

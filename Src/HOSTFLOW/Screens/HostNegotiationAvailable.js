@@ -16,8 +16,7 @@ import Feather from 'react-native-vector-icons/Feather';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
-
-const API_BASE_URL = 'http://192.168.1.52:3000';
+const API_BASE_URL = 'http://192.168.1.9:3000';
 const { width } = Dimensions.get('window');
 
 const NegotiationScreen = ({ navigation, route }) => {

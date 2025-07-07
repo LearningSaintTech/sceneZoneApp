@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomToggle from '../Components/CustomToggle';
 import { useSelector } from 'react-redux';
 import {jwtDecode} from 'jwt-decode'; // Ensure this is installed (e.g., npm install jwt-decode)
+import { API_BASE_URL } from '../Config/env';
 
 const HostChatList = ({ navigation, route }) => {
   const [searchText, setSearchText] = useState('');
@@ -45,7 +46,7 @@ const HostChatList = ({ navigation, route }) => {
 
       try {
         setLoading(true);
-        const response = await fetch(`${BASE_URL}/api/chat/get-chats/${eventId}`, {
+        const response = await fetch(`${API_BASE_URL}/chat/get-chats/${eventId}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -199,8 +200,7 @@ const HostChatList = ({ navigation, route }) => {
         />
       )}
 
-      <ArtistBottomNavBar navigation={navigation} insets={insets} isLoading={false} />
-    </SafeAreaView>
+     </SafeAreaView>
   );
 };
 
