@@ -1,414 +1,341 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Dimensions,
+} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
+import SignUpBackground from '../assets/Banners/SignUp';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import HapticFeedback from 'react-native-haptic-feedback';
 
-const UserTicketDownload = ({ navigation }) => {
+const { width: screenWidth } = Dimensions.get('window');
+
+const hapticOptions = {
+  enableVibrateFallback: true,
+  ignoreAndroidSystemSettings: false,
+};
+
+const triggerHaptic = (type) => {
+  try {
+    HapticFeedback.trigger(type, hapticOptions);
+  } catch (error) {
+    // Silently fail
+  }
+};
+
+const UserTicketScreen = ({ navigation }) => {
+  const [activeTab, setActiveTab] = useState('active');
+  const insets = useSafeAreaInsets();
+
+  // Placeholder data for tickets
+  const activeTickets = [
+    {
+      id: 1,
+      image: require('../assets/Images/fff.jpg'), // Placeholder image
+      date: 'Sep\n20',
+      title: 'Harmony Festival 2025',
+      ticketId: '#1234567890',
+    },
+     {
+      id: 2,
+      image: require('../assets/Images/shortlist1.png'), // Placeholder image
+      date: 'Sep\n20',
+      title: 'Unity Fest 2025',
+      ticketId: '#0987654321',
+    },
+    // Add more active tickets as needed
+  ];
+
+   const pastTickets = [
+    {
+      id: 1,
+      image: require('../assets/Images/Cover.png'), // Placeholder image
+      date: 'Aug\n15',
+      title: 'Previous Concert 2024',
+      ticketId: '#PAST987654',
+    },
+     {
+      id: 2,
+      image: require('../assets/Images/shortlist1.png'), // Placeholder image
+      date: 'Jul\n01',
+      title: 'Old Festival 2023',
+      ticketId: '#PAST123456',
+    },
+    // Add more past tickets as needed
+  ];
+
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#18151f' }}>
+    <SafeAreaView style={[styles.container, {
+      paddingTop: insets.top,
+      paddingBottom: insets.bottom,
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
+    }]}>
+      {/* SVG Background */}
+      <View style={styles.backgroundSvgContainer} pointerEvents="none">
+        <SignUpBackground style={styles.backgroundSvg} width={screenWidth} height="100%" />
+      </View>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#C6C5ED" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detail Ticket</Text>
-        <Ionicons name="information-circle-outline" size={24} color="#C6C5ED" />
+        <Text style={styles.headerTitle}>My Ticket</Text>
+        <View style={{ width: 24 }} />{/* Spacer to align title */}
       </View>
 
-      <ScrollView 
-        style={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Main Card (Event Info + Barcode) */}
-        <View style={styles.ticketCard}>
-          {/* Event Image Card */}
-          <View style={styles.eventImageCard}>
-            <Image
-              source={require('../assets/Images/ffff.jpg')}
-              style={styles.eventImage}
-              resizeMode="cover"
-            />
-            {/* Date badge */}
-            <View style={styles.dateBadge}>
-              <Text style={styles.dateBadgeMonth}>Aug</Text>
-              <Text style={styles.dateBadgeDay}>15</Text>
-            </View>
-            {/* Event Title and Ticket ID overlay */}
-            <View style={styles.eventImageOverlay}>
-              <Text style={styles.eventTitle}>Synchronize Fest 2024</Text>
-              <Text style={styles.ticketId}>Ticket ID: #8954673009</Text>
-            </View>
-          </View>
-          {/* Details */}
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel} numberOfLines={1} ellipsizeMode="tail">Name</Text>
-            <Text style={styles.detailValueName}>Maxwell Carter</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel} numberOfLines={1} ellipsizeMode="tail">Location</Text>
-            <Text style={styles.detailValueLocation}>123 Lotus Lane, Jaipur, Rajasthan, India</Text>
-          </View>
-          <View style={styles.detailRowTwoCol}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.detailLabel} numberOfLines={1} ellipsizeMode="tail">Number of Ticket</Text>
-              <Text style={styles.detailValueName}>x1</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.detailLabel} numberOfLines={1} ellipsizeMode="tail">Date</Text>
-              <Text style={styles.detailValueName}>May 20, 2024</Text>
-            </View>
-          </View>
-          {/* Barcode placeholder (improved) */}
-          <View style={styles.barcodeContainer}>
-            <View style={styles.barcodeLines} />
-          </View>
-        </View>
-        {/* Payment Card */}
-        <View style={styles.paymentCardContainer}>
-          <View style={styles.paymentCard}>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Subtotal</Text>
-              <Text style={styles.paymentValue}>$50.00</Text>
-            </View>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Fees</Text>
-              <Text style={styles.paymentValue}>$1.50</Text>
-            </View>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Tax (4%)</Text>
-              <Text style={styles.paymentValue}>$2.00</Text>
-            </View>
-            <View style={styles.paymentSeparator} />
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Total</Text>
-              <Text style={styles.paymentValueTotal}>$53.50</Text>
-            </View>
-          </View>
-        </View>
-        {/* Payment Method */}
-        <View style={styles.paymentMethodCard}>
-          <View style={styles.paymentMethodRow}>
-            <Text style={styles.paymentMethodLabel}>Payment Method</Text>
-            <View style={styles.paymentMethodValue}>
-              <Ionicons name="logo-apple" size={24} color="#fff" />
-              <Text style={styles.paymentMethodText}>Apple Pay</Text>
-            </View>
-          </View>
-        </View>
-        {/* Download Button */}
-        <LinearGradient
-          colors={['#7952FC', '#B15CDE']}
-          start={{x: 0, y: 0}}
-          end={{x: 1, y: 0}}
-          style={styles.downloadButtonCard}
+      {/* Ticket Type Buttons */}
+      <View style={styles.ticketTypeButtonsContainer}>
+        {/* Active Ticket Button */}
+        <TouchableOpacity
+          style={[styles.ticketTypeButton, { marginRight: 12 }]}
+          onPress={() => setActiveTab('active')}
         >
-          <TouchableOpacity style={styles.downloadButtonContent}>
-            <View style={styles.downloadButtonRow}>
-              <View style={styles.downloadButtonInner}>
-                <Ionicons name="download-outline" size={24} color="#FFFFFF" />
-                <Text style={[styles.downloadButtonText, { color: '#FFFFFF' }]}>Download Ticket</Text>
-              </View>
+          {activeTab === 'active' ? (
+            <LinearGradient
+              colors={['#B15CDE', '#7952FC']}
+              start={{ x: 1, y: 0 }}
+              end={{ x: 0, y: 0 }}
+              style={styles.ticketTypeButtonActiveBg}
+            >
+              <Text style={styles.ticketTypeButtonTextActive}>Active Ticket</Text>
+            </LinearGradient>
+          ) : (
+            <View style={styles.ticketTypeButtonInactiveBg}>
+              <Text style={styles.ticketTypeButtonTextInactive}>Active Ticket</Text>
             </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Past Ticket Button */}
+        <TouchableOpacity
+          style={styles.ticketTypeButton}
+          onPress={() => setActiveTab('past')}
+        >
+          {activeTab === 'past' ? (
+            <LinearGradient
+              colors={['#B15CDE', '#7952FC']}
+              start={{ x: 1, y: 0 }}
+              end={{ x: 0, y: 0 }}
+              style={styles.ticketTypeButtonActiveBg}
+            >
+              <Text style={styles.ticketTypeButtonTextActive}>Past Ticket</Text>
+            </LinearGradient>
+          ) : (
+            <View style={styles.ticketTypeButtonInactiveBg}>
+              <Text style={styles.ticketTypeButtonTextInactive}>Past Ticket</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Ticket List */}
+      {/* Display tickets based on activeTab */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollViewContent}>
+        {(activeTab === 'active' ? activeTickets : pastTickets).map((ticket) => (
+          <TouchableOpacity
+            key={ticket.id}
+            style={styles.ticketCard}
+            onPress={() => navigation.navigate('UserTicketDownload')}
+            activeOpacity={0.85}
+          >
+            <Image source={ticket.image} style={styles.ticketImage} resizeMode="cover" />
+            <View style={styles.dateContainer}>
+              <Text style={styles.dateText}>{ticket.date}</Text>
+            </View>
+            <TouchableOpacity style={styles.heartIconPlaceholder} onPress={() => { triggerHaptic('impactMedium'); }}>
+               <Ionicons name="heart-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.ticketInfo}>
+              <Text style={styles.ticketTitle}>{ticket.title}</Text>
+              <Text style={styles.ticketIdText}>Ticket ID: {ticket.ticketId}</Text>
+            </View>
+             <TouchableOpacity style={styles.ticketArrowButton}>
+                 <MaterialIcons name="chevron-right" size={24} color="#fff" />
+             </TouchableOpacity>
           </TouchableOpacity>
-        </LinearGradient>
+        ))}
       </ScrollView>
+
+      {/* Bottom Navigation Placeholder - Actual navigation handled by navigator */}
+      {/* <View style={{ height: 60 }} /> */}
+
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollContainer: {
+  container: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 24,
+    backgroundColor: '#000',
   },
   header: {
-    marginTop:40,
+    paddingTop:30,
     flexDirection: 'row',
-    width: 393,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#121212',
-    shadowColor: 'rgba(104, 59, 252, 0.05)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: '#333',
   },
   headerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1, // Allow title to take up space
+    textAlign: 'left',
+    marginLeft:20,
+     // Center the text
+  },
+  ticketTypeButtonsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 20,
+    backgroundColor: 'transparent',
+    borderRadius: 16,
+    overflow: 'visible',
+    borderWidth: 0,
+    padding: 0,
+  },
+  ticketTypeButton: {
+    flex: 1,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 0,
+    alignSelf: 'stretch',
+    backgroundColor: 'transparent',
+    borderRadius: 16,
+  },
+  ticketTypeButtonActiveBg: {
+    flex: 1,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    borderRadius: 16,
+    shadowColor: '#B15CDE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  ticketTypeButtonInactiveBg: {
+    flex: 1,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: '#1A1A1F',
+    borderRadius: 16,
+  },
+  ticketTypeButtonTextActive: {
+    color: '#18151f',
+    fontFamily: 'Nunito Sans',
+    fontSize: 14,
+    fontWeight: '600',
+    fontStyle: 'normal',
+    lineHeight: 21,
+    textAlign: 'center',
+  },
+  ticketTypeButtonTextInactive: {
     color: '#C6C5ED',
     fontFamily: 'Nunito Sans',
     fontSize: 14,
-    fontWeight: '700',
-    marginRight:160,
+    fontWeight: '600',
+    fontStyle: 'normal',
+    lineHeight: 21,
+    textAlign: 'center',
   },
-  mainCard: {
-    display: 'flex',
-    padding: 16,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 26,
-    alignSelf: 'stretch',
-    borderRadius: 20,
-    borderTopWidth: 1,
-    borderRightWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: '#34344A',
-    backgroundColor: '#0D0D0D',
-    margin: 16,
+  scrollViewContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   ticketCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 12,
-    alignSelf: 'stretch',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#34344A',
-    backgroundColor: '#0D0D0D',
-    margin: 16,
-    padding: 16,
-    marginBottom: 18,
+    backgroundColor: '#1a1a1a', // Dark background for ticket card
+    borderRadius: 10,
+    marginBottom: 15,
+    overflow: 'hidden', // Clip image to rounded corners
+    position: 'relative', // For absolute positioning of date, heart, and arrow
+    width: Math.min(screenWidth * 0.9, 400),
+    alignSelf: 'center',
   },
-  eventImageCard: {
-    display: 'flex',
-    height: 200,
-    minWidth: 200,
-    paddingTop: 8,
-    paddingRight: 8,
-    paddingBottom: 136,
-    paddingLeft: 8,
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    borderRadius: 16,
-    backgroundColor: '#121212',
-    marginBottom: 12,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  eventImage: {
+  ticketImage: {
     width: '100%',
-    height: '220%',
-    borderRadius: 16,
+    height: Math.max(screenWidth * 0.4, 120),
+    resizeMode: 'cover',
   },
-  dateBadge: {
+  dateContainer: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#18151f',
-    borderRadius: 8,
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Semi-transparent dark background
+    borderRadius: 5,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
     alignItems: 'center',
   },
-  dateBadgeMonth: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '400',
-    
-  },
-  dateBadgeDay: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  eventTitle: {
-    color: '#B2B2E7',
-    fontFamily: 'Nunito Sans',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  ticketId: {
-    color: '#7A7A90',
-    fontFamily: 'Nunito Sans',
+  dateText: {
     fontSize: 12,
-    fontWeight: '400',
-    marginBottom: 0,
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
-  detailRow: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-    width: '100%',
-  },
-  detailLabel: {
-    overflow: 'hidden',
-    color: '#C6C5ED',
-    fontFamily: 'Nunito Sans',
-    fontSize: 14,
-    fontStyle: 'normal',
-    fontWeight: '400',
-    lineHeight: 21,
-    textOverflow: 'ellipsis',
-    marginBottom: 2,
-  },
-  detailValueName: {
-    overflow: 'hidden',
-    color: '#BB71E2',
-    fontFamily: 'Nunito Sans',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 21,
-    textOverflow: 'ellipsis',
-    marginBottom: 2,
-  },
-  detailValueLocation: {
-    overflow: 'hidden',
-    color: '#BB71E2',
-    fontFamily: 'Nunito Sans',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 21,
-    textOverflow: 'ellipsis',
-    textDecorationLine: 'none',
-  },
-  detailRowTwoCol: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 8,
-  },
-  barcodeContainer: {
-    width: '100%',
-    height: 64,
-    backgroundColor: '#18151f',
-    borderRadius: 8,
-    marginVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  barcodeLines: {
-    width: '90%',
-    height: '80%',
-    borderRadius: 2,
-    backgroundColor: 'repeating-linear-gradient(90deg, #fff 0 2px, transparent 2px 6px)',
-  },
-  paymentCardContainer: {
-    paddingHorizontal: 16,
-    marginVertical: 8,
-  },
-  paymentCard: {
-    backgroundColor: '#0D0D0D',
-    borderRadius: 20,
-    padding: 20,
-    paddingBottom: 12,
-    borderWidth: 1,
-    borderColor: '#34344A',
-  },
-  paymentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  paymentLabel: {
-    color: '#7A7A90',
-    fontFamily: 'Nunito Sans',
-    fontSize: 16,
-    fontWeight: '400',
-    opacity: 0.8,
-  },
-  paymentValue: {
-    color: '#C6C5ED',
-    fontFamily: 'Nunito Sans',
-    fontSize: 14,
-    fontWeight: '500',
-    
-  },
-  paymentValueTotal: {
-    color: '#C6C5ED',
-    fontFamily: 'Nunito Sans',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  paymentSeparator: {
-    height: 1,
-    backgroundColor: '#34344A',
-    width: '100%',
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  paymentMethodCard: {
-    display: 'flex',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    alignSelf: 'stretch',
-    borderRadius: 20,
-    backgroundColor: '#0D0D0D',
-    borderWidth: 1,
-    borderColor: '#34344A',
-    marginHorizontal: 16,
-    marginTop:20,
-  },
-  paymentMethodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    justifyContent: 'space-between',
-  },
-  paymentMethodLabel: {
-    color: '#7A7A90',
-    fontFamily: 'Nunito Sans',
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  paymentMethodValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  paymentMethodText: {
-    color: '#C6C5ED',
-    fontFamily: 'Nunito Sans',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  downloadButtonCard: {
-    display: 'flex',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    flexDirection: 'column',
-    alignSelf: 'stretch',
-    borderRadius: 20,
-    marginHorizontal: 16,
-    marginTop: 24,
-  },
-  downloadButtonContent: {
-    width: '100%',
-  },
-  downloadButtonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  downloadButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  downloadButtonText: {
-    fontFamily: 'Nunito Sans',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  eventImageOverlay: {
+  heartIconPlaceholder: {
     position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1, // Ensure heart is above the image
+  },
+  ticketInfo: {
+    padding: 10,
+  },
+  ticketTitle: {
+    overflow: 'hidden',
+    color: '#C6C5ED',
+    textOverflow: 'ellipsis',
+    fontFamily: 'Nunito Sans',
+    fontSize: 16,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    lineHeight: 24,
+    marginBottom: 4,
+  },
+  ticketIdText: {
+    fontSize: 12,
+    color: '#aaa',
+  },
+  ticketArrowButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', // Semi-transparent background
+    padding: 5,
+    borderRadius: 15,
+    zIndex: 1, // Ensure arrow is above ticket info
+  },
+  backgroundSvgContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+  backgroundSvg: {
+    position: 'absolute',
+    top: 0,
     left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    alignItems: 'flex-start',
+    width: '100%',
+    height: '100%',
   },
 });
 
-export default UserTicketDownload;
+export default UserTicketScreen; 

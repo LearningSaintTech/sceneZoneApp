@@ -59,6 +59,7 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputs = useRef([]);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
@@ -87,14 +88,19 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
         }
       });
       setOtp(newOtp);
-      inputs.current[Math.min(chars.length - 1, 5)]?.focus();
+      setActiveIndex(Math.min(chars.length, 5));
+      inputs.current[Math.min(chars.length, 5)]?.focus();
       return;
     }
     if (/^[0-9]*$/.test(text)) {
       newOtp[index] = text;
       setOtp(newOtp);
       if (text && index < 5) {
+        setActiveIndex(index + 1);
         inputs.current[index + 1].focus();
+      } else if (!text && index > 0) {
+        setActiveIndex(index - 1);
+        inputs.current[index - 1].focus();
       }
     }
   };
@@ -102,6 +108,7 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
   const handleKeyPress = (e, index) => {
     if (e.nativeEvent.key === 'Backspace' && otp[index] === '' && index > 0) {
       inputs.current[index - 1].focus();
+      setActiveIndex(index - 1);
       const newOtp = [...otp];
       newOtp[index - 1] = '';
       setOtp(newOtp);
@@ -232,17 +239,24 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
               <TextInput
                 key={index}
                 ref={(ref) => (inputs.current[index] = ref)}
-                style={styles.otpInput}
+                style={[
+                  styles.otpInput,
+                  activeIndex === index && { borderColor: '#a95eff', shadowColor: '#a95eff', shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
+                ]}
                 maxLength={1}
                 keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="sms-otp"
                 value={digit}
                 onChangeText={(text) => handleChange(text, index)}
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 textAlign="center"
-                autoFocus={index === 0}
+                onFocus={() => setActiveIndex(index)}
                 selectionColor="#a95eff"
                 returnKeyType="done"
                 blurOnSubmit={false}
+                autoCorrect={false}
+                autoCapitalize="none"
               />
             ))}
           </View>
@@ -346,7 +360,7 @@ const styles = StyleSheet.create({
     width: dimensions.otpBoxSize,
     height: dimensions.otpBoxSize,
     borderRadius: dimensions.borderRadius.md,
-    fontSize: dimensions.fontSize.large,
+    fontSize: 13,
     fontWeight: 'bold',
     borderWidth: 2,
     borderColor: '#333',

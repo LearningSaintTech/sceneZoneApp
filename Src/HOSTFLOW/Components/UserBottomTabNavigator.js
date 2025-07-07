@@ -12,13 +12,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeIcon from '../assets/icons/home';
 import MyTicketIcon from '../assets/icons/myticket';
 import FavoriteIcon from '../assets/icons/favorite';
+import { useSelector } from 'react-redux';
+import { selectIsLoggedIn } from '../Redux/slices/authSlice';
 
 const Tab = createBottomTabNavigator();
 const { width, height } = Dimensions.get('window');
 
 const UserTabs = () => {
   const insets = useSafeAreaInsets();
-  const [screensLoaded, setScreensLoaded] = useState(false);
+  const [homeLoaded, setHomeLoaded] = useState(false);
+  const [favoriteLoaded, setFavoriteLoaded] = useState(false);
+  const [ticketLoaded, setTicketLoaded] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // Get isLoggedIn from Redux
+  const isLoggedIn = useSelector(selectIsLoggedIn);
 
   // Animation values for each tab
   const homeAnim = useRef(new Animated.Value(0)).current;
@@ -26,11 +34,57 @@ const UserTabs = () => {
   const ticketAnim = useRef(new Animated.Value(1)).current;
   const profileAnim = useRef(new Animated.Value(0)).current;
 
+  // Jitter state for favorite tab
+  const [jitterFavorite, setJitterFavorite] = useState(false);
+  const jitterFavoriteTab = () => {
+    setJitterFavorite(true);
+    Animated.sequence([
+      Animated.timing(favoriteAnim, {
+        toValue: 1,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(favoriteAnim, {
+        toValue: -1,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(favoriteAnim, {
+        toValue: 0.7,
+        duration: 60,
+        useNativeDriver: true,
+      }),
+      Animated.timing(favoriteAnim, {
+        toValue: -0.7,
+        duration: 60,
+        useNativeDriver: true,
+      }),
+      Animated.timing(favoriteAnim, {
+        toValue: 0.4,
+        duration: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(favoriteAnim, {
+        toValue: -0.4,
+        duration: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(favoriteAnim, {
+        toValue: 0,
+        duration: 30,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setJitterFavorite(false));
+  };
+
   // Animation effect for active tab - stop after screens are loaded
   useEffect(() => {
     // Set screens as loaded after a brief delay
     const loadTimer = setTimeout(() => {
-      setScreensLoaded(true);
+      setHomeLoaded(true);
+      setFavoriteLoaded(true);
+      setTicketLoaded(true);
+      setProfileLoaded(true);
     }, 2000); // 2 seconds delay
 
     // Run initial animations
@@ -64,19 +118,19 @@ const UserTabs = () => {
       })
     ]).start();
 
-    Animated.sequence([
-      Animated.timing(ticketAnim, {
-        toValue: 1.2,
-        duration: 800,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(ticketAnim, {
-        toValue: 1,
-        duration: 800,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
+      Animated.sequence([
+        Animated.timing(ticketAnim, {
+          toValue: 1.2,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(ticketAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
       Animated.timing(ticketAnim, {
         toValue: 1.2,
         duration: 800,
@@ -156,8 +210,8 @@ const UserTabs = () => {
                 color={focused ? "#a95eff" : "#aaa"} 
               />
             );
-            // Only animate if screens are not loaded yet
-            animatedStyle = (focused && !screensLoaded) ? { 
+            // Only animate if screen is not loaded yet
+            animatedStyle = (focused && !homeLoaded) ? { 
               transform: [{ rotate: homeAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] 
             } : {};
           }
@@ -169,9 +223,9 @@ const UserTabs = () => {
                 color={focused ? "#a95eff" : "#aaa"} 
               />
             );
-            // Only animate if screens are not loaded yet
-            animatedStyle = (focused && !screensLoaded) ? { 
-              transform: [{ rotate: favoriteAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] 
+            // Animate on jitterFavorite or initial load
+            animatedStyle = (focused && (!favoriteLoaded || jitterFavorite)) ? { 
+              transform: [{ rotate: favoriteAnim.interpolate({ inputRange: [-1, 1], outputRange: ['-30deg', '30deg'] }) }] 
             } : {};
           }
           else if (route.name === 'UserTicket') {
@@ -182,8 +236,8 @@ const UserTabs = () => {
                 color={focused ? "#a95eff" : "#aaa"} 
               />
             );
-            // Only animate if screens are not loaded yet
-            animatedStyle = (focused && !screensLoaded) ? { 
+            // Only animate if screen is not loaded yet
+            animatedStyle = (focused && !ticketLoaded) ? { 
               transform: [{ scale: ticketAnim }] 
             } : {};
           }
@@ -195,8 +249,8 @@ const UserTabs = () => {
                 color={focused ? "#a95eff" : "#aaa"} 
               />
             );
-            // Only animate if screens are not loaded yet
-            animatedStyle = (focused && !screensLoaded) ? { 
+            // Only animate if screen is not loaded yet
+            animatedStyle = (focused && !profileLoaded) ? { 
               transform: [{ rotate: profileAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] 
             } : {};
           }
@@ -204,7 +258,7 @@ const UserTabs = () => {
           return (
             <Animated.View style={animatedStyle}>
               <View style={{
-                backgroundColor: focused ? 'rgba(169, 94, 255, 0.1)' : 'transparent',
+                backgroundColor: 'transparent',
                 borderRadius: 8,
                 paddingHorizontal: 4,
                 paddingVertical: 4,
@@ -222,23 +276,47 @@ const UserTabs = () => {
     >
       <Tab.Screen 
         name="UserHome" 
-        component={UserHomeScreen}
+        children={props => <UserHomeScreen {...props} onScreenLoaded={() => setHomeLoaded(true)} jitterFavoriteTab={jitterFavoriteTab} />}
         options={{ tabBarLabel: 'Home' }}
       />
       <Tab.Screen 
         name="UserFavorite" 
-        component={UserFavoriteScreen}
+        children={props => <UserFavoriteScreen {...props} onScreenLoaded={() => setFavoriteLoaded(true)} />}
         options={{ tabBarLabel: 'Favorite' }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            if (!isLoggedIn) {
+              e.preventDefault();
+              navigation.navigate('UserSignup');
+            }
+          },
+        })}
       />
       <Tab.Screen 
         name="UserTicket" 
-        component={UserTicketScreen}
+        children={props => <UserTicketScreen {...props} onScreenLoaded={() => setTicketLoaded(true)} />}
         options={{ tabBarLabel: 'My Ticket' }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            if (!isLoggedIn) {
+              e.preventDefault();
+              navigation.navigate('UserSignup');
+            }
+          },
+        })}
       />
       <Tab.Screen 
         name="UserProfile" 
-        component={UserProfileScreen}
+        children={props => <UserProfileScreen {...props} onScreenLoaded={() => setProfileLoaded(true)} />}
         options={{ tabBarLabel: 'Profile' }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            if (!isLoggedIn) {
+              e.preventDefault();
+              navigation.navigate('UserSignup');
+            }
+          },
+        })}
       />
     </Tab.Navigator>
   );

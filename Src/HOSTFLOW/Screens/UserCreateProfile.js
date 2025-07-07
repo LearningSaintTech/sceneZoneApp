@@ -95,15 +95,15 @@ console.log("User Data in create profile:", userData);
   const handleCameraPress = async () => {
     launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, (response) => {
       if (response.didCancel) return;
-      if (response.errorCode) {
+    if (response.errorCode) {
         Alert.alert('Error', 'Could not open gallery.');
-        return;
-      }
+      return;
+    }
       if (response.assets && response.assets.length > 0) {
         const selectedImage = response.assets[0];
         if (validateImage(selectedImage)) {
-          setProfileImage(selectedImage);
-        }
+      setProfileImage(selectedImage);
+    }
       }
     });
   };

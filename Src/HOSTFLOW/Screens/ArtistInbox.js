@@ -1,50 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, TextInput, Image, Switch, Animated, BackHandler } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, TextInput, Image, Animated, Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
+import { useSelector } from 'react-redux';
+import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackHandler } from 'react-native';
+import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import CustomToggle from '../Components/CustomToggle';
 import SignUpBackground from '../assets/Banners/SignUp';
+import debounce from 'lodash.debounce';
 
-const messagesData = [
-  {
-    id: '1',
-    image: require('../assets/Images/fff.jpg'),
-    eventName: 'GenrAcoustic Moments',
-    eventDate: '07 Feb 2025',
-  },
-  {
-    id: '2',
-    image: require('../assets/Images/fff.jpg'),
-    eventName: 'GenrUrban Beats',
-    eventDate: '08 Feb 2025',
-  },
-  {
-    id: '3',
-    image: require('../assets/Images/fff.jpg'),
-    eventName: 'GenrClassical Rhythms',
-    eventDate: '09 Feb 2025',
-  },
-  {
-    id: '4',
-    image: require('../assets/Images/fff.jpg'),
-    eventName: "GenrNature's Echoes",
-    eventDate: '10 Feb 2025',
-  },
-  {
-    id: '5',
-    image: require('../assets/Images/fff.jpg'),
-    eventName: 'GenrRetro Vibes',
-    eventDate: '11 Feb 2025',
-  },
-];
+const API_BASE_URL = 'http://192.168.1.52:3000';
+const { width } = Dimensions.get('window');
 
 // MusicBeatsLoader: Animated music bars loader
 const MusicBeatsLoader = () => {
-  const barAnims = [React.useRef(new Animated.Value(1)).current, React.useRef(new Animated.Value(1)).current, React.useRef(new Animated.Value(1)).current];
+  const barAnims = [useRef(new Animated.Value(1)).current, useRef(new Animated.Value(1)).current, useRef(new Animated.Value(1)).current];
 
-  React.useEffect(() => {
+  useEffect(() => {
     const animations = barAnims.map((anim, i) =>
       Animated.loop(
         Animated.sequence([
@@ -87,15 +61,85 @@ const MusicBeatsLoader = () => {
 
 const ArtistInboxScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
-  const [isNegotiationEnabled, setIsNegotiationEnabled] = useState(false);
+  const [isNegotiationEnabled, setIsNegotiationEnabled] = useState(true);
+  const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const insets = useSafeAreaInsets();
+  const { token } = useSelector((state) => state.auth);
+
+  const logDebug = (message, data) => {
+    console.log(`[${new Date().toISOString()}] ${message}`, JSON.stringify(data, null, 2));
+  };
+
+  // Fetch events for the artist
+  const fetchEvents = async () => {
+    if (!token) {
+      logDebug('No authentication token found', { token });
+      setError('Please log in to view events');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      logDebug('Fetching events for artist', { token });
+      const response = await axios.get(`${API_BASE_URL}/api/chat/get-events`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      logDebug('Events API response', { response: response.data });
+      // Handle array response directly
+      if (Array.isArray(response.data)) {
+        setEvents(response.data);
+        setFilteredEvents(response.data);
+        setError(null);
+      } else {
+        throw new Error('Unexpected response format: Expected an array of events');
+      }
+    } catch (err) {
+      logDebug('Error fetching events', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      setError(
+        err.response?.status === 401
+          ? 'Authentication failed. Please log in again.'
+          : 'Failed to load events. Tap to retry.'
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Handle pull-to-refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchEvents();
+  }, [token]);
 
   useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    fetchEvents();
+  }, [token]);
+
+  // Debounced search filtering
+  const handleSearch = useCallback(
+    debounce((text) => {
+      const filtered = events.filter(event =>
+        event.eventName.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredEvents(filtered);
+    }, 300),
+    [events]
+  );
+
+  useEffect(() => {
+    handleSearch(searchText);
+  }, [searchText, handleSearch]);
 
   // Handle Android back button
   useEffect(() => {
@@ -105,34 +149,89 @@ const ArtistInboxScreen = ({ navigation }) => {
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-
     return () => backHandler.remove();
   }, [navigation]);
 
-  const renderMessageItem = ({ item }) => (
-    <TouchableOpacity style={styles.eventCard} onPress={() => navigation.navigate('HostArtistInbox')}>
-      <Image source={item.image} style={styles.eventImage} />
+  // Handle event selection to fetch chat and navigate
+  const handleEventPress = async (eventId) => {
+    if (!isNegotiationEnabled) {
+      alert('Negotiation is disabled. Enable it to view chats.');
+      return;
+    }
+
+    try {
+      logDebug('Fetching chat for event', { eventId });
+      const response = await axios.get(`${API_BASE_URL}/api/chat/get-chats/${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      logDebug('Chat API response', { response: response.data });
+      const chat = response.data._id;
+console.log("chat",chat)
+      if (!chat ) {
+        logDebug('No chat found for event', { eventId });
+        alert('No chat found for this event');
+        return;
+      }
+
+      logDebug('Navigating to ChatScreen', { chatId: chat, eventId });
+      navigation.navigate('Chat', { chatId: chat, eventId });
+    } catch (err) {
+      logDebug('Error fetching chat for event', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      alert(
+        err.response?.status === 401
+          ? 'Authentication failed. Please log in again.'
+          : 'Failed to load chat for this event'
+      );
+    }
+  };
+
+  const renderEventItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.eventCard}
+      onPress={() => handleEventPress(item._id)}
+      accessibilityLabel={`View chat for ${item.eventName}`}
+      accessibilityRole="button"
+    >
+      <Image
+        source={item.posterUrl ? { uri: item.posterUrl } : require('../assets/Images/profile.png')}
+        style={styles.eventImage}
+        defaultSource={require('../assets/Images/profile.png')}
+      />
       <View style={styles.eventContent}>
-        <Text style={styles.eventDate}>{item.eventDate}</Text>
+        <Text style={styles.eventDate}>
+          {new Date(item.eventDateTime instanceof Array ? item.eventDateTime[0] : item.eventDateTime).toLocaleDateString('en-US', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          })}
+        </Text>
         <Text style={styles.eventName}>{item.eventName}</Text>
       </View>
     </TouchableOpacity>
-  );  
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* SVG Background */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <SignUpBackground width="100%" height="100%" />
       </View>
-      {/* Foreground Content */}
       <View style={{ flex: 1 }}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.navigate('ArtistHome')} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ArtistHome')}
+            style={styles.backButton}
+            accessibilityLabel="Go back to home"
+            accessibilityRole="button"
+          >
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Messages</Text>
-          <View style={{ width: 24 }} />{/* Spacer */}
+          <View style={{ width: 24 }} />
         </View>
 
         <View style={styles.negotiationToggleContainer}>
@@ -140,6 +239,8 @@ const ArtistInboxScreen = ({ navigation }) => {
           <CustomToggle
             value={isNegotiationEnabled}
             onValueChange={setIsNegotiationEnabled}
+            accessibilityLabel="Toggle negotiation"
+            accessibilityRole="switch"
           />
         </View>
 
@@ -147,32 +248,39 @@ const ArtistInboxScreen = ({ navigation }) => {
           <Icon name="search" size={20} color="#aaa" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search Message"
+            placeholder="Search Events"
             placeholderTextColor="#aaa"
             value={searchText}
             onChangeText={setSearchText}
+            accessibilityLabel="Search events"
+            accessibilityRole="search"
           />
         </View>
         <View style={styles.searchSeparator} />
 
         {loading ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={styles.loadingContainer}>
             <MusicBeatsLoader />
-            <Text style={{ color: '#fff', marginTop: 10 }}>Loading messages...</Text>
+            <Text style={styles.loadingText}>Loading events...</Text>
           </View>
+        ) : error ? (
+          <TouchableOpacity onPress={fetchEvents} accessibilityLabel="Retry loading events" accessibilityRole="button">
+            <Text style={styles.errorText}>{error}</Text>
+          </TouchableOpacity>
         ) : (
           <FlatList
-            data={messagesData}
-            renderItem={renderMessageItem}
-            keyExtractor={(item) => item.id}
+            data={filteredEvents}
+            renderItem={renderEventItem}
+            keyExtractor={(item) => item._id}
             contentContainerStyle={styles.listContent}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={
+              <Text style={styles.noMessagesText}>No events to display</Text>
+            }
           />
         )}
-        <ArtistBottomNavBar
-          navigation={navigation}
-          insets={insets}
-          isLoading={false}
-        />
+        <ArtistBottomNavBar navigation={navigation} insets={insets} isLoading={false} />
       </View>
     </SafeAreaView>
   );
@@ -181,10 +289,10 @@ const ArtistInboxScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#1e1e1e',
   },
   header: {
-    paddingTop:20,
+    paddingTop: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -192,6 +300,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
+    backgroundColor: '#2a2a2a',
   },
   backButton: {
     padding: 8,
@@ -218,23 +327,18 @@ const styles = StyleSheet.create({
   },
   negotiationToggleText: {
     fontSize: 12,
-    fontWeight:700,
+    fontWeight: '700',
     color: '#C6C5ED',
-    fontFamily:'Nunito Sans',
-    fontStyle:'normal',
+    fontFamily: 'Nunito Sans',
+    fontStyle: 'normal',
   },
   searchContainer: {
-    display: 'flex',
     flexDirection: 'row',
     width: '90%',
     height: 52,
-    paddingTop: 0,
-    paddingBottom: 0,
-    paddingLeft: 16,
-    paddingRight: 16,
+    paddingHorizontal: 16,
     alignItems: 'center',
     gap: 12,
-    flexShrink: 0,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: '#24242D',
@@ -247,14 +351,15 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: '#fff',
     fontSize: 14,
+    fontFamily: 'Nunito Sans',
   },
   searchSeparator: {
-    width: 361,
+    width: '90%',
     height: 1,
     backgroundColor: '#24242D',
     alignSelf: 'center',
     marginBottom: 8,
-    marginTop:12,
+    marginTop: 12,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -296,6 +401,32 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito Sans',
     fontWeight: '700',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#fff',
+    marginTop: 10,
+    fontFamily: 'Nunito Sans',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff5555',
+    textAlign: 'center',
+    padding: 20,
+    fontFamily: 'Nunito Sans',
+  },
+  noMessagesText: {
+    fontSize: 16,
+    color: '#ccc',
+    textAlign: 'center',
+    padding: 20,
+    fontFamily: 'Nunito Sans',
+  },
 });
 
-export default ArtistInboxScreen; 
+export default ArtistInboxScreen;

@@ -49,7 +49,7 @@ const VerificationSuccessIcon = (props) => (
 const ArtistVerifiedScreen = ({ navigation }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.navigate('CreateProfile');
+      navigation.navigate('ArtistHome');
     }, 300);
     return () => clearTimeout(timer);
   }, [navigation]);

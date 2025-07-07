@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import Animated from 'react-native/Libraries/Animated/Animated';
+import HapticFeedback from 'react-native-haptic-feedback';
 
 const { width, height } = Dimensions.get('window');
 
@@ -150,6 +151,12 @@ const UserFavoriteScreen = ({ navigation }) => {
   };
 
   const handleFavoriteToggle = (eventId) => {
+    try {
+      HapticFeedback.trigger('impactMedium', {
+        enableVibrateFallback: true,
+        ignoreAndroidSystemSettings: false,
+      });
+    } catch (e) {}
     dispatch(toggleFavorite(eventId));
   };
 
@@ -176,69 +183,69 @@ const UserFavoriteScreen = ({ navigation }) => {
           <Text style={{ color: '#fff', marginTop: 10 }}>Loading favorites...</Text>
         </View>
       ) : (
-        <ScrollView 
-          style={styles.content}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}
-          showsVerticalScrollIndicator={false}
-        >
-          {favoritedEvents.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyStateIconContainer}>
-                <Ionicons name="heart-outline" size={dimensions.emptyIconSize} color="#555" />
-              </View>
-              <View style={styles.emptyStateTextContainer}>
-                <Text style={styles.emptyStateText}>No favorites yet</Text>
-                <Text style={styles.emptyStateSubText}>
-                  Add events to your favorites by tapping the heart icon
-                </Text>
-              </View>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {favoritedEvents.length === 0 ? (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyStateIconContainer}>
+              <Ionicons name="heart-outline" size={dimensions.emptyIconSize} color="#555" />
             </View>
-          ) : (
-            favoritedEvents.map((eventId) => {
-              const event = eventData[eventId];
-              if (!event) return null;
+            <View style={styles.emptyStateTextContainer}>
+              <Text style={styles.emptyStateText}>No favorites yet</Text>
+              <Text style={styles.emptyStateSubText}>
+                Add events to your favorites by tapping the heart icon
+              </Text>
+            </View>
+          </View>
+        ) : (
+          favoritedEvents.map((eventId) => {
+            const event = eventData[eventId];
+            if (!event) return null;
 
-              return (
-                <View key={eventId} style={styles.eventCard}>
-                  <LinearGradient
-                    colors={['#B15CDE', '#7952FC']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.eventCardGradient}
+            return (
+              <View key={eventId} style={styles.eventCard}>
+                <LinearGradient
+                  colors={['#B15CDE', '#7952FC']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.eventCardGradient}
+                />
+                <View style={styles.eventCardContent}>
+                  <Image
+                    source={event.image}
+                    style={styles.eventImage}
+                    resizeMode="cover"
                   />
-                  <View style={styles.eventCardContent}>
-                    <Image
-                      source={event.image}
-                      style={styles.eventImage}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.imageOverlay} />
-                    <View style={styles.heartIconContainer}>
-                      <TouchableOpacity
-                        onPress={() => handleFavoriteToggle(eventId)}
-                        style={styles.heartIconButton}
-                      >
-                        <Ionicons name="heart" size={dimensions.navIconSize} color="#ff4444" />
-                      </TouchableOpacity>
-                    </View>
-                    <View style={styles.eventDetails}>
-                      <TouchableOpacity 
-                        onPress={() => navigation.navigate('UserFormBookingScreen', { eventDetails: event })}
-                        style={styles.eventDetailsTouchable}
-                      >
-                        <Text style={styles.eventTitle}>{event.title}</Text>
-                        {event.price && (
-                          <Text style={styles.eventPrice}>{event.price}</Text>
-                        )}
-                        <Text style={styles.eventLocation}>{event.location}</Text>
-                      </TouchableOpacity>
-                    </View>
+                  <View style={styles.imageOverlay} />
+                  <View style={styles.heartIconContainer}>
+                    <TouchableOpacity
+                      onPress={() => handleFavoriteToggle(eventId)}
+                      style={styles.heartIconButton}
+                    >
+                      <Ionicons name="heart" size={dimensions.navIconSize} color="#ff4444" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.eventDetails}>
+                    <TouchableOpacity 
+                      onPress={() => navigation.navigate('UserFormBookingScreen', { eventDetails: event })}
+                      style={styles.eventDetailsTouchable}
+                    >
+                      <Text style={styles.eventTitle}>{event.title}</Text>
+                      {event.price && (
+                        <Text style={styles.eventPrice}>{event.price}</Text>
+                      )}
+                      <Text style={styles.eventLocation}>{event.location}</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-              );
-            })
-          )}
-        </ScrollView>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
       )}
     </View>
   );

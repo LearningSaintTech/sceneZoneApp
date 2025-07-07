@@ -107,6 +107,7 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
           <View style={styles.ticketIdContainer}>
             <Text style={styles.ticketId}>Ticket ID: {ticketId}</Text>
           </View>
+          <View style={styles.sectionSeparator} />
         </View>
 
         {/* Booking Details Card */}
@@ -127,19 +128,13 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
               <Text style={styles.detailValue}>{eventDetails?.location || 'Location'}</Text>
             </View>
           </View>
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelContainer}>
+          <View style={[styles.detailRow, {marginBottom: 0}]}> 
+            <View style={{flex: 1}}>
               <Text style={styles.detailLabel}>Number of Ticket</Text>
-            </View>
-            <View style={styles.detailValueContainer}>
               <Text style={styles.detailValue}>x{numberOfTickets || '1'}</Text>
             </View>
-          </View>
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelContainer}>
+            <View style={{flex: 1, alignItems: 'flex-end'}}>
               <Text style={styles.detailLabel}>Date</Text>
-            </View>
-            <View style={styles.detailValueContainer}>
               <Text style={styles.detailValue}>May 20, 2024</Text>
             </View>
           </View>
@@ -295,16 +290,19 @@ const styles = StyleSheet.create({
     color: '#aaa',
   },
   detailCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
+    backgroundColor: '#181828',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333',
     marginHorizontal: 16,
     marginBottom: 20,
-    padding: 16,
+    padding: 20,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   detailLabelContainer: {
     flex: 1,
@@ -314,18 +312,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   detailLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#aaa',
+    fontWeight: '400',
   },
   detailValue: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#fff',
   },
   separator: {
     height: 1,
     backgroundColor: '#333',
-    marginVertical: 10,
+    marginVertical: 16,
+  },
+  sectionSeparator: {
+    height: 1,
+    backgroundColor: '#333',
+    marginVertical: 16,
+    marginHorizontal: 0,
   },
   totalAmountText: {
     fontSize: 16,

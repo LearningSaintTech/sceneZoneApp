@@ -57,7 +57,7 @@ const HostShortBookPaymentMethodContent = ({ navigation, route }) => {
   const userName = useSelector(state => state.auth.user?.name) || 'Customer Name';
   const userEmail = useSelector(state => state.auth.user?.email) || 'customer@example.com';
   const userContact = useSelector(state => state.auth.user?.contact) || '9999999999';
-  const backendUrl = process.env.BACKEND_URL || 'http://192.168.1.4:3000';
+  const backendUrl = process.env.BACKEND_URL || 'http://192.168.1.52:3000';
 
   // Log input parameters for debugging
   console.log('Input parameters:', {

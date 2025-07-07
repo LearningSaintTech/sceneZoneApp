@@ -114,7 +114,7 @@ const HomeScreen = ({ navigation }) => {
           limit: limit,
         };
 
-        console.log('Fetching artists from:', 'http://192.168.1.4:3000/api/host/filter');
+        console.log('Fetching artists from:', 'http://192.168.1.52:3000/api/host/filter');
         console.log('Request Headers:', JSON.stringify({
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -122,7 +122,7 @@ const HomeScreen = ({ navigation }) => {
         console.log('Request Body:', JSON.stringify(filterPayload, null, 2));
         console.log('Token:', token);
 
-        const response = await axios.post('http://192.168.1.4:3000/api/host/filter', filterPayload, {
+        const response = await axios.post('http://192.168.1.52:3000/api/host/filter', filterPayload, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ const HomeScreen = ({ navigation }) => {
         Alert.alert('Error', error.response?.status === 404
           ? 'Artist filter endpoint not found. Please check if the server is running and the endpoint is correctly configured.'
           : error.message === 'Network Error'
-            ? 'Unable to connect to the server. Please ensure the server is running at http://192.168.1.4:3000.'
+            ? 'Unable to connect to the server. Please ensure the server is running at http://192.168.1.52:3000.'
             : 'Failed to fetch artists. Please try again later.');
       } finally {
         setIsLoading(false);
@@ -200,7 +200,7 @@ const HomeScreen = ({ navigation }) => {
       return;
     }
 
-    const url = 'http://192.168.1.4:3000/api/host/shortlistArtist';
+    const url = 'http://192.168.1.52:3000/api/host/shortlistArtist';
     const body = { artistId };
     const config = {
       headers: {

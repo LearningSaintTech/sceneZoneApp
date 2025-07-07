@@ -95,10 +95,10 @@ const ShortlistScreen = ({ navigation }) => {
         setLoading(true);
         try {
           console.log('Fetching shortlisted artists from API', {
-            url: 'http://192.168.1.4:3000/api/host/getShortlistedArtists',
+            url: 'http://192.168.1.52:3000/api/host/getShortlistedArtists',
             headers: { Authorization: `Bearer ${token}` },
           });
-          const response = await axios.get('http://192.168.1.4:3000/api/host/getShortlistedArtists', {
+          const response = await axios.get('http://192.168.1.52:3000/api/host/getShortlistedArtists', {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -175,10 +175,10 @@ const ShortlistScreen = ({ navigation }) => {
         setManageEventsLoading(true);
         try {
           console.log('Fetching events from API', {
-            url: 'http://192.168.1.4:3000/api/host/events/get-all-events',
+            url: 'http://192.168.1.52:3000/api/host/events/get-all-events',
             headers: { Authorization: `Bearer ${token}` },
           });
-          const response = await axios.get('http://192.168.1.4:3000/api/host/events/get-all-events', {
+          const response = await axios.get('http://192.168.1.52:3000/api/host/events/get-all-events', {
             headers: {
               Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -258,10 +258,10 @@ const ShortlistScreen = ({ navigation }) => {
     console.log('Removing item from shortlist', { id });
     try {
       console.log('Sending DELETE request', {
-        url: `http://192.168.1.4:3000/api/host/removeShortlistArtist/${item.artistProfile.artistId}`,
+        url: `http://192.168.1.52:3000/api/host/removeShortlistArtist/${item.artistProfile.artistId}`,
         headers: { Authorization: `Bearer ${token}` },
       });
-      const response = await axios.delete(`http://192.168.1.4:3000/api/host/removeShortlistArtist/${item.artistProfile.artistId}`, {
+      const response = await axios.delete(`http://192.168.1.52:3000/api/host/removeShortlistArtist/${item.artistProfile.artistId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -382,12 +382,12 @@ const ShortlistScreen = ({ navigation }) => {
               }
               try {
                 console.log('Sending DELETE request for event', {
-                  url: `http://192.168.1.4:3000/api/host/events/delete-event/${event._id}`,
+                  url: `http://192.168.1.52:3000/api/host/events/delete-event/${event._id}`,
                   headers: { Authorization: `Bearer ${token}` },
                 });
                 setManageEventsLoading(true);
                 const response = await axios.delete(
-                  `http://192.168.1.4:3000/api/host/events/delete-event/${event._id}`,
+                  `http://192.168.1.52:3000/api/host/events/delete-event/${event._id}`,
                   {
                     headers: {
                       Authorization: `Bearer ${token}`,
@@ -424,10 +424,10 @@ const ShortlistScreen = ({ navigation }) => {
     setExistingEventsLoading(true);
     try {
       console.log('Fetching existing events from API', {
-        url: 'http://192.168.1.4:3000/api/host/events/get-all-events',
+        url: 'http://192.168.1.52:3000/api/host/events/get-all-events',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const response = await axios.get('http://192.168.1.4:3000/api/host/events/get-all-events', {
+      const response = await axios.get('http://192.168.1.52:3000/api/host/events/get-all-events', {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',

@@ -9,6 +9,7 @@ import {
   ScrollView,
   Dimensions,
   Animated,
+  Easing,
   Modal
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
@@ -451,7 +452,9 @@ const UserHomeScreen = ({ navigation, route }) => {
     try {
       triggerHaptic('impactMedium');
       dispatch(toggleFavorite(eventId));
-      navigation.navigate('UserFavoriteScreen');
+      if (typeof jitterFavoriteTab === 'function') {
+        jitterFavoriteTab();
+      }
     } catch (error) {
       console.error('Error updating favorite:', error);
     }
@@ -651,6 +654,61 @@ const UserHomeScreen = ({ navigation, route }) => {
     },
   ];
 
+  const latestEventsScrollRef = useRef(null);
+  const latestScrollAnim = useRef(new Animated.Value(0)).current;
+  const latestAutoScrollTimeout = useRef(null);
+  const latestAutoScrollPaused = useRef(false);
+
+  // Helper to start auto-scroll
+  const startLatestAutoScroll = () => {
+    if (latestAutoScrollPaused.current) return;
+    const cardWidth = 267;
+    const maxScroll = (latestEvents.length * cardWidth) - width;
+    if (maxScroll > 0) {
+      Animated.loop(
+        Animated.timing(latestScrollAnim, {
+          toValue: maxScroll,
+          duration: 20000, // 20 seconds for a full scroll, adjust as needed
+          useNativeDriver: false,
+          easing: Easing.linear,
+        })
+      ).start();
+    }
+  };
+
+  // Helper to stop auto-scroll
+  const stopLatestAutoScroll = () => {
+    latestScrollAnim.stopAnimation();
+  };
+
+  // Pause auto-scroll for 1 minute on user interaction
+  const pauseLatestAutoScroll = () => {
+    stopLatestAutoScroll();
+    latestAutoScrollPaused.current = true;
+    if (latestAutoScrollTimeout.current) clearTimeout(latestAutoScrollTimeout.current);
+    latestAutoScrollTimeout.current = setTimeout(() => {
+      latestAutoScrollPaused.current = false;
+      startLatestAutoScroll();
+    }, 10000); // 1 minute
+  };
+
+  useEffect(() => {
+    const id = latestScrollAnim.addListener(({ value }) => {
+      if (latestEventsScrollRef.current) {
+        latestEventsScrollRef.current.scrollTo({ x: value, animated: false });
+      }
+    });
+    return () => latestScrollAnim.removeListener(id);
+  }, [latestScrollAnim]);
+
+  useEffect(() => {
+    startLatestAutoScroll();
+    return () => {
+      stopLatestAutoScroll();
+      if (latestAutoScrollTimeout.current) clearTimeout(latestAutoScrollTimeout.current);
+    };
+  }, [latestEvents.length, width, latestScrollAnim]);
+
   // Filter modal logic (copied from HomeScreen)
   const [showFilter, setShowFilter] = useState(false);
   const [selected, setSelected] = useState({
@@ -762,6 +820,42 @@ const UserHomeScreen = ({ navigation, route }) => {
     </Modal>
   );
 
+  const featuredEventsScrollRef = useRef(null);
+
+  // Plan For Section Animation
+  const planTodayAnim = useRef(new Animated.Value(-200)).current; // from left
+  const planWeekendAnim = useRef(new Animated.Value(200)).current; // from right
+  const [planSectionY, setPlanSectionY] = useState(0);
+  const [planSectionHeight, setPlanSectionHeight] = useState(0);
+  const [planAnimated, setPlanAnimated] = useState(false);
+
+  // Handler to trigger animation when section is in view
+  const handleScroll = (event) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    const windowHeight = Dimensions.get('window').height;
+    // Section is in view if any part is visible
+    const inView = planSectionY < scrollY + windowHeight - 100 && (planSectionY + planSectionHeight) > scrollY + 100;
+    if (inView && !planAnimated) {
+      setPlanAnimated(true);
+      Animated.parallel([
+        Animated.timing(planTodayAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(planWeekendAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (!inView && planAnimated) {
+      setPlanAnimated(false);
+      planTodayAnim.setValue(-200);
+      planWeekendAnim.setValue(200);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, {
       paddingTop: insets.top,
@@ -778,8 +872,10 @@ const UserHomeScreen = ({ navigation, route }) => {
         <ScrollView 
           showsVerticalScrollIndicator={false} 
           style={styles.contentArea}
-          stickyHeaderIndices={[3]}
+          stickyHeaderIndices={[3, 7]}
           contentContainerStyle={{ paddingBottom: 120 }}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           {/* Featured Events Section (Horizontal Scroll) - Now includes header */}
           <LinearGradient
@@ -858,6 +954,7 @@ const UserHomeScreen = ({ navigation, route }) => {
             {/* Featured Events Section */}
             <View style={styles.sectionNoPadding}>
               <Animated.ScrollView
+                ref={featuredEventsScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalEventList}
@@ -867,7 +964,7 @@ const UserHomeScreen = ({ navigation, route }) => {
                 )}
                 scrollEventThrottle={16}
                 decelerationRate="fast"
-                snapToInterval={snapToInterval}
+                snapToInterval={dimensions.cardWidth + dimensions.spacing.lg}
                 snapToAlignment="center"
               >
                 {featuredEvents.map((item, index) => (
@@ -1057,7 +1154,16 @@ const UserHomeScreen = ({ navigation, route }) => {
           {/* Latest Events Section */}
           <View style={[styles.section, { marginBottom: 0, marginTop: dimensions.spacing.xxxl }]}>
             <Text style={[styles.sectionTitle, { marginBottom: dimensions.spacing.lg }]}>Latest Events</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalEventListContent}>
+            <ScrollView 
+              ref={latestEventsScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalEventListContent}
+              decelerationRate="fast"
+              scrollEventThrottle={16}
+              onTouchStart={pauseLatestAutoScroll}
+              onScrollBeginDrag={pauseLatestAutoScroll}
+            >
               {latestEvents.map((item) => (
                 <LatestEventCard key={item.id} item={item} navigation={navigation} />
               ))}
@@ -1065,26 +1171,38 @@ const UserHomeScreen = ({ navigation, route }) => {
           </View>
 
           {/* Plan for Section */}
-          <View style={[styles.section, { marginTop: dimensions.spacing.md, marginBottom: 0 }]}>
+          <View 
+            style={[styles.section, { marginTop: dimensions.spacing.md, marginBottom: 0 }]}
+            onLayout={e => {
+              setPlanSectionY(e.nativeEvent.layout.y);
+              setPlanSectionHeight(e.nativeEvent.layout.height);
+            }}
+          >
             <Text style={styles.sectionTitle}>Plan for</Text>
             <View style={styles.planForButtonsContainer}>
-              <TouchableOpacity onPress={() => handleFeatureNavigation('TodayEvents')} style={{marginLeft: -16}}>
-                <Plan1 width={140} height={139} />
-              </TouchableOpacity>
+              <Animated.View style={{ transform: [{ translateX: planTodayAnim }] }}>
+                <TouchableOpacity onPress={() => handleFeatureNavigation('TodayEvents')} style={{marginLeft: -16}}>
+                  <Plan1 width={140} height={139} />
+                </TouchableOpacity>
+              </Animated.View>
               <TouchableOpacity onPress={() => handleFeatureNavigation('WeeklyEvents')} style={{marginLeft: -56}}>
                 <Plan2 width={140} height={139} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleFeatureNavigation('WeekendEvents')} style={{marginLeft: -56}}>
-                <Plan3 width={140} height={139} />
-              </TouchableOpacity>
+              <Animated.View style={{ transform: [{ translateX: planWeekendAnim }] }}>
+                <TouchableOpacity onPress={() => handleFeatureNavigation('WeekendEvents')} style={{marginLeft: -56}}>
+                  <Plan3 width={140} height={139} />
+                </TouchableOpacity>
+              </Animated.View>
             </View>
-          </View> 
+          </View>
 
           {/* Category Filter Buttons - Second Sticky Section */}
           <View style={[
             styles.categoryFilterContainer,
             {
               marginTop: 0,
+              backgroundColor: '#121212',
+              zIndex: 100,
             }
           ]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilterScroll}>

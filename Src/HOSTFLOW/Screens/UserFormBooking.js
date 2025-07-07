@@ -15,6 +15,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Icon from 'react-native-vector-icons/Feather'; // For the ticket icon
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import TicketIcon from '../assets/icons/Ticket';
 
 const { width } = Dimensions.get('window');
 
@@ -80,6 +81,7 @@ const UserFormBookingScreen = ({ navigation, route }) => {
             </View>
           </View>
         </View>
+        <View style={styles.separator} />
 
         {/* Number of Tickets */}
         <View style={styles.sectionContainer}>
@@ -118,11 +120,7 @@ const UserFormBookingScreen = ({ navigation, route }) => {
             />
             <View style={styles.guestTypeContent}>
               <View style={styles.guestTypeIconContainer}>
-                <Image
-                  source={require('../assets/Images/ticket.png')}
-                  style={styles.guestTypeIcon}
-                  resizeMode="contain"
-                />
+                <TicketIcon width={30} height={30} />
               </View>
               <View style={styles.guestTypeTextContainer}>
                 <View style={styles.guestTypeTitleContainer}>
@@ -202,7 +200,7 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#000',
     borderRadius: 10,
     margin: 16,
     overflow: 'hidden',
@@ -352,6 +350,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   continueButton: {
+ 
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -374,6 +373,12 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#222',
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
 });
 

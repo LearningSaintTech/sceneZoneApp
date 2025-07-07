@@ -350,7 +350,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
       ]);
 
       console.log('Saved events API response:', savedResponse.data);
-      console.log('Applied events API response for cross-reference:', appliedResponse.data);
+      console.log('Applied events API response  1 for cross-reference:', appliedResponse.data);
 
       // Get set of applied event IDs
       let appliedEventIds = new Set();
@@ -360,7 +360,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
             .filter(application => application && application.eventId && application.eventId._id)
             .map(application => application.eventId._id)
         );
-        console.log('🎯 Applied Event IDs for cross-reference:', Array.from(appliedEventIds));
+        console.log('🎯 Applied Event IDs  for cross-reference:', Array.from(appliedEventIds));
       }
 
       if (savedResponse.data && savedResponse.data.success && Array.isArray(savedResponse.data.data)) {
@@ -677,6 +677,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
     
     if (isAppliedTab) {
       // Remove from applied events using backend API with eventId
+      console.log("qwqwqwqwqwqwqw",eventId)
       await handleRemoveAppliedEvent(eventId);
     } else {
       // Remove from saved events using backend API
@@ -686,13 +687,14 @@ const ArtistAppliedScreen = ({ navigation }) => {
 
   // Handle remove applied event from backend using API
   const handleRemoveAppliedEvent = async (eventId) => {
+    console.log("inside handleRemoveAppliedEvent",eventId)
     if (!token) {
       Alert.alert('Error', 'Authentication required to remove application.');
       return;
     }
 
     // Enhanced validation for eventId
-    if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
+    if (!eventId ) {
       console.error('❌ Invalid eventId provided:', {
         eventId: eventId,
         type: typeof eventId,

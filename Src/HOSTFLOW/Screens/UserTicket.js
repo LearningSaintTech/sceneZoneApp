@@ -14,8 +14,22 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import HapticFeedback from 'react-native-haptic-feedback';
 
-const { width } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
+
+const hapticOptions = {
+  enableVibrateFallback: true,
+  ignoreAndroidSystemSettings: false,
+};
+
+const triggerHaptic = (type) => {
+  try {
+    HapticFeedback.trigger(type, hapticOptions);
+  } catch (error) {
+    // Silently fail
+  }
+};
 
 const UserTicketScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('active');
@@ -68,7 +82,7 @@ const UserTicketScreen = ({ navigation }) => {
     }]}>
       {/* SVG Background */}
       <View style={styles.backgroundSvgContainer} pointerEvents="none">
-        <SignUpBackground style={styles.backgroundSvg} width={width} height="100%" />
+        <SignUpBackground style={styles.backgroundSvg} width={screenWidth} height="100%" />
       </View>
       {/* Header */}
       <View style={styles.header}>
@@ -128,12 +142,17 @@ const UserTicketScreen = ({ navigation }) => {
       {/* Display tickets based on activeTab */}
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollViewContent}>
         {(activeTab === 'active' ? activeTickets : pastTickets).map((ticket) => (
-          <View key={ticket.id} style={styles.ticketCard}>
+          <TouchableOpacity
+            key={ticket.id}
+            style={styles.ticketCard}
+            onPress={() => navigation.navigate('UserTicketDownload')}
+            activeOpacity={0.85}
+          >
             <Image source={ticket.image} style={styles.ticketImage} resizeMode="cover" />
             <View style={styles.dateContainer}>
               <Text style={styles.dateText}>{ticket.date}</Text>
             </View>
-            <TouchableOpacity style={styles.heartIconPlaceholder}>
+            <TouchableOpacity style={styles.heartIconPlaceholder} onPress={() => { triggerHaptic('impactMedium'); }}>
                <Ionicons name="heart-outline" size={20} color="#fff" />
             </TouchableOpacity>
             <View style={styles.ticketInfo}>
@@ -143,7 +162,7 @@ const UserTicketScreen = ({ navigation }) => {
              <TouchableOpacity style={styles.ticketArrowButton}>
                  <MaterialIcons name="chevron-right" size={24} color="#fff" />
              </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
 
@@ -160,7 +179,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    paddingTop:40,
+    paddingTop:30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -170,11 +189,13 @@ const styles = StyleSheet.create({
     borderColor: '#333',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
     flex: 1, // Allow title to take up space
-    textAlign: 'center', // Center the text
+    textAlign: 'left',
+    marginLeft:20,
+     // Center the text
   },
   ticketTypeButtonsContainer: {
     flexDirection: 'row',
@@ -182,58 +203,48 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
     backgroundColor: 'transparent',
-    borderRadius: 0,
+    borderRadius: 16,
     overflow: 'visible',
     borderWidth: 0,
+    padding: 0,
   },
   ticketTypeButton: {
     flex: 1,
     height: 52,
-    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 0,
-    paddingRight: 16,
-    paddingBottom: 0,
-    paddingLeft: 16,
-    gap: 10,
+    padding: 0,
     alignSelf: 'stretch',
     backgroundColor: 'transparent',
+    borderRadius: 16,
   },
   ticketTypeButtonActiveBg: {
     flex: 1,
-    borderRadius: 28,
+    height: 52,
     justifyContent: 'center',
     alignItems: 'center',
-    height: 52,
     width: '100%',
-    paddingTop: 0,
-    paddingRight: 16,
-    paddingBottom: 0,
-    paddingLeft: 16,
-    gap: 10,
-    alignSelf: 'stretch',
+    borderRadius: 16,
+    shadowColor: '#B15CDE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   ticketTypeButtonInactiveBg: {
     flex: 1,
-    borderRadius: 28,
+    height: 52,
     justifyContent: 'center',
     alignItems: 'center',
-    height: 52,
     width: '100%',
     backgroundColor: '#1A1A1F',
-    paddingTop: 0,
-    paddingRight: 16,
-    paddingBottom: 0,
-    paddingLeft: 16,
-    gap: 10,
-    alignSelf: 'stretch',
+    borderRadius: 16,
   },
   ticketTypeButtonTextActive: {
     color: '#18151f',
     fontFamily: 'Nunito Sans',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     fontStyle: 'normal',
     lineHeight: 21,
     textAlign: 'center',
@@ -242,7 +253,7 @@ const styles = StyleSheet.create({
     color: '#C6C5ED',
     fontFamily: 'Nunito Sans',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     fontStyle: 'normal',
     lineHeight: 21,
     textAlign: 'center',
@@ -257,10 +268,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     overflow: 'hidden', // Clip image to rounded corners
     position: 'relative', // For absolute positioning of date, heart, and arrow
+    width: Math.min(screenWidth * 0.9, 400),
+    alignSelf: 'center',
   },
   ticketImage: {
-    width: '100%%',
-    height: 150,
+    width: '100%',
+    height: Math.max(screenWidth * 0.4, 120),
+    resizeMode: 'cover',
   },
   dateContainer: {
     position: 'absolute',
