@@ -42,7 +42,7 @@ import ArtistForgotPasswordScreen from "./Src/HOSTFLOW/Screens/ArtistForgotPassw
 import ArtistCheckMailbox from "./Src/HOSTFLOW/Screens/ArtistCheckMailBox";
 import ArtistCreateNewPassword from "./Src/HOSTFLOW/Screens/ArtistCreateNewPassword";
 import ArtistUpload from "./Src/HOSTFLOW/Screens/ArtistUpload";
-
+import ArtistExploreEvent from "./Src/HOSTFLOW/Screens/ArtistExploreEvent";
 // Host Screens
 import SignUpScreen from "./Src/HOSTFLOW/Screens/SignupScreen";
 import SigninScreen from "./Src/HOSTFLOW/Screens/SigninScreen";
@@ -103,6 +103,8 @@ import UserBottomTabNavigator from "./Src/HOSTFLOW/Components/UserBottomTabNavig
 import UserVerifiedScreen from "./Src/HOSTFLOW/Screens/UserVerified";
 import UserCreateNewPassword from "./Src/HOSTFLOW/Screens/UserCreateNewPassword";
 import UserCheckMailbox from "./Src/HOSTFLOW/Screens/UserCheckMailBox";
+import UserTicketDownload from "./Src/HOSTFLOW/Screens/UserTicketDownload";
+
 
 // Socket.IO Context
 
@@ -242,7 +244,9 @@ function AppNavigator() {
             <Stack.Screen name="ArtistCheckMailbox" component={ArtistCheckMailbox} />
             <Stack.Screen name="ArtistCreateNewPassword" component={ArtistCreateNewPassword} />
             <Stack.Screen name="ArtistUpload" component={ArtistUpload} />
+            <Stack.Screen name="ArtistExploreEvent" component={ArtistExploreEvent} />
 
+            
             {/* Host Screens */}
             <Stack.Screen name="Signup" component={SignUpScreen} options={{ animation: "slide_from_left" }} />
             <Stack.Screen name="SignIn" component={SigninScreen} options={{ animation: "slide_from_right" }} />
@@ -305,6 +309,9 @@ function AppNavigator() {
             <Stack.Screen name="UserTabs" component={UserBottomTabNavigator} />
             <Stack.Screen name="UserVerifiedScreen" component={UserVerifiedScreen} />
             <Stack.Screen name="UserCreateNewPassword" component={UserCreateNewPassword} />
+            <Stack.Screen name="UserTicketDownload" component={UserTicketDownload} />
+
+             
           </Stack.Navigator>
         </>
       ) : (

@@ -162,8 +162,19 @@ const UserOtpVerificationScreen = ({ navigation, route }) => {
         }));
 
         await AsyncStorage.setItem('token', token);
+
+        // Check if user already has a complete profile
+        const hasCompleteProfile = userData.fullName && userData.email && userData.address && userData.dob;
+
         setTimeout(() => {
-          navigation.navigate('UserVerifiedScreen');
+          if (hasCompleteProfile) {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'UserHome', params: { isLoggedIn: true } }],
+            });
+          } else {
+            navigation.navigate('UserHome');
+          }
         }, 1500);
       }
     } catch (error) {

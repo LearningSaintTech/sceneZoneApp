@@ -7,28 +7,61 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
-  Dimensions,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
+import api from '../Config/api';
 import GoogleIcon from '../assets/icons/Google';
 import AppleIcon from '../assets/icons/Apple';
 import VisaIcon from '../assets/icons/Visa';
-import MasterIcon from '../assets/icons/Mater';
-
+ 
 const UserBookingPaymentScreen = ({ navigation, route }) => {
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('googlepay'); // Default selected
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('googlepay');
   const insets = useSafeAreaInsets();
-
-  // Get booking details from navigation parameters
+  const token = useSelector((state) => state.auth.token);
   const { bookingDetails } = route.params || {};
+  console.log('Booking details:', bookingDetails);
 
-  const handleConfirmPayment = () => {
-    // Implement payment confirmation logic here
-    console.log('Confirming payment with:', selectedPaymentMethod);
-    // Navigate to the next screen, e.g., payment processing or confirmation
-    navigation.navigate('UserConfirmBookingScreen');
+  const handleConfirmPayment = async () => {
+    if (!token) {
+      Alert.alert('Error', 'Authentication token is missing.');
+      return;
+    }
+
+    if (!bookingDetails.eventId || !bookingDetails.numberOfTickets || !bookingDetails.guestType || !bookingDetails.selectedEventDate) {
+      Alert.alert('Error', 'Missing required booking details.');
+      return;
+    }
+
+    try {
+      const response = await api.post(
+        'http://10.0.2.2:3000/api/eventhost/tickets/book',
+        {
+          eventId: bookingDetails.eventId,
+          numberOfTickets: bookingDetails.numberOfTickets,
+          guestType: bookingDetails.guestType,
+          selectedEventDate: bookingDetails.selectedEventDate,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      console.log('Ticket booking response:', response.data);
+
+      if (response.data.success) {
+        navigation.navigate('UserConfirmBookingScreen', {
+          ticketBooking: response.data.data.ticketBooking,
+        });
+      } else {
+        Alert.alert('Error', response.data.message || 'Failed to book ticket');
+      }
+    } catch (error) {
+      console.error('Error booking ticket:', error);
+      Alert.alert('Error', 'Failed to book ticket. Please try again.');
+    }
   };
 
   return (
@@ -38,13 +71,7 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
       paddingLeft: insets.left,
       paddingRight: insets.right,
     }]}>
-      {/* Header */}
-      <View style={[
-        styles.header,
-        {
-          paddingTop: Math.max(insets.top, 20),
-        }
-      ]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <View style={styles.backButtonContainer}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -57,7 +84,6 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.paymentMethodsContainer}>
-        {/* Google Pay */}
         <TouchableOpacity
           style={[styles.paymentMethodCard, selectedPaymentMethod === 'googlepay' && styles.paymentMethodCardSelected]}
           onPress={() => setSelectedPaymentMethod('googlepay')}
@@ -70,11 +96,7 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
           />
           <View style={styles.paymentMethodContent}>
             <View style={styles.paymentIconContainer}>
-              <GoogleIcon
-                style={styles.paymentIcon}
-                width={32}
-                height={32}
-              />
+              <GoogleIcon style={styles.paymentIcon} width={32} height={32} />
             </View>
             <View style={styles.paymentDetails}>
               <View style={styles.paymentMethodTitleContainer}>
@@ -95,7 +117,6 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
           </View>
         </TouchableOpacity>
 
-        {/* Apple Pay */}
         <TouchableOpacity
           style={[styles.paymentMethodCard, selectedPaymentMethod === 'applepay' && styles.paymentMethodCardSelected]}
           onPress={() => setSelectedPaymentMethod('applepay')}
@@ -108,11 +129,7 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
           />
           <View style={styles.paymentMethodContent}>
             <View style={styles.paymentIconContainer}>
-              <AppleIcon
-                style={styles.paymentIcon}
-                width={32}
-                height={32}
-              />
+              <AppleIcon style={styles.paymentIcon} width={32} height={32} />
             </View>
             <View style={styles.paymentDetails}>
               <View style={styles.paymentMethodTitleContainer}>
@@ -133,7 +150,6 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
           </View>
         </TouchableOpacity>
 
-        {/* Visa */}
         <TouchableOpacity
           style={[styles.paymentMethodCard, selectedPaymentMethod === 'visa' && styles.paymentMethodCardSelected]}
           onPress={() => setSelectedPaymentMethod('visa')}
@@ -146,11 +162,7 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
           />
           <View style={styles.paymentMethodContent}>
             <View style={styles.paymentIconContainer}>
-              <VisaIcon
-                style={styles.paymentIcon}
-                width={40}
-                height={20}
-              />
+              <VisaIcon style={styles.paymentIcon} width={40} height={20} />
             </View>
             <View style={styles.paymentDetails}>
               <View style={styles.paymentMethodTitleContainer}>
@@ -170,53 +182,10 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
             )}
           </View>
         </TouchableOpacity>
-
-        {/* Master Card */}
-        <TouchableOpacity
-          style={[styles.paymentMethodCard, selectedPaymentMethod === 'mastercard' && styles.paymentMethodCardSelected]}
-          onPress={() => setSelectedPaymentMethod('mastercard')}
-        >
-          <LinearGradient
-            colors={selectedPaymentMethod === 'mastercard' ? ['#B15CDE', '#7952FC'] : ['#1a1a1a', '#1a1a1a']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.paymentMethodGradient}
-          />
-          <View style={styles.paymentMethodContent}>
-            <View style={styles.paymentIconContainer}>
-              <MasterIcon
-                style={styles.paymentIcon}
-                width={32}
-                height={32}
-              />
-            </View>
-            <View style={styles.paymentDetails}>
-              <View style={styles.paymentMethodTitleContainer}>
-                <Text style={styles.paymentMethodTitle}>Master Card</Text>
-              </View>
-              <View style={styles.paymentMethodInfoContainer}>
-                <Text style={styles.paymentMethodInfo}>**** **** **** 1234</Text>
-              </View>
-              <View style={styles.paymentMethodBalanceContainer}>
-                <Text style={styles.paymentMethodBalance}>Balance: $2,876,766.00</Text>
-              </View>
-            </View>
-            {selectedPaymentMethod === 'mastercard' && (
-              <View style={styles.checkmarkContainer}>
-                <Ionicons name="checkmark-circle" size={24} color="#fff" />
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
+ 
       </ScrollView>
 
-      {/* Confirm Payment Button */}
-      <View style={[
-        styles.buttonContainer,
-        {
-          paddingBottom: Math.max(insets.bottom + 16, 16),
-        }
-      ]}>
+      <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom + 16, 16) }]}>
         <LinearGradient
           colors={['#B15CDE', '#7952FC']}
           start={{ x: 0, y: 0 }}
@@ -356,4 +325,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UserBookingPaymentScreen; 
+export default UserBookingPaymentScreen;

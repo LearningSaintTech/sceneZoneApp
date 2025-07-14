@@ -5,8 +5,7 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  Image,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -15,13 +14,19 @@ import SignUpBackground from '../assets/Banners/SignUp';
 
 const { width } = Dimensions.get('window');
 
-const UserConfirmBookingScreen = ({ navigation }) => {
+const UserConfirmBookingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  
+  const { ticketBooking } = route.params || {};
+
+  const formatDateTime = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'N/A';
+    return `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}, ${date.getFullYear()}, ${date.toLocaleString('default', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+  };
+
   const handleConfirm = () => {
-    // Implement logic for the final confirmation button
-    console.log('Booking confirmed!');
-    // Navigate back to home or a booking history screen
+    console.log('Booking confirmed:', ticketBooking);
     navigation.navigate('UserHome');
   };
 
@@ -30,44 +35,46 @@ const UserConfirmBookingScreen = ({ navigation }) => {
       styles.container,
       {
         paddingTop: Math.max(insets.top, 20),
-        paddingBottom: Math.max(insets.bottom + 20, 20),
+        paddingBottom: Math.max(insets.bottom, 20),
         paddingLeft: insets.left,
         paddingRight: insets.right,
       }
     ]}>
-      {/* SVG Background */}
       <View style={styles.backgroundSvgContainer} pointerEvents="none">
         <SignUpBackground style={styles.backgroundSvg} width={width} height="100%" />
       </View>
       <View style={styles.content}>
-        {/* Icon */}
         <View style={styles.iconContainer}>
           <LinearGradient
-            colors={['#B15CDE', '#7952FC']} // Purple gradient
+            colors={['#B15CDE', '#7952FC']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.iconBackground}
           >
-            {/* Placeholder for the credit card with checkmark icon */}
-            {/* You might need to combine multiple icons or use a custom asset */}
-            {/* This is a simplified representation */} 
-             <Ionicons name="card" size={60} color="#fff" style={styles.cardIcon} />
-             <View style={styles.checkmarkContainer}>
-                 <Ionicons name="checkmark-circle" size={30} color="#fff" />
-             </View>
+            <Ionicons name="card" size={60} color="#fff" style={styles.cardIcon} />
+            <View style={styles.checkmarkContainer}>
+              <Ionicons name="checkmark-circle" size={30} color="#fff" />
+            </View>
           </LinearGradient>
         </View>
 
-        {/* Message */}
         <Text style={styles.messageTitle}>Booked Successfully!</Text>
         <Text style={styles.messageSubtitle}>
           Please check your Booking in the Manage Event
         </Text>
+        {ticketBooking && (
+          <View style={styles.bookingDetails}>
+            <Text style={styles.detailLabel}>Ticket ID: <Text style={styles.detailValue}>{ticketBooking.ticketId || 'N/A'}</Text></Text>
+            <Text style={styles.detailLabel}>Event Date: <Text style={styles.detailValue}>{formatDateTime(ticketBooking.selectedEventDate)}</Text></Text>
+            <Text style={styles.detailLabel}>Number of Tickets: <Text style={styles.detailValue}>{ticketBooking.numberOfTickets || 'N/A'}</Text></Text>
+            <Text style={styles.detailLabel}>Guest Type: <Text style={styles.detailValue}>{ticketBooking.guestType || 'N/A'}</Text></Text>
+            <Text style={styles.detailLabel}>Total Amount: <Text style={styles.detailValue}>₹{(ticketBooking.totalAmount || 0).toFixed(2)}</Text></Text>
+          </View>
+        )}
       </View>
 
-      {/* Confirm Button */}
       <LinearGradient
-        colors={['#B15CDE', '#7952FC']} // Purple gradient colors
+        colors={['#B15CDE', '#7952FC']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[
@@ -90,7 +97,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-    justifyContent: 'space-between', // Space out content and button
+    justifyContent: 'space-between',
   },
   content: {
     flex: 1,
@@ -106,27 +113,27 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     position: 'relative',
   },
-   iconBackground: {
+  iconBackground: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-   },
-   cardIcon: {
+  },
+  cardIcon: {
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -30 }, { translateY: -30 }], // Center the icon
-    zIndex: 1, // Ensure card icon is below checkmark
-   },
-   checkmarkContainer: {
-     position: 'absolute',
-     bottom: 5,
-     right: 5,
-     backgroundColor: '#a95eff', // Match the purple color
-     borderRadius: 15,
-     padding: 2, // Adjust padding as needed
-     zIndex: 2, // Ensure checkmark is on top
-   },
+    transform: [{ translateX: -30 }, { translateY: -30 }],
+    zIndex: 1,
+  },
+  checkmarkContainer: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: '#a95eff',
+    borderRadius: 15,
+    padding: 2,
+    zIndex: 2,
+  },
   messageTitle: {
     color: '#C6C5ED',
     textAlign: 'center',
@@ -145,6 +152,20 @@ const styles = StyleSheet.create({
     fontStyle: 'normal',
     fontWeight: '400',
     lineHeight: 21,
+    marginBottom: 20,
+  },
+  bookingDetails: {
+    alignItems: 'center',
+  },
+  detailLabel: {
+    color: '#aaa',
+    fontSize: 14,
+    fontFamily: 'Nunito Sans',
+    marginBottom: 5,
+  },
+  detailValue: {
+    color: '#fff',
+    fontWeight: '700',
   },
   confirmButtonGradient: {
     borderRadius: 14,
@@ -189,4 +210,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UserConfirmBookingScreen; 
+export default UserConfirmBookingScreen;

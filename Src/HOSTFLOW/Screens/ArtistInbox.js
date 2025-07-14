@@ -11,7 +11,7 @@ import CustomToggle from '../Components/CustomToggle';
 import SignUpBackground from '../assets/Banners/SignUp';
 import debounce from 'lodash.debounce';
 
-const API_BASE_URL = 'http://192.168.1.52:3000';
+const API_BASE_URL = 'http://10.0.2.2:3000';
 const { width } = Dimensions.get('window');
 
 // MusicBeatsLoader: Animated music bars loader

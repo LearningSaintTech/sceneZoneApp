@@ -1,8 +1,12 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AppliedIcon from '../assets/icons/Applied';
 import InboxIcon from '../assets/icons/inbox';
+import HomeIcon from '../assets/icons/home';
+import ProfileIcon from './profile';
+
+const { width, height } = Dimensions.get('window');
 
 const ArtistBottomNavBar = ({ navigation, insets = { bottom: 20 } }) => {
   // Get the current route name to determine active tab
@@ -26,51 +30,82 @@ const ArtistBottomNavBar = ({ navigation, insets = { bottom: 20 } }) => {
 
   const activeTab = getActiveTab();
 
+  // Animation values for each tab
+  const homeAnim = React.useRef(new Animated.Value(0)).current;
+  const appliedAnim = React.useRef(new Animated.Value(0)).current;
+  const inboxAnim = React.useRef(new Animated.Value(0)).current;
+  const profileAnim = React.useRef(new Animated.Value(0)).current;
+  const [loaded, setLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    // Animate all icons on mount
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(homeAnim, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(homeAnim, { toValue: 0, duration: 1000, easing: Easing.linear, useNativeDriver: true })
+      ]),
+      Animated.sequence([
+        Animated.timing(appliedAnim, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(appliedAnim, { toValue: 0, duration: 1000, easing: Easing.linear, useNativeDriver: true })
+      ]),
+      Animated.sequence([
+        Animated.timing(inboxAnim, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(inboxAnim, { toValue: 0, duration: 1000, easing: Easing.linear, useNativeDriver: true })
+      ]),
+      Animated.sequence([
+        Animated.timing(profileAnim, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(profileAnim, { toValue: 0, duration: 1000, easing: Easing.linear, useNativeDriver: true })
+      ]),
+    ]).start(() => setLoaded(true));
+  }, []);
+
+  const iconSize = Math.max(24, width * 0.06);
+
   const handleTabPress = (tabName, routeName) => {
     if (activeTab !== tabName) {
-      navigation.replace(routeName);
+      navigation.navigate(routeName);
     }
   };
 
   return (
     <View style={[styles.bottomNavBar, { paddingBottom: Math.max(insets.bottom, 20) }]}> 
       <TouchableOpacity 
-        style={[styles.navButton, activeTab === 'home' && styles.navButtonActive]} 
+        style={styles.navButton}
         onPress={() => handleTabPress('home', 'ArtistHome')}
       >
-        <Ionicons 
-          name={activeTab === 'home' ? 'home' : 'home-outline'} 
-          size={24} 
-          color={activeTab === 'home' ? '#a95eff' : '#aaa'} 
-        />
+        <Animated.View style={activeTab === 'home' ? { transform: [{ rotate: homeAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] } : {}}>
+          <HomeIcon width={iconSize} height={iconSize} color={activeTab === 'home' ? '#a95eff' : '#aaa'} />
+        </Animated.View>
         <Text style={[styles.navButtonText, activeTab === 'home' && styles.navButtonTextActive]}>Home</Text>
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.navButton, activeTab === 'applied' && styles.navButtonActive]}
+        style={styles.navButton}
         onPress={() => handleTabPress('applied', 'ArtistApplied')}
       >
-        <AppliedIcon width={24} height={24} stroke={activeTab === 'applied' ? '#a95eff' : '#aaa'} />
+        <Animated.View style={activeTab === 'applied' ? { transform: [{ rotate: appliedAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] } : {}}>
+          <AppliedIcon width={iconSize} height={iconSize} stroke={activeTab === 'applied' ? '#a95eff' : '#aaa'} />
+        </Animated.View>
         <Text style={[styles.navButtonText, activeTab === 'applied' && styles.navButtonTextActive]}>Applied</Text>
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.navButton, activeTab === 'inbox' && styles.navButtonActive]}
+        style={styles.navButton}
         onPress={() => handleTabPress('inbox', 'ArtistInbox')}
       >
-        <InboxIcon width={24} height={24} stroke={activeTab === 'inbox' ? '#a95eff' : '#aaa'} />
+        <Animated.View style={activeTab === 'inbox' ? { transform: [{ rotate: inboxAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] } : {}}>
+          <InboxIcon width={iconSize} height={iconSize} stroke={activeTab === 'inbox' ? '#a95eff' : '#aaa'} />
+        </Animated.View>
         <Text style={[styles.navButtonText, activeTab === 'inbox' && styles.navButtonTextActive]}>Inbox</Text>
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.navButton, activeTab === 'profile' && styles.navButtonActive]}
+        style={styles.navButton}
         onPress={() => handleTabPress('profile', 'ArtistProfile')}
       >
-        <Ionicons 
-          name={activeTab === 'profile' ? 'person' : 'person-outline'} 
-          size={24} 
-          color={activeTab === 'profile' ? '#a95eff' : '#aaa'} 
-        />
+        <Animated.View style={activeTab === 'profile' ? { transform: [{ rotate: profileAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] } : {}}>
+          <ProfileIcon width={iconSize} height={iconSize} color={activeTab === 'profile' ? '#a95eff' : '#aaa'} />
+        </Animated.View>
         <Text style={[styles.navButtonText, activeTab === 'profile' && styles.navButtonTextActive]}>Profile</Text>
       </TouchableOpacity>
     </View>
@@ -94,11 +129,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
     paddingVertical: 5,
-  },
-  navButtonActive: {
-    backgroundColor: 'rgba(169, 94, 255, 0.1)',
-    borderRadius: 15,
-    marginHorizontal: 5,
   },
   navButtonText: {
     fontSize: 12,

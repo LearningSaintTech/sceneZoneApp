@@ -14,6 +14,7 @@ import SignUpBackground from '../assets/Banners/SignUp';
 import api from '../Config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaskedView from '@react-native-masked-view/masked-view';
+import ArtistExploreEvent from './ArtistExploreEvent';
 
 const { width, height } = Dimensions.get('window');
 
@@ -364,8 +365,10 @@ const ArtistAppliedScreen = ({ navigation }) => {
       }
 
       if (savedResponse.data && savedResponse.data.success && Array.isArray(savedResponse.data.data)) {
+        // Filter out any savedEvent where eventId is null
+        const filteredSavedEvents = savedResponse.data.data.filter(savedEvent => savedEvent && savedEvent.eventId);
         // Transform API data to match expected format
-        const transformedEvents = savedResponse.data.data.map((savedEvent, index) => {
+        const transformedEvents = filteredSavedEvents.map((savedEvent, index) => {
           const event = savedEvent.eventId; // Event data is nested in eventId
           
           console.log('Saved event data:', event); // Debug log to see backend structure
@@ -535,7 +538,9 @@ const ArtistAppliedScreen = ({ navigation }) => {
     return (
       <View style={styles.card}>
         <View style={styles.cardImageContainer}>
-          <Image source={item.image} style={styles.cardImage} />
+          <TouchableOpacity onPress={() => navigation.navigate('ArtistExploreEvent', { eventId: item.eventId })}>
+            <Image source={item.image} style={styles.cardImage} />
+          </TouchableOpacity>
           <View style={styles.dateBox}>
             <Text style={styles.dateText}>{item.dateMonth}</Text>
             <Text style={styles.dateText}>{item.dateDay}</Text>

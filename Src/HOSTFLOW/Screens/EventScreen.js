@@ -70,7 +70,7 @@ const EventScreen = ({ navigation }) => {
 
   const fetchEvents = useCallback(async () => {
     try {
-      const response = await axios.get('http://192.168.1.52:3000/api/host/events/get-all-events', {
+      const response = await axios.get('http://10.0.2.2:3000/api/host/events/get-all-events', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ const EventScreen = ({ navigation }) => {
 
   const handleDeleteEvent = async (eventId) => {
     try {
-      const response = await axios.delete(`http://192.168.1.52:3000/api/host/events/delete-event/${eventId}`, {
+      const response = await axios.delete(`http://10.0.2.2:3000/api/host/events/delete-event/${eventId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

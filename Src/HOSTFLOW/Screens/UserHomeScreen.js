@@ -42,6 +42,7 @@ import SearchIcon from '../assets/icons/search';
 import NotiIcon from '../assets/icons/Noti';
 import ArrowIcon from '../assets/icons/arrow';
 import HapticFeedback from 'react-native-haptic-feedback';
+import api from '../Config/api';
 // import SlLogo from '../assets/icons/sl.svg';
 
 const { width, height } = Dimensions.get('window');
@@ -155,97 +156,6 @@ const MusicBeatsLoader = () => {
   );
 };
 
-// New component for individual Latest Event cards
-const LatestEventCard = ({ item, navigation }) => {
-  const [isGuestListApplied, setIsGuestListApplied] = useState(false);
-  const dispatch = useDispatch();
-  const isFavorite = useSelector(state => selectIsFavorite(state, item.eventId));
-
-  const handleFavoriteToggle = (eventId) => {
-    try {
-      triggerHaptic('impactMedium');
-      dispatch(toggleFavorite(eventId));
-    } catch (error) {
-      console.error('Error updating favorite:', error);
-    }
-  };
-
-  const renderMedia = () => {
-    if (item.image) {
-      return (
-        <View style={{flex: 1}}>
-          <Image
-            source={item.image}
-            style={styles.latestEventImage}
-            resizeMode="cover"
-          />
-          <LinearGradient
-            colors={["rgba(0,0,0,0)", "#000"]}
-            locations={[0.5734, 1]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          {item.hasGuestListButton && (
-            <TouchableOpacity style={styles.latestEventGuestListButton}>
-              <Text style={styles.latestEventGuestListButtonText}>Apply For Guest List</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.latestEventHeartIcon} onPress={() => handleFavoriteToggle(item.eventId)}>
-            <Ionicons 
-              name={isFavorite ? "heart" : "heart-outline"} 
-              size={dimensions.navIconSize * 1.25}
-              color={isFavorite ? "#ff4444" : "#7A7A90"}
-            />
-          </TouchableOpacity>
-        </View>
-      );
-    } else if (item.video) {
-      return (
-        <Video
-          source={item.video}
-          style={styles.latestEventImage}
-          resizeMode="cover"
-          repeat={true}
-          muted={true}
-          paused={false}
-          controls={false}
-          onError={(error) => {
-            console.log('Video playback error:', error);
-          }}
-          onLoad={() => {
-            console.log('Video loaded successfully');
-          }}
-        />
-      );
-    }
-    return null;
-  };
-
-  return (
-    <TouchableOpacity style={styles.latestEventCardContainer} activeOpacity={0.85} onPress={() => navigation.navigate('UserEvent')}>
-      {renderMedia()}
-
-      <View style={styles.latestEventDateOverlay}>
-        <Text style={styles.latestEventDateMonth}>{item.dateMonth}</Text>
-        <Text style={styles.latestEventDateDay}>{item.dateDay}</Text>
-      </View>
-
-      {/* Details card below image with gradient background */}
-      <LinearGradient
-        colors={['rgba(18,18,18,0.95)', 'rgba(177,92,222,0.85)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.latestEventDetailsContainer}
-      >
-        <Text style={styles.latestEventTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
-        {item.price && <Text style={styles.latestEventPrice} numberOfLines={1} ellipsizeMode="tail">{item.price}</Text>}
-        <Text style={styles.latestEventLocation} numberOfLines={1} ellipsizeMode="tail">{item.location}</Text>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-};
-
 // Custom Plan For Button Component
 const PlanForButton = ({ type, onPress }) => {
   const getButtonConfig = () => {
@@ -353,15 +263,42 @@ const UserHomeScreen = ({ navigation, route }) => {
   // Get isLoggedIn and userData from Redux store
   const isLoggedIn = useSelector(selectIsLoggedIn);
   const userData = useSelector(selectUserData);
+  const token = useSelector(state => state.auth.token);
   
+  // State for fetched profile
+  const [profile, setProfile] = useState({ name: '', location: '' });
+
+  // Fetch user profile from API
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!token) return;
+      try {
+        const response = await api.get('/user/get-profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.data && response.data.data) {
+          const data = response.data.data;
+          setProfile({
+            name: data.fullName || data.name || '',
+            location: data.address || data.location || '',
+          });
+        }
+      } catch (err) {
+        // Optionally handle error
+      }
+    };
+    fetchProfile();
+  }, [token]);
+
   // Function to get first word from full name
   const getFirstName = (fullName) => {
     if (!fullName) return 'User';
     return fullName.split(' ')[0];
   };
   
-  // Get user name for greeting
-  const userName = getFirstName(userData?.name || userData?.fullName);
+  // Use fetched profile for greeting and location
+  const userName = getFirstName(profile.name);
+  const userLocation = profile.location || 'Location';
 
   // Simulate loading for a brief moment when component mounts
   useEffect(() => {
@@ -460,149 +397,29 @@ const UserHomeScreen = ({ navigation, route }) => {
     }
   };
 
-  const renderEventCard = ({ item, index }) => {
-    const inputRange = [
-      (index - 1) * snapToInterval,
-      index * snapToInterval,
-      (index + 1) * snapToInterval,
-    ];
+  // Add state for events
+  const [events, setEvents] = useState([]);
 
-    const scale = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.85, 1, 0.85],
-      extrapolate: 'clamp',
-    });
-
-    const opacity = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.5, 1, 0.5],
-      extrapolate: 'clamp',
-    });
-
-    const renderMedia = () => {
-      if (item.video) {
-        return (
-          <Video
-            source={item.video}
-            style={styles.eventVideo}
-            resizeMode="cover"
-            repeat={true}
-            muted={true}
-            paused={false}
-            controls={false}
-            rate={1.0}
-            volume={0}
-            playWhenInactive={false}
-            playInBackground={false}
-            ignoreSilentSwitch="ignore"
-            onError={(error) => {
-              console.log('Featured video playback error:', error);
-            }}
-            onLoad={() => {
-              console.log('Featured video loaded successfully');
-            }}
-          />
-        );
-      } else {
-        return (
-          <Image
-            source={item.image}
-            style={styles.eventImage}
-            resizeMode="cover"
-          />
-        );
+  // Fetch events from API
+  useEffect(() => {
+    const fetchEvents = async () => {
+      setIsLoadingEvents(true);
+      try {
+        const response = await api.get('/host/events/get-all-user-events');
+        console.log("mmmm",response.data.data);
+        if (response.data && response.data.data) {
+          setEvents(response.data.data);
+        }
+      } catch (err) {
+        // Optionally handle error
       }
+      setIsLoadingEvents(false);
     };
+    fetchEvents();
+  }, []);
 
-    return (
-      <TouchableOpacity activeOpacity={0.85} onPress={() => handleFeatureNavigation('UserEvent')}>
-        <Animated.View 
-          style={[
-            styles.eventCardContainerHorizontalScroll,
-            { 
-              transform: [{ scale }],
-              opacity,
-            }
-          ]}
-        >
-          <LinearGradient
-            colors={['#B15CDE', '#7952FC']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.eventCardGradientBackground}
-          />
-          {renderMedia()}
-          <View style={styles.imageOverlay} />
-          <TouchableOpacity 
-            style={styles.heartIconPlaceholder}
-            onPress={() => {
-              if (isLoggedIn) {
-                handleFavoriteToggle(item.eventId);
-              } else {
-                triggerHaptic('impactMedium');
-                handleFeatureNavigation('UserSignup');
-              }
-            }}
-          >
-            <Ionicons 
-              name={item.isFavorite ? "heart" : "heart-outline"} 
-              size={dimensions.navIconSize * 1.25} 
-              color={item.isFavorite ? "#ff4444" : "#7A7A90"}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.featuredEventDetailsBottomContainer}>
-            <View style={styles.featuredEventTextContainer}>
-              <Text style={styles.featuredEventTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
-              <Text style={styles.featuredEventLocationText} numberOfLines={1} ellipsizeMode="tail">{item.location}</Text>
-            </View>
-            <LinearGradient
-              colors={['#B15CDE', '#7952FC']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.featuredEventArrowGradientBorder}
-            >
-              <TouchableOpacity
-                style={styles.featuredEventArrowButton}
-                onPress={() => handleFeatureNavigation('UserEvent')}
-                activeOpacity={0.8}
-              >
-                <ArrowIcon width={16} height={26} />
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
-
-  const featuredEvents = [
-    { 
-      title: 'Another Music Festival', 
-      price: '', 
-      location: 'Some City, India',
-      eventId: eventIds.featured,
-      isFavorite: isFeaturedFavorite,
-      video: require('../assets/Videos/Video.mp4')
-    },
-    { 
-      title: 'Stand-up Comedy Night', 
-      price: '', 
-      location: 'Comedy Club, City',
-      eventId: eventIds.upcoming1,
-      isFavorite: isUpcoming1Favorite,
-      video: require('../assets/Videos/Video.mp4')
-    },
-    { 
-      title: 'Basketball Game', 
-      price: '', 
-      location: 'Sports Stadium, City',
-      eventId: eventIds.upcoming2,
-      isFavorite: isUpcoming2Favorite,
-      video: require('../assets/Videos/Video.mp4')
-    }
-  ];
-
+  // Split events for featured and latest
+  const featuredEvents = events.slice(0, 3);
   const latestEvents = [
     {
       id: 'latest_1',
@@ -628,7 +445,7 @@ const UserHomeScreen = ({ navigation, route }) => {
       isFavorite: isUpcoming4Favorite,
       hasGuestListButton: false,
     },
-     {
+    {
       id: 'latest_3',
       image: require('../assets/Images/ffff.jpg'),
       dateMonth: 'Nov',
@@ -653,6 +470,136 @@ const UserHomeScreen = ({ navigation, route }) => {
       hasGuestListButton: true,
     },
   ];
+
+  const renderEventCard = ({ item, index }) => {
+    const inputRange = [
+      (index - 1) * snapToInterval,
+      index * snapToInterval,
+      (index + 1) * snapToInterval,
+    ];
+
+    const scale = scrollX.interpolate({
+      inputRange,
+      outputRange: [0.85, 1, 0.85],
+      extrapolate: 'clamp',
+    });
+
+    const opacity = scrollX.interpolate({
+      inputRange,
+      outputRange: [0.5, 1, 0.5],
+      extrapolate: 'clamp',
+    });
+
+    const renderMedia = () => {
+      if (item.posterUrl) {
+        return (
+          <Image
+            source={{ uri: item.posterUrl }}
+            style={styles.eventImage}
+            resizeMode="cover"
+          />
+        );
+      }
+      return null;
+    };
+
+    return (
+      <TouchableOpacity activeOpacity={0.85} onPress={() => handleFeatureNavigation('UserEvent')}>
+        <Animated.View 
+          style={[
+            styles.eventCardContainerHorizontalScroll,
+            { 
+              transform: [{ scale }],
+              opacity,
+            }
+          ]}
+        >
+          <LinearGradient
+            colors={['#B15CDE', '#7952FC']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.eventCardGradientBackground}
+          />
+          {renderMedia()}
+          <View style={styles.imageOverlay} />
+          <TouchableOpacity 
+            style={styles.heartIconPlaceholder}
+            onPress={() => {
+              if (isLoggedIn) {
+                handleFavoriteToggle(item._id);
+              } else {
+                triggerHaptic('impactMedium');
+                handleFeatureNavigation('UserSignup');
+              }
+            }}
+          >
+            <Ionicons 
+              name={item.isFavorite ? "heart" : "heart-outline"} 
+              size={dimensions.navIconSize * 1.25} 
+              color={item.isFavorite ? "#ff4444" : "#7A7A90"}
+            />
+          </TouchableOpacity>
+
+          <View style={styles.featuredEventDetailsBottomContainer}>
+            <View style={styles.featuredEventTextContainer}>
+              <Text style={styles.featuredEventTitle} numberOfLines={1} ellipsizeMode="tail">{item.eventName}</Text>
+              <Text style={styles.featuredEventLocationText} numberOfLines={1} ellipsizeMode="tail">{item.venue}</Text>
+            </View>
+            <LinearGradient
+              colors={['#B15CDE', '#7952FC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.featuredEventArrowGradientBorder}
+            >
+              <TouchableOpacity
+                style={styles.featuredEventArrowButton}
+                onPress={() => navigation.navigate('UserEvent', { eventId: item._id })}
+                activeOpacity={0.8}
+              >
+                <ArrowIcon width={16} height={26} />
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
+
+  const featuredEventsScrollRef = useRef(null);
+
+  // Plan For Section Animation
+  const planTodayAnim = useRef(new Animated.Value(-200)).current; // from left
+  const planWeekendAnim = useRef(new Animated.Value(200)).current; // from right
+  const [planSectionY, setPlanSectionY] = useState(0);
+  const [planSectionHeight, setPlanSectionHeight] = useState(0);
+  const [planAnimated, setPlanAnimated] = useState(false);
+
+  // Handler to trigger animation when section is in view
+  const handleScroll = (event) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    const windowHeight = Dimensions.get('window').height;
+    // Section is in view if any part is visible
+    const inView = planSectionY < scrollY + windowHeight - 100 && (planSectionY + planSectionHeight) > scrollY + 100;
+    if (inView && !planAnimated) {
+      setPlanAnimated(true);
+      Animated.parallel([
+        Animated.timing(planTodayAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(planWeekendAnim, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (!inView && planAnimated) {
+      setPlanAnimated(false);
+      planTodayAnim.setValue(-200);
+      planWeekendAnim.setValue(200);
+    }
+  };
 
   const latestEventsScrollRef = useRef(null);
   const latestScrollAnim = useRef(new Animated.Value(0)).current;
@@ -820,40 +767,62 @@ const UserHomeScreen = ({ navigation, route }) => {
     </Modal>
   );
 
-  const featuredEventsScrollRef = useRef(null);
+  // Update LatestEventCard to use the hardcoded fields (image, title, location, dateMonth, dateDay)
+  const LatestEventCard = ({ item, navigation }) => {
+    const [isGuestListApplied, setIsGuestListApplied] = useState(false);
+    const dispatch = useDispatch();
+    const isFavorite = useSelector(state => selectIsFavorite(state, item.eventId));
 
-  // Plan For Section Animation
-  const planTodayAnim = useRef(new Animated.Value(-200)).current; // from left
-  const planWeekendAnim = useRef(new Animated.Value(200)).current; // from right
-  const [planSectionY, setPlanSectionY] = useState(0);
-  const [planSectionHeight, setPlanSectionHeight] = useState(0);
-  const [planAnimated, setPlanAnimated] = useState(false);
+    const handleFavoriteToggle = (eventId) => {
+      try {
+        triggerHaptic('impactMedium');
+        dispatch(toggleFavorite(eventId));
+      } catch (error) {
+        console.error('Error updating favorite:', error);
+      }
+    };
 
-  // Handler to trigger animation when section is in view
-  const handleScroll = (event) => {
-    const scrollY = event.nativeEvent.contentOffset.y;
-    const windowHeight = Dimensions.get('window').height;
-    // Section is in view if any part is visible
-    const inView = planSectionY < scrollY + windowHeight - 100 && (planSectionY + planSectionHeight) > scrollY + 100;
-    if (inView && !planAnimated) {
-      setPlanAnimated(true);
-      Animated.parallel([
-        Animated.timing(planTodayAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(planWeekendAnim, {
-          toValue: 0,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else if (!inView && planAnimated) {
-      setPlanAnimated(false);
-      planTodayAnim.setValue(-200);
-      planWeekendAnim.setValue(200);
-    }
+    const renderMedia = () => {
+      if (item.image) {
+        return (
+          <View style={{flex: 1}}>
+            <Image
+              source={item.image}
+              style={styles.latestEventImage}
+              resizeMode="cover"
+            />
+            <LinearGradient
+              colors={["rgba(0,0,0,0)", "#000"]}
+              locations={[0.5734, 1]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        );
+      }
+      return null;
+    };
+
+    return (
+      <TouchableOpacity style={styles.latestEventCardContainer} activeOpacity={0.85} onPress={() => navigation.navigate('UserEvent')}>
+        {renderMedia()}
+        <View style={styles.latestEventDateOverlay}>
+          <Text style={styles.latestEventDateMonth}>{item.dateMonth}</Text>
+          <Text style={styles.latestEventDateDay}>{item.dateDay}</Text>
+        </View>
+        <LinearGradient
+          colors={['rgba(18,18,18,0.95)', 'rgba(177,92,222,0.85)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.latestEventDetailsContainer}
+        >
+          <Text style={styles.latestEventTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
+          {item.price && <Text style={styles.latestEventPrice} numberOfLines={1} ellipsizeMode="tail">{item.price}</Text>}
+          <Text style={styles.latestEventLocation} numberOfLines={1} ellipsizeMode="tail">{item.location}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -934,7 +903,7 @@ const UserHomeScreen = ({ navigation, route }) => {
                 </MaskedView>
                 <View style={styles.locationContainer}>
                   <MaterialIcons name="location-on" size={dimensions.iconSize} color="#a95eff" />
-                  <Text style={styles.locationText}>H-70, Sector 63, Noida</Text>
+                  <Text style={styles.locationText}>{userLocation}</Text>
                 </View>
               </View>
               <View style={styles.iconContainer}>
@@ -968,7 +937,7 @@ const UserHomeScreen = ({ navigation, route }) => {
                 snapToAlignment="center"
               >
                 {featuredEvents.map((item, index) => (
-                  <View key={item.eventId}>
+                  <View key={item._id}>
                     {renderEventCard({ item, index })}
                   </View>
                 ))}
@@ -1152,7 +1121,7 @@ const UserHomeScreen = ({ navigation, route }) => {
           }} />
 
           {/* Latest Events Section */}
-          <View style={[styles.section, { marginBottom: 0, marginTop: dimensions.spacing.xxxl }]}>
+          <View style={[styles.section, { marginBottom: 0, marginTop: dimensions.spacing.xxxl }]}> 
             <Text style={[styles.sectionTitle, { marginBottom: dimensions.spacing.lg }]}>Latest Events</Text>
             <ScrollView 
               ref={latestEventsScrollRef}

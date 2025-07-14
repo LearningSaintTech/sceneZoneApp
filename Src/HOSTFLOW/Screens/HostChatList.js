@@ -19,8 +19,8 @@ const HostChatList = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const token = useSelector(state => state.auth.token);
   const { eventId } = route.params; // Get eventId from navigation params
-  const BASE_URL = 'http://192.168.1.52:3000';
-
+  const BASE_URL = 'http://10.0.2.2:3000';
+console.log("eventIdttttt",eventId)
   // Decode token to get user role and ID
   let userId = null;
   let role = null;

@@ -63,7 +63,7 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
   const inputs = useRef([]);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  const { mobileNumber, confirmation, userId, fullName } = route.params;
+  const { mobileNumber, confirmation, fullName } = route.params;
 
   const responsiveDimensions = {
     ...dimensions,

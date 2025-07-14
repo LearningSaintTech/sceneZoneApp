@@ -499,7 +499,15 @@ const ArtistEventCard = ({ item, navigation, onEventApplied, onEventSaved, saved
       locations={[0.2658, 0.9098]}
       style={styles.eventCard}
     >
-      <Image source={item.image} style={styles.eventImage} />
+<TouchableOpacity
+  onPress={() => {
+    console.log(`[${new Date().toISOString()}] Navigating to ArtistExploreEvent for eventId=${item.id}`);
+    navigation.navigate('ArtistExploreEvent', { eventId: item.id });
+  }}
+  activeOpacity={0.7}
+>
+  <Image source={item.image} style={styles.eventImage} />
+</TouchableOpacity>
       <View style={styles.dateOverlay}>
         <Text style={styles.dateMonth}>{item.dateMonth}</Text>
         <Text style={styles.dateDay}>{item.dateDay}</Text>

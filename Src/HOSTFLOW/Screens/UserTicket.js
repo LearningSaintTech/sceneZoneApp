@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -15,6 +17,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HapticFeedback from 'react-native-haptic-feedback';
+import axios from 'axios';
+import { useSelector } from 'react-redux';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -27,78 +31,141 @@ const triggerHaptic = (type) => {
   try {
     HapticFeedback.trigger(type, hapticOptions);
   } catch (error) {
-    // Silently fail
+    console.log('Haptic feedback error:', error.message);
   }
 };
 
 const UserTicketScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('active');
+  const [activeTickets, setActiveTickets] = useState([]);
+  const [pastTickets, setPastTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
-  // Placeholder data for tickets
-  const activeTickets = [
-    {
-      id: 1,
-      image: require('../assets/Images/fff.jpg'), // Placeholder image
-      date: 'Sep\n20',
-      title: 'Harmony Festival 2025',
-      ticketId: '#1234567890',
-    },
-     {
-      id: 2,
-      image: require('../assets/Images/shortlist1.png'), // Placeholder image
-      date: 'Sep\n20',
-      title: 'Unity Fest 2025',
-      ticketId: '#0987654321',
-    },
-    // Add more active tickets as needed
-  ];
+  const baseUrl = 'http://10.0.2.2:3000';
+  const token = useSelector((state) => state.auth.token);
 
-   const pastTickets = [
-    {
-      id: 1,
-      image: require('../assets/Images/Cover.png'), // Placeholder image
-      date: 'Aug\n15',
-      title: 'Previous Concert 2024',
-      ticketId: '#PAST987654',
-    },
-     {
-      id: 2,
-      image: require('../assets/Images/shortlist1.png'), // Placeholder image
-      date: 'Jul\n01',
-      title: 'Old Festival 2023',
-      ticketId: '#PAST123456',
-    },
-    // Add more past tickets as needed
-  ];
+  useEffect(() => {
+    const fetchTickets = async () => {
+      if (!token) {
+        console.log('No auth token found');
+        Alert.alert('Error', 'Please log in to view tickets');
+        setLoading(false);
+        return;
+      }
 
+      try {
+        setLoading(true);
+        console.log('Fetching tickets from:', `${baseUrl}/api/eventhost/tickets/user-tickets`);
+        const response = await axios.get(`${baseUrl}/api/eventhost/tickets/user-tickets`, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { page: 1, limit: 10 },
+        });
+
+        console.log('API response:', JSON.stringify(response.data, null, 2));
+        const { tickets } = response.data.data || { tickets: [] };
+
+        const currentDate = new Date();
+
+        const active = tickets.filter(
+          (ticket) =>
+            ticket &&
+            ticket.status === 'paid' &&
+            ticket.selectedEventDate &&
+            new Date(ticket.selectedEventDate) >= currentDate
+        );
+        const past = tickets.filter(
+          (ticket) =>
+            ticket &&
+            (ticket.status === 'cancelled' ||
+              (ticket.selectedEventDate && new Date(ticket.selectedEventDate) < currentDate))
+        );
+
+        setActiveTickets(
+          active.map((ticket) => {
+            const eventDate = ticket.selectedEventDate
+              ? new Date(ticket.selectedEventDate).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                }).replace(' ', '\n')
+              : 'N/A';
+            console.log(`Processing active ticket: ${ticket.ticketId}, date: ${eventDate}`);
+            return {
+              id: ticket._id || `temp-${Math.random()}`,
+              image: ticket.eventId?.posterUrl
+                ? { uri: ticket.eventId.posterUrl }
+                : require('../assets/Images/fff.jpg'),
+              date: eventDate,
+              title: ticket.eventId?.eventName || 'Unknown Event',
+              ticketId: ticket.ticketId || 'N/A',
+              rawTicket: ticket, // Store raw ticket data for navigation
+            };
+          })
+        );
+
+        setPastTickets(
+          past.map((ticket) => {
+            const eventDate = ticket.selectedEventDate
+              ? new Date(ticket.selectedEventDate).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                }).replace(' ', '\n')
+              : 'N/A';
+            console.log(`Processing past ticket: ${ticket.ticketId}, date: ${eventDate}`);
+            return {
+              id: ticket._id || `temp-${Math.random()}`,
+              image: ticket.eventId?.posterUrl
+                ? { uri: ticket.eventId.posterUrl }
+                : require('../assets/Images/Cover.png'),
+              date: eventDate,
+              title: ticket.eventId?.eventName || 'Unknown Event',
+              ticketId: ticket.ticketId || 'N/A',
+              rawTicket: ticket, // Store raw ticket data for navigation
+            };
+          })
+        );
+      } catch (error) {
+        console.error('Error fetching tickets:', error.message);
+        Alert.alert('Error', 'Failed to fetch tickets');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTickets();
+  }, [token]);
 
   return (
-    <SafeAreaView style={[styles.container, {
-      paddingTop: insets.top,
-      paddingBottom: insets.bottom,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-    }]}>
-      {/* SVG Background */}
+    <SafeAreaView
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       <View style={styles.backgroundSvgContainer} pointerEvents="none">
         <SignUpBackground style={styles.backgroundSvg} width={screenWidth} height="100%" />
       </View>
-      {/* Header */}
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Ticket</Text>
-        <View style={{ width: 24 }} />{/* Spacer to align title */}
+        <View style={{ width: 24 }} />
       </View>
 
-      {/* Ticket Type Buttons */}
       <View style={styles.ticketTypeButtonsContainer}>
-        {/* Active Ticket Button */}
         <TouchableOpacity
           style={[styles.ticketTypeButton, { marginRight: 12 }]}
-          onPress={() => setActiveTab('active')}
+          onPress={() => {
+            triggerHaptic('impactLight');
+            setActiveTab('active');
+          }}
         >
           {activeTab === 'active' ? (
             <LinearGradient
@@ -116,10 +183,12 @@ const UserTicketScreen = ({ navigation }) => {
           )}
         </TouchableOpacity>
 
-        {/* Past Ticket Button */}
         <TouchableOpacity
           style={styles.ticketTypeButton}
-          onPress={() => setActiveTab('past')}
+          onPress={() => {
+            triggerHaptic('impactLight');
+            setActiveTab('past');
+          }}
         >
           {activeTab === 'past' ? (
             <LinearGradient
@@ -138,37 +207,58 @@ const UserTicketScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Ticket List */}
-      {/* Display tickets based on activeTab */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollViewContent}>
-        {(activeTab === 'active' ? activeTickets : pastTickets).map((ticket) => (
-          <TouchableOpacity
-            key={ticket.id}
-            style={styles.ticketCard}
-            onPress={() => navigation.navigate('UserTicketDownload')}
-            activeOpacity={0.85}
-          >
-            <Image source={ticket.image} style={styles.ticketImage} resizeMode="cover" />
-            <View style={styles.dateContainer}>
-              <Text style={styles.dateText}>{ticket.date}</Text>
-            </View>
-            <TouchableOpacity style={styles.heartIconPlaceholder} onPress={() => { triggerHaptic('impactMedium'); }}>
-               <Ionicons name="heart-outline" size={20} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.ticketInfo}>
-              <Text style={styles.ticketTitle}>{ticket.title}</Text>
-              <Text style={styles.ticketIdText}>Ticket ID: {ticket.ticketId}</Text>
-            </View>
-             <TouchableOpacity style={styles.ticketArrowButton}>
-                 <MaterialIcons name="chevron-right" size={24} color="#fff" />
-             </TouchableOpacity>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Bottom Navigation Placeholder - Actual navigation handled by navigator */}
-      {/* <View style={{ height: 60 }} /> */}
-
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#B15CDE" />
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollViewContent}>
+          {(activeTab === 'active' ? activeTickets : pastTickets).length > 0 ? (
+            (activeTab === 'active' ? activeTickets : pastTickets).map((ticket) => (
+              <TouchableOpacity
+                key={ticket.id}
+                style={styles.ticketCard}
+                onPress={() => {
+                  triggerHaptic('impactMedium');
+                  console.log('Navigating to UserTicketDownload with ticket:', JSON.stringify(ticket.rawTicket, null, 2));
+                  navigation.navigate('UserTicketDownload', { ticket: ticket.rawTicket });
+                }}
+                activeOpacity={0.85}
+              >
+                <Image
+                  source={ticket.image}
+                  style={styles.ticketImage}
+                  resizeMode="cover"
+                  onError={() => console.log(`Failed to load image for ticket: ${ticket.ticketId}`)}
+                />
+                <View style={styles.dateContainer}>
+                  <Text style={styles.dateText}>{ticket.date || 'N/A'}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.heartIconPlaceholder}
+                  onPress={() => {
+                    triggerHaptic('impactMedium');
+                    console.log('Heart icon pressed for ticket:', ticket.ticketId);
+                  }}
+                >
+                  <Ionicons name="heart-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+                <View style={styles.ticketInfo}>
+                  <Text style={styles.ticketTitle}>{ticket.title || 'Unknown Event'}</Text>
+                  <Text style={styles.ticketIdText}>Ticket ID: {ticket.ticketId || 'N/A'}</Text>
+                </View>
+                <TouchableOpacity style={styles.ticketArrowButton}>
+                  <MaterialIcons name="chevron-right" size={24} color="#fff" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={styles.noTicketsText}>
+              No {activeTab === 'active' ? 'active' : 'past'} tickets available
+            </Text>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -179,7 +269,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    paddingTop:30,
+    paddingTop: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -192,10 +282,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
-    flex: 1, // Allow title to take up space
+    flex: 1,
     textAlign: 'left',
-    marginLeft:20,
-     // Center the text
+    marginLeft: 20,
   },
   ticketTypeButtonsContainer: {
     flexDirection: 'row',
@@ -263,11 +352,11 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   ticketCard: {
-    backgroundColor: '#1a1a1a', // Dark background for ticket card
+    backgroundColor: '#1a1a1a',
     borderRadius: 10,
     marginBottom: 15,
-    overflow: 'hidden', // Clip image to rounded corners
-    position: 'relative', // For absolute positioning of date, heart, and arrow
+    overflow: 'hidden',
+    position: 'relative',
     width: Math.min(screenWidth * 0.9, 400),
     alignSelf: 'center',
   },
@@ -280,7 +369,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     left: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Semi-transparent dark background
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 5,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -296,7 +385,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    zIndex: 1, // Ensure heart is above the image
+    zIndex: 1,
   },
   ticketInfo: {
     padding: 10,
@@ -320,10 +409,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)', // Semi-transparent background
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     padding: 5,
     borderRadius: 15,
-    zIndex: 1, // Ensure arrow is above ticket info
+    zIndex: 1,
   },
   backgroundSvgContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -336,6 +425,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noTicketsText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+  },
 });
 
-export default UserTicketScreen; 
+export default UserTicketScreen;

@@ -204,16 +204,16 @@ const UserSigninScreen = ({ navigation }) => {
       console.log('[UserSigninScreen] OTP Login Response:', response.data);
 
       if (response.data.success) {
-        console.log('[UserSigninScreen] Initiating Firebase phone auth for:', mobileNumber);
-        const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber.trim());
+        console.log('[UserSigninScreen] Initiating Firebase phone auth for:', loginData.mobileNumber);
+        const confirmationResult = await auth().signInWithPhoneNumber(loginData.mobileNumber);
         console.log('[UserSigninScreen] Firebase OTP sent successfully:', confirmationResult);
 
         Alert.alert('Success', 'OTP sent to your mobile number', [
           {
             text: 'OK',
             onPress: () =>
-              navigation.navigate('UserLoginOtpVerification', {
-                mobileNumber: mobileNumber.trim(),
+              navigation.navigate('UserOtpVerification', {
+                mobileNumber: mobileNumber,
                 confirmation: confirmationResult,
                 fullName: response.data.data.user?.fullName || '',
               }),

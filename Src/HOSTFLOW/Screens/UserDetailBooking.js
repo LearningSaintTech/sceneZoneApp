@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,29 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  Platform
+  Platform,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import HapticFeedback from 'react-native-haptic-feedback';
+import api from '../Config/api';
+import RazorpayCheckout from 'react-native-razorpay';
 
 const UserDetailBookingScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
-  
-  // Haptic feedback options
+  const token = useSelector((state) => state.auth.token);
+  const user = useSelector((state) => state.auth.user);
+  const { numberOfTickets, discountData, eventDetails } = route.params || {};
+  const isFreeEvent = eventDetails?.ticketSetting?.ticketType === 'free' || discountData?.isFreeEvent;
+  console.log('eventDetails', eventDetails);
+
+  const [userName, setUserName] = useState('Guest');
+  const [invoiceSettings, setInvoiceSettings] = useState({ platformFees: 0, taxRate: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+
   const hapticOptions = {
     enableVibrateFallback: true,
     ignoreAndroidSystemSettings: false,
@@ -30,32 +42,242 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
       // Silently fail
     }
   };
-  
-  // Get booking details from navigation parameters
-  const { numberOfTickets, selectedGuestType, eventDetails } = route.params || {};
 
-  // Placeholder data for display (replace with actual calculated values)
-  const subtotal = 50.00; // Example value
-  const platformFees = 1.50; // Example value
-  const taxRate = 0.04; // 4%
-  const taxAmount = subtotal * taxRate; // Example calculation
-  const totalAmount = subtotal + platformFees + taxAmount; // Example calculation
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) {
+        Alert.alert('Error', 'Authentication token is missing.');
+        setIsLoading(false);
+        return;
+      }
 
-  // Placeholder ticket ID (replace with generated ID)
-  const ticketId = '#8954673009';
+      try {
+        setIsLoading(true);
 
-  // Placeholder user details (replace with actual user data)
-  const userName = 'Franklin Clinton';
+        const userResponse = await api.get('http://10.0.2.2:3000/api/user/auth/get-user', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log('User data fetched:', userResponse.data);
+        setUserName(userResponse.data.data.user.fullName || 'Guest');
 
-  const handleConfirmBooking = () => {
-    // Add haptic feedback
-    triggerHaptic('impactMedium');
-    
-    // Implement booking confirmation logic here
-    console.log('Confirming booking');
-    // Navigate to the next screen, e.g., payment processing or confirmation
-    navigation.navigate('UserBookingPaymentScreen', { bookingDetails: { numberOfTickets, selectedGuestType, eventDetails, totalAmount, ticketId } });
+        const invoiceResponse = await api.get('http://10.0.2.2:3000/api/eventhost/invoices/getInvoices', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log('Invoice settings fetched:', invoiceResponse.data);
+        const settings = invoiceResponse.data.data[0] || { platformFees: 0, taxRate: 0 };
+        setInvoiceSettings(settings);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Alert.alert('Error', 'Failed to fetch user or invoice data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [token]);
+
+  const subtotal = isFreeEvent ? 0 : numberOfTickets * (discountData?.discountedPrice || 0);
+  const platformFees = isFreeEvent ? 0 : invoiceSettings.platformFees;
+  const taxRate = isFreeEvent ? 0 : invoiceSettings.taxRate / 100;
+  const taxAmount = subtotal * taxRate;
+  const totalAmount = subtotal + platformFees + taxAmount;
+
+  const formatPrice = (price) => {
+    return price === 0 ? 'Free' : `₹${price.toFixed(2)}`;
   };
+
+  const formatEventDate = () => {
+    console.log('Raw eventDate:', eventDetails?.eventDate);
+    const currentDate = new Date();
+    console.log('Current date:', currentDate);
+
+    if (!eventDetails?.eventDate || !Array.isArray(eventDetails.eventDate) || eventDetails.eventDate.length === 0) {
+      console.log('No valid eventDate array, returning N/A');
+      return { month: 'N/A', day: 'N/A', year: 'N/A', time: 'N/A', selectedEventDate: null };
+    }
+
+    const parsedDates = eventDetails.eventDate.map((dateItem) => {
+      const dateStr = typeof dateItem === 'object' && dateItem.$date ? dateItem.$date : dateItem;
+      const parsedDate = new Date(dateStr);
+      return { parsedDate, isValid: !isNaN(parsedDate.getTime()) };
+    });
+
+    console.log('Parsed dates:', parsedDates);
+
+    const upcomingDate = parsedDates.find(({ parsedDate, isValid }) => {
+      return isValid && parsedDate >= currentDate;
+    });
+
+    const selectedDateObj = upcomingDate || parsedDates.find(({ isValid }) => isValid);
+    if (!selectedDateObj || !selectedDateObj.isValid) {
+      console.log('No valid or upcoming date found, returning N/A');
+      return { month: 'N/A', day: 'N/A', year: 'N/A', time: 'N/A', selectedEventDate: null };
+    }
+
+    const selectedDate = selectedDateObj.parsedDate;
+    console.log('Selected date:', selectedDate);
+
+    return {
+      month: selectedDate.toLocaleString('default', { month: 'short' }),
+      day: selectedDate.getDate().toString(),
+      year: selectedDate.getFullYear().toString(),
+      time: selectedDate.toLocaleString('default', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      selectedEventDate: selectedDate.toISOString(),
+    };
+  };
+  const { month, day, year, time, selectedEventDate } = formatEventDate();
+  console.log('Formatted date:', { month, day, year, time, selectedEventDate });
+
+  const handleConfirmBooking = async () => {
+    triggerHaptic('impactMedium');
+    if (!token) {
+      Alert.alert('Error', 'Authentication token is missing.');
+      return;
+    }
+    if (!selectedEventDate) {
+      Alert.alert('Error', 'Please select a valid event date.');
+      return;
+    }
+    if (!eventDetails.eventId || !numberOfTickets || !discountData?.discountLevel) {
+      console.log('eventDetails.eventId', eventDetails.eventId);
+      console.log('numberOfTickets', numberOfTickets);
+      console.log('discountData?.discountLevel', discountData);
+      Alert.alert('Error', 'Missing required booking details.');
+      return;
+    }
+
+    console.log('Confirming booking:', { numberOfTickets, discountData, eventDetails, totalAmount, selectedEventDate });
+
+    try {
+      if (isFreeEvent) {
+        // Handle free event booking
+        const response = await api.post(
+          'http://10.0.2.2:3000/api/eventhost/tickets/book',
+          {
+            eventId: eventDetails.eventId,
+            numberOfTickets,
+            guestType: discountData.guestType || 'level1',
+            selectedEventDate,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        console.log('Free ticket booking response:', response.data);
+
+        if (response.data.success) {
+          navigation.navigate('UserConfirmBookingScreen', {
+            ticketBooking: response.data.data.ticketBooking,
+          });
+        } else {
+          Alert.alert('Error', response.data.message || 'Failed to book ticket');
+        }
+      } else {
+        // Handle paid event with Razorpay
+        const amount = Math.round(totalAmount * 100); // Convert to paise
+        const orderResponse = await api.post(
+          'http://10.0.2.2:3000/api/eventhost/tickets/create-order',
+          {
+            eventId: eventDetails.eventId,
+            numberOfTickets,
+            guestType: discountData.guestType || 'level1',
+            selectedEventDate,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        console.log('Order creation response:', orderResponse.data);
+
+        if (!orderResponse.data.success) {
+          Alert.alert('Error', orderResponse.data.message || 'Failed to create payment order');
+          return;
+        }
+
+        const { orderId, amount: orderAmount, currency } = orderResponse.data.data;
+        if (!orderId) {
+          Alert.alert('Error', 'No payment required for free event');
+          return;
+        }
+
+        const options = {
+          key: process.env.RAZORPAY_KEY_ID || 'rzp_live_BWOUs1FhlzOLO7',
+          amount: orderAmount,
+          currency: currency,
+          name: 'Event Booking',
+          description: `Ticket booking for event ${eventDetails.eventId}`,
+          image: 'https://your-app-logo.png',
+          order_id: orderId,
+          handler: (response) => {
+            console.log('Razorpay handler response:', response);
+          },
+          prefill: {
+            name: user?.fullName || 'Guest',
+            email: user?.email || 'guest@example.com',
+            contact: user?.contact || '9999999999',
+          },
+          theme: {
+            color: '#7952FC',
+          },
+        };
+
+        console.log('Opening Razorpay checkout with options:', {
+          key: options.key,
+          amount: options.amount,
+          order_id: options.order_id,
+          timestamp: new Date().toISOString(),
+        });
+
+        const data = await RazorpayCheckout.open(options);
+        console.log('Razorpay payment success:', data);
+
+        // Verify payment and book ticket
+        const response = await api.post(
+          'http://10.0.2.2:3000/api/eventhost/tickets/book',
+          {
+            eventId: eventDetails.eventId,
+            numberOfTickets,
+            guestType: discountData.guestType || 'level1',
+            selectedEventDate,
+            razorpay_payment_id: data.razorpay_payment_id,
+            razorpay_order_id: data.razorpay_order_id,
+            razorpay_signature: data.razorpay_signature,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        console.log('Ticket booking response:', response.data);
+
+        if (response.data.success) {
+          navigation.navigate('UserConfirmBookingScreen', {
+            ticketBooking: response.data.data.ticketBooking,
+          });
+        } else {
+          Alert.alert('Error', response.data.message || 'Failed to book ticket');
+        }
+      }
+    } catch (error) {
+      console.error('Error booking ticket:', error);
+      Alert.alert('Error', 'Failed to book ticket. Please try again.');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, {
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>Loading booking details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, {
@@ -64,13 +286,7 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
       paddingLeft: insets.left,
       paddingRight: insets.right,
     }]}>
-      {/* Header */}
-      <View style={[
-        styles.header,
-        {
-          paddingTop: Math.max(insets.top, 20),
-        }
-      ]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <View style={styles.backButtonContainer}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -83,34 +299,27 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {/* Event Image and Date */}
         <View style={styles.eventImageContainer}>
           <Image
             source={eventDetails?.image || require('../assets/Images/fff.jpg')}
             style={styles.eventImage}
             resizeMode="cover"
           />
-          {/* Date Overlay */}
           <View style={styles.dateOverlay}>
             <View style={styles.dateTextContainer}>
-              <Text style={styles.dateMonth}>May</Text>
-              <Text style={styles.dateDay}>20</Text>
+              <Text style={styles.dateMonth}>{month}</Text>
+              <Text style={styles.dateDay}>{day}</Text>
             </View>
           </View>
         </View>
 
-        {/* Event Title and Ticket ID */}
         <View style={styles.eventInfoContainer}>
           <View style={styles.eventTitleContainer}>
             <Text style={styles.eventTitle}>{eventDetails?.title || 'Event Title'}</Text>
           </View>
-          <View style={styles.ticketIdContainer}>
-            <Text style={styles.ticketId}>Ticket ID: {ticketId}</Text>
-          </View>
           <View style={styles.sectionSeparator} />
         </View>
 
-        {/* Booking Details Card */}
         <View style={styles.detailCard}>
           <View style={styles.detailRow}>
             <View style={styles.detailLabelContainer}>
@@ -128,26 +337,27 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
               <Text style={styles.detailValue}>{eventDetails?.location || 'Location'}</Text>
             </View>
           </View>
-          <View style={[styles.detailRow, {marginBottom: 0}]}> 
-            <View style={{flex: 1}}>
-              <Text style={styles.detailLabel}>Number of Ticket</Text>
+          <View style={[styles.detailRow, { marginBottom: 0 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.detailLabel}>Number of Tickets</Text>
               <Text style={styles.detailValue}>x{numberOfTickets || '1'}</Text>
             </View>
-            <View style={{flex: 1, alignItems: 'flex-end'}}>
-              <Text style={styles.detailLabel}>Date</Text>
-              <Text style={styles.detailValue}>May 20, 2024</Text>
+            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+              <Text style={styles.detailLabel}>Date & Time</Text>
+              <Text style={styles.detailValue}>
+                {month === 'N/A' ? 'N/A' : `${month} ${day}, ${year}, ${time}`}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Payment Breakdown Card */}
         <View style={styles.detailCard}>
           <View style={styles.detailRow}>
             <View style={styles.detailLabelContainer}>
               <Text style={styles.detailLabel}>Subtotal</Text>
             </View>
             <View style={styles.detailValueContainer}>
-              <Text style={styles.detailValue}>${subtotal.toFixed(2)}</Text>
+              <Text style={styles.detailValue}>{formatPrice(subtotal)}</Text>
             </View>
           </View>
           <View style={styles.detailRow}>
@@ -155,15 +365,15 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
               <Text style={styles.detailLabel}>Platform Fees</Text>
             </View>
             <View style={styles.detailValueContainer}>
-              <Text style={styles.detailValue}>${platformFees.toFixed(2)}</Text>
+              <Text style={styles.detailValue}>{formatPrice(platformFees)}</Text>
             </View>
           </View>
           <View style={styles.detailRow}>
             <View style={styles.detailLabelContainer}>
-              <Text style={styles.detailLabel}>Tax ({taxRate * 100}%)</Text>
+              <Text style={styles.detailLabel}>Tax ({(taxRate * 100).toFixed(0)}%)</Text>
             </View>
             <View style={styles.detailValueContainer}>
-              <Text style={styles.detailValue}>${taxAmount.toFixed(2)}</Text>
+              <Text style={styles.detailValue}>{formatPrice(taxAmount)}</Text>
             </View>
           </View>
           <View style={styles.separator} />
@@ -172,19 +382,13 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
               <Text style={styles.detailLabel}>Total</Text>
             </View>
             <View style={styles.detailValueContainer}>
-              <Text style={[styles.detailValue, styles.totalAmountText]}>${totalAmount.toFixed(2)}</Text>
+              <Text style={[styles.detailValue, styles.totalAmountText]}>{formatPrice(totalAmount)}</Text>
             </View>
           </View>
         </View>
       </ScrollView>
 
-      {/* Confirm Booking Button */}
-      <View style={[
-        styles.buttonContainer,
-        {
-          paddingBottom: Math.max(insets.bottom + 16, 16),
-        }
-      ]}>
+      <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom + 16, 16) }]}>
         <LinearGradient
           colors={['#B15CDE', '#7952FC']}
           start={{ x: 0, y: 0 }}
@@ -193,7 +397,7 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
         >
           <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmBooking}>
             <View style={styles.confirmButtonTextContainer}>
-              <Text style={styles.confirmButtonText}>Confirm Booking</Text>
+              <Text style={styles.confirmButtonText}>{isFreeEvent ? 'Confirm Free Booking' : 'Confirm Payment'}</Text>
             </View>
           </TouchableOpacity>
         </LinearGradient>
@@ -282,13 +486,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 24,
   },
-  ticketIdContainer: {
-    marginBottom: 4,
-  },
-  ticketId: {
-    fontSize: 14,
-    color: '#aaa',
-  },
   detailCard: {
     backgroundColor: '#181828',
     borderRadius: 16,
@@ -360,4 +557,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UserDetailBookingScreen; 
+export default UserDetailBookingScreen;

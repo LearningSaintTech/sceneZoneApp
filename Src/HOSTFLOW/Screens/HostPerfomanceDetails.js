@@ -477,7 +477,7 @@ const HostPerfomanceDetailsScreen = ({ navigation, route }) => {
       console.log(`[${new Date().toISOString()}] [fetchPerformances] Token: ${token}`);
 
       try {
-        const response = await axios.get(`http://192.168.1.52:3000/api/artist/get-artist-performance/${artist.artistId}`, {
+        const response = await axios.get(`http://10.0.2.2:3000/api/artist/get-artist-performance/${artist.artistId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',

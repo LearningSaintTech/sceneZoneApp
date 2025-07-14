@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,30 +9,113 @@ import {
   TextInput,
   Dimensions,
   ScrollView,
-  Platform
+  Platform,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import Icon from 'react-native-vector-icons/Feather'; // For the ticket icon
+import Icon from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
+import api from '../Config/api';
 import TicketIcon from '../assets/icons/Ticket';
 
 const { width } = Dimensions.get('window');
 
 const UserFormBookingScreen = ({ navigation, route }) => {
   const [numberOfTickets, setNumberOfTickets] = useState('1');
-  const [selectedGuestType, setSelectedGuestType] = useState('level2'); // Default selected
+  const [discountData, setDiscountData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const insets = useSafeAreaInsets();
+  const token = useSelector((state) => state.auth.token);
 
   // Get event details from navigation parameters
   const { eventDetails } = route.params || {};
+  const eventId = eventDetails?.eventId;
+  const isFreeEvent = eventDetails?.ticketSetting?.ticketType === 'free';
+console.log("eventDetails",eventDetails)
+  // Fetch discount data
+  useEffect(() => {
+    const fetchDiscountData = async () => {
+      if (!eventId || !token) {
+        Alert.alert('Error', 'Event ID or authentication token is missing.');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const response = await api.get(`http://10.0.2.2:3000/api/guest-list/events/${eventId}/discount`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        console.log('Discount data fetched:', response.data);
+        setDiscountData(response.data);
+      } catch (err) {
+        console.error('Error fetching discount data:', err);
+        Alert.alert(
+          'Error',
+          err.response?.data?.message || 'Failed to fetch discount information.'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDiscountData();
+  }, [eventId, token]);
 
   const handleContinueBooking = () => {
-    // Implement booking logic here
-    console.log('Continue booking with:', numberOfTickets, selectedGuestType);
-    // Navigate to the next screen, e.g., payment or summary
-    navigation.navigate('UserDetailBookingScreen', { numberOfTickets, selectedGuestType, eventDetails });
+    if (!discountData) {
+      Alert.alert('Error', 'Discount information not available.');
+      return;
+    }
+    if (!isFreeEvent) {
+      const tickets = parseInt(numberOfTickets, 10);
+      if (!numberOfTickets || isNaN(tickets) || tickets < 1) {
+        Alert.alert('Error', 'Please enter at least 1 ticket.');
+        return;
+      }
+      if (eventDetails?.ticketSetting?.totalQuantity && tickets > eventDetails.ticketSetting.totalQuantity) {
+        Alert.alert('Error', `Only ${eventDetails.ticketSetting.totalQuantity} tickets available.`);
+        return;
+      }
+      console.log('Continue booking with:', tickets, discountData);
+      navigation.navigate('UserDetailBookingScreen', {
+        numberOfTickets: tickets,
+        discountData,
+        eventDetails,
+      });
+    } else {   
+      console.log('Continue booking for free event:', discountData);
+      navigation.navigate('UserDetailBookingScreen', {
+        numberOfTickets: 1, // Default to 1 for free events
+        discountData,
+        eventDetails,
+      });
+    }
   };
+
+  // Format price display
+  const formatPrice = (price) => {
+    return price === 0 ? 'Free' : `₹${price.toLocaleString('en-IN')}`;
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, {
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }]}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={styles.sectionTitle}>Loading discount information...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, {
@@ -42,16 +125,9 @@ const UserFormBookingScreen = ({ navigation, route }) => {
       paddingRight: insets.right,
     }]}>
       {/* Header */}
-      <View style={[
-        styles.header,
-        {
-          paddingTop: Math.max(insets.top, 20),
-        }
-      ]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <View>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </View>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Booking Ticket</Text>
@@ -63,93 +139,101 @@ const UserFormBookingScreen = ({ navigation, route }) => {
         {/* Event Details Card */}
         <View style={styles.eventCard}>
           <Image
-            source={eventDetails.image}
+            source={eventDetails?.image || require('../assets/Images/ffff.jpg')}
             style={styles.eventImage}
             resizeMode="cover"
           />
           <View style={styles.eventInfo}>
             <View style={styles.eventTitleContainer}>
-              <Text style={styles.eventTitle}>{eventDetails.title}</Text>
+              <Text style={styles.eventTitle}>{eventDetails?.title || 'Event Name'}</Text>
             </View>
-            {eventDetails.price && (
-              <View style={styles.eventPriceContainer}>
-                <Text style={styles.eventPriceRange}>{eventDetails.price}</Text>
-              </View>
-            )}
+            <View style={styles.eventPriceContainer}>
+              <Text style={styles.eventPriceRange}>
+                {isFreeEvent ? 'Free' : eventDetails?.price || formatPrice(eventDetails?.ticketSetting?.price || 0)}
+              </Text>
+            </View>
             <View style={styles.eventLocationContainer}>
-              <Text style={styles.eventLocation}>{eventDetails.location}</Text>
+              <Text style={styles.eventLocation}>{eventDetails?.location || 'N/A'}</Text>
             </View>
           </View>
         </View>
         <View style={styles.separator} />
 
-        {/* Number of Tickets */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>Number of tickets</Text>
-          </View>
-          <View style={styles.ticketInputContainer}>
-            <View style={styles.ticketIconContainer}>
-              <Icon name="book" size={20} color="#fff" />
+        {/* Number of Tickets (Hidden for Free Events) */}
+        {!isFreeEvent && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitle}>Number of tickets</Text>
             </View>
-            <TextInput
-              style={styles.ticketInput}
-              keyboardType="number-pad"
-              value={numberOfTickets}
-              onChangeText={setNumberOfTickets}
-              placeholder="1"
-              placeholderTextColor="#888"
-            />
+            <View style={styles.ticketInputContainer}>
+              <View style={styles.ticketIconContainer}>
+                <Icon name="book" size={20} color="#fff" />
+              </View>
+              <TextInput
+                style={styles.ticketInput}
+                keyboardType="number-pad"
+                value={numberOfTickets}
+                onChangeText={(text) => {
+                  // Allow empty string or positive integers up to max
+                  if (/^\d*$/.test(text) && (text === '' || parseInt(text, 10) <= (eventDetails?.ticketSetting?.totalQuantity || 100))) {
+                    setNumberOfTickets(text);
+                  }
+                }}
+                placeholder="1"
+                placeholderTextColor="#888"
+              />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Guest Type */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>Guest Type</Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.guestTypeCard, selectedGuestType === 'level2' && styles.guestTypeCardSelected]}
-            onPress={() => setSelectedGuestType('level2')}
-          >
-            <LinearGradient
-              colors={selectedGuestType === 'level2' ? ['#B15CDE', '#7952FC'] : ['#1a1a1a', '#1a1a1a']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.guestTypeGradient}
-            />
-            <View style={styles.guestTypeContent}>
-              <View style={styles.guestTypeIconContainer}>
-                <TicketIcon width={30} height={30} />
-              </View>
-              <View style={styles.guestTypeTextContainer}>
-                <View style={styles.guestTypeTitleContainer}>
-                  <Text style={styles.guestTypeTitle}>Level 2</Text>
+        {discountData && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitle}>Guest Type</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.guestTypeCard]}
+              disabled
+            >
+              <LinearGradient
+                colors={['#B15CDE', '#7952FC']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.guestTypeGradient}
+              />
+              <View style={styles.guestTypeContent}>
+                <View style={styles.guestTypeIconContainer}>
+                  <TicketIcon width={30} height={30} />
                 </View>
-                <View style={styles.guestTypeSubtitleContainer}>
-                  <Text style={styles.guestTypeSubtitle}>Discount + $1.50 Fee</Text>
+                <View style={styles.guestTypeTextContainer}>
+                  <View style={styles.guestTypeTitleContainer}>
+                    <Text style={styles.guestTypeTitle}>
+                      {discountData.discountLevel ? discountData.discountLevel.toUpperCase() : 'Guest'}
+                    </Text>
+                  </View>
+                  <View style={styles.guestTypeSubtitleContainer}>
+                    <Text style={styles.guestTypeSubtitle}>
+                      {discountData.isFreeEvent
+                        ? 'Free Event'
+                        : `${discountData.discountValue}% Discount, ${formatPrice(discountData.discountedPrice)}`}
+                    </Text>
+                  </View>
+                  <View style={styles.guestTypeStatusContainer}>
+                    <Text style={styles.guestTypeStatus}>Accepted</Text>
+                  </View>
                 </View>
-                <View style={styles.guestTypeStatusContainer}>
-                  <Text style={styles.guestTypeStatus}>Accepted</Text>
-                </View>
-              </View>
-              {selectedGuestType === 'level2' && (
                 <View style={styles.checkmarkContainer}>
                   <Ionicons name="checkmark-circle" size={24} color="#fff" />
                 </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Continue Button */}
-      <View style={[
-        styles.buttonContainer,
-        {
-          paddingBottom: Math.max(insets.bottom + 16, 16),
-        }
-      ]}>
+      <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom + 16, 16) }]}>
         <LinearGradient
           colors={['#B15CDE', '#7952FC']}
           start={{ x: 0, y: 0 }}
@@ -278,11 +362,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
     position: 'relative',
-     borderWidth: 1,
-    borderColor: '#333', // Default border color
-  },
-  guestTypeCardSelected: {
-    borderColor: '#a95eff', // Purple border when selected
+    borderWidth: 1,
+    borderColor: '#a95eff',
   },
   guestTypeGradient: {
     position: 'absolute',
@@ -290,10 +371,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    opacity: 0.7, // Adjust opacity of the gradient background
-  },
-  guestTypeIconContainer: {
-    marginRight: 15,
+    opacity: 0.7,
   },
   guestTypeContent: {
     flexDirection: 'row',
@@ -301,9 +379,8 @@ const styles = StyleSheet.create({
     padding: 15,
     zIndex: 1,
   },
-  guestTypeIcon: {
-    width: 30,
-    height: 30,
+  guestTypeIconContainer: {
+    marginRight: 15,
   },
   guestTypeTextContainer: {
     flex: 1,
@@ -350,7 +427,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   continueButton: {
- 
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -382,4 +458,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default UserFormBookingScreen; 
+export default UserFormBookingScreen;
