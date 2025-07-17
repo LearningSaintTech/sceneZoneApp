@@ -148,7 +148,8 @@ const ArtistOtpVerificationScreen = ({ navigation, route }) => {
           token,
         }));
 
-        navigation.navigate('ArtistVerifiedScreen');
+        console.log('[ArtistOtpVerificationScreen] isProfileComplete:', userData.isProfileComplete);
+        navigation.navigate('ArtistVerifiedScreen', { ...route.params, isProfileComplete: userData.isProfileComplete });
       }
     } catch (error) {
       console.error('Firebase OTP Verification Error:', error);

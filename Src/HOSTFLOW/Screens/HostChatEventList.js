@@ -74,7 +74,7 @@ const HostChatEventList = ({ navigation }) => {
   const [error, setError] = useState('');
   const insets = useSafeAreaInsets();
   const token = useSelector(state => state.auth.token);
-  const BASE_URL = 'http://10.0.2.2:3000';
+  const BASE_URL = 'https://api.thescenezone.com';
 
   // Fetch events from API
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef } from "react";
 import {
   View,
   Text,
@@ -8,62 +8,60 @@ import {
   ScrollView,
   Image,
   Dimensions,
-  FlatList,
   Modal,
   Animated,
   Platform,
   Easing,
   Alert,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import LinearGradient from 'react-native-linear-gradient';
-import Video from 'react-native-video';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MiddleButton from '../assets/icons/MiddleButton';
-import NotificationIcon from '../assets/icons/NotificationIcon';
-import SignUpBackground from '../assets/Banners/SignUp';
-import { useSelector } from 'react-redux';
-import axios from 'axios';
-import { selectFullName, selectLocation, selectUserData } from '../Redux/slices/authSlice';
-import { API_BASE_URL } from '../Config/env';
+} from "react-native";
+import Icon from "react-native-vector-icons/Feather";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import LinearGradient from "react-native-linear-gradient";
+import Video from "react-native-video";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MiddleButton from "../assets/icons/MiddleButton";
+import NotificationIcon from "../assets/icons/NotificationIcon";
+import SignUpBackground from "../assets/Banners/SignUp";
+import { useSelector } from "react-redux";
+import axios from "axios";
+import {
+  selectFullName,
+  selectLocation,
+  selectUserData,
+} from "../Redux/slices/authSlice";
+import { API_BASE_URL } from "../Config/env";
 
-
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 const isBigScreen = width >= 600;
 
-// Even bigger card for big screens
-const cardWidth = isBigScreen ? Math.min(width * 0.7, 520) : Math.min(width * 0.85, 235);
-const cardHeight = isBigScreen ? Math.round(cardWidth * 1.7) : 540;
-const buttonHeight = isBigScreen ? 60 : 52;
-
-// All fixed values for pixel-perfect design
+// Responsive dimensions with dynamic scaling
 const dimensions = {
-  cardWidth,
-  cardHeight,
-  headerHeight: 80,
-  buttonHeight,
-  iconSize: 24,
+  cardWidth: isBigScreen ? Math.min(width * 0.77, 582) : Math.min(width * 0.945, 288.5), 
+  cardHeight: isBigScreen ? Math.round((width * 0.77) * 1.7) : 470,
+  headerHeight: isBigScreen ? 100 : 80,
+  buttonHeight: isBigScreen ? 60 : 52,
+  iconSize: isBigScreen ? 28 : 24,
   borderRadius: {
-    small: 4,
-    medium: 8,
-    large: 16,
-    xlarge: 24,
+    small: isBigScreen ? 6 : 4,
+    medium: isBigScreen ? 12 : 8,
+    large: isBigScreen ? 24 : 16,
+    xlarge: isBigScreen ? 36 : 24,
+    nose: isBigScreen ? 40 : 32, 
   },
   spacing: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    xxl: 24,
+    xs: isBigScreen ? 6 : 4,
+    sm: isBigScreen ? 12 : 8,
+    md: isBigScreen ? 18 : 12,
+    lg: isBigScreen ? 24 : 16,
+    xl: isBigScreen ? 30 : 20,
+    xxl: isBigScreen ? 36 : 24,
   },
   fontSize: {
-    small: 12,
-    medium: 14,
-    large: 16,
-    xlarge: 22,
+    small: isBigScreen ? 14 : 12,
+    medium: isBigScreen ? 16 : 14,
+    large: isBigScreen ? 18 : 16,
+    xlarge: isBigScreen ? 26 : 22,
   },
 };
 
@@ -74,226 +72,213 @@ const HomeScreen = ({ navigation }) => {
   const token = useSelector((state) => state.auth.token);
   const fullName = useSelector(selectFullName);
   const location = useSelector(selectLocation);
- const userData = useSelector(selectUserData);
- console.log("for name ",userData)
-  // Updated selected state to match server payload structure
+  const userData = useSelector(selectUserData);
+  const { unreadCount } = useSelector((state) => state.notifications);
   const [selected, setSelected] = React.useState({
-    price: { ranges: [], sort: 'low-high' }, // e.g., { ranges: ["1000-2000"], sort: "low-high" }
-    instruments: [], // e.g., ["Guitar", "Piano"]
-    genres: [], // e.g., ["Rock", "Jazz"]
+    price: { ranges: [], sort: "low-high" },
+    instruments: [],
+    genres: [],
   });
-
   const [artistData, setArtistData] = React.useState([]);
   const [filteredArtistData, setFilteredArtistData] = React.useState([]);
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [page, setPage] = React.useState(1);
   const limit = 10;
+  const fadeAnim = React.useRef(new Animated.Value(1)).current;
 
-  // Filter options aligned with server expectations
   const filterOptions = {
-    priceRanges: ['under-1000', '1000-2000', '2000-3000', '3000-above'],
-    priceSort: ['low-high', 'high-low'],
-    instruments: ['Guitar', 'Saxophone', 'Piano', 'Drums', 'Trumpet', 'Banjo', 'Synthesizer'],
-    genres: ['Rock', 'Jazz', 'Pop', 'Classical', 'Hip-Hop', 'Soul'],
+    priceRanges: ["under-1000", "1000-2000", "2000-3000", "3000-above"],
+    priceSort: ["low-high", "high-low"],
+    instruments: [
+      "Guitar",
+      "Saxophone",
+      "Piano",
+      "Drums",
+      "Trumpet",
+      "Banjo",
+      "Synthesizer",
+    ],
+    genres: ["Rock", "Jazz", "Pop", "Classical", "Hip-Hop", "Soul"],
   };
 
-  // Fetch artists using the filter API
+  // Fetch artists
   React.useEffect(() => {
     const fetchArtists = async () => {
+      // Close filter modal before loading
+      if (showFilter) setShowFilter(false);
       setIsLoading(true);
+      // Fade out before loading
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
       try {
         if (!token) {
-          console.error('No token provided for artist fetch');
-          Alert.alert('Error', 'Authentication token is missing');
+          Alert.alert("Error", "Authentication token is missing");
           return;
         }
-
-        // Construct filter payload
         const filterPayload = {
-          price: selected.price.ranges.length > 0 || selected.price.sort ? selected.price : undefined,
-          instruments: selected.instruments.length > 0 ? selected.instruments : undefined,
+          price:
+            selected.price.ranges.length > 0 || selected.price.sort
+              ? selected.price
+              : undefined,
+          instruments:
+            selected.instruments.length > 0 ? selected.instruments : undefined,
           genres: selected.genres.length > 0 ? selected.genres : undefined,
           page: page,
           limit: limit,
         };
-
-        console.log('Fetching artists from:', 'http://10.0.2.2:3000/api/host/filter');
-        console.log('Request Headers:', JSON.stringify({
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        }, null, 2));
-        console.log('Request Body:', JSON.stringify(filterPayload, null, 2));
-        console.log('Token:', token);
-
-        const response = await axios.post('http://10.0.2.2:3000/api/host/filter', filterPayload, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 10000,
-        });
-
-        console.log('API Response:', JSON.stringify(response.data, null, 2));
-
+        const response = await axios.post(
+          `${API_BASE_URL}/host/filter`,
+          filterPayload,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 10000,
+          }
+        );
         if (response.data.success) {
           setArtistData(response.data.data.artists || []);
           setFilteredArtistData(response.data.data.artists || []);
-          console.log('Fetched Artist Data:', JSON.stringify(response.data.data.artists, null, 2));
         } else {
-          console.log('API returned success=false:', response.data.message);
           setArtistData([]);
           setFilteredArtistData([]);
-          Alert.alert('Error', response.data.message || 'Failed to fetch artists.');
+          Alert.alert(
+            "Error",
+            response.data.message || "Failed to fetch artists."
+          );
         }
       } catch (error) {
-        console.error('Error fetching artists:', {
-          message: error.message,
-          status: error.response?.status,
-          response: error.response ? JSON.stringify(error.response.data, null, 2) : null,
-          request: error.request ? JSON.stringify(error.request, null, 2) : null,
-        });
         setArtistData([]);
         setFilteredArtistData([]);
-        Alert.alert('Error', error.response?.status === 404
-          ? 'Artist filter endpoint not found. Please check if the server is running and the endpoint is correctly configured.'
-          : error.message === 'Network Error'
-            ? 'Unable to connect to the server. Please ensure the server is running at http://10.0.2.2:3000.'
-            : 'Failed to fetch artists. Please try again later.');
+        Alert.alert(
+          "Error",
+          error.response?.status === 404
+            ? "Artist filter endpoint not found."
+            : error.message === "Network Error"
+            ? "Unable to connect to the server."
+            : "Failed to fetch artists."
+        );
       } finally {
         setIsLoading(false);
+        // Fade in after loading
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }).start();
       }
     };
     fetchArtists();
   }, [token, selected, page]);
 
-  // Log state updates for debugging
-  React.useEffect(() => {
-    console.log('Updated artistData:', JSON.stringify(artistData, null, 2));
-    console.log('Updated filteredArtistData:', JSON.stringify(filteredArtistData, null, 2));
-  }, [artistData, filteredArtistData]);
-
   const handleShortlist = async () => {
-    console.log('--- Shortlist Button Pressed ---');
-
     if (!filteredArtistData || filteredArtistData.length === 0) {
-      console.log('No artist data available to shortlist.');
-      Alert.alert('No Artists', 'There are no artists to shortlist.');
+      Alert.alert("No Artists", "There are no artists to shortlist.");
       return;
     }
-
-    console.log('Filtered Artist Data:', JSON.stringify(filteredArtistData, null, 2));
-    console.log('Current Index:', currentIndex);
-
     const artist = filteredArtistData[currentIndex];
     if (!artist || !artist.artistId) {
-      console.log('Could not find artist or artistId at the current index.');
-      Alert.alert('Error', 'Could not find artist to shortlist.');
+      Alert.alert("Error", "Could not find artist to shortlist.");
       return;
     }
-
     const artistId = artist.artistId;
-    if (!artistId) {
-      console.error('Invalid artistId:', artistId);
-      Alert.alert('Error', 'Invalid artist ID.');
-      return;
-    }
     if (!token) {
-      console.error('No token provided for shortlist');
-      Alert.alert('Error', 'Authentication token is missing');
+      Alert.alert("Error", "Authentication token is missing");
       return;
     }
-
-    const url = 'http://10.0.2.2:3000/api/host/shortlistArtist';
-    const body = { artistId };
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    };
-
-    console.log('Artist object to shortlist:', JSON.stringify(artist, null, 2));
-    console.log(`Preparing to shortlist artist with ID: ${artistId}`);
-    console.log('API Endpoint:', url);
-    console.log('Request Body:', JSON.stringify(body, null, 2));
-    console.log('Request Headers:', JSON.stringify(config.headers, null, 2));
-
     try {
-      const response = await axios.post(url, body, config);
-
-      console.log('--- API Response Received ---');
-      console.log('Response Status:', response.status);
-      console.log('Shortlist Success Response:', JSON.stringify(response.data, null, 2));
-
+      const response = await axios.post(
+        `${API_BASE_URL}/host/shortlistArtist`,
+        { artistId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
       if (response.data.success) {
-        console.log('Successfully shortlisted artist.');
-        Alert.alert('Success', 'Artist shortlisted successfully!');
+        Alert.alert("Success", "Artist shortlisted successfully!");
         setFilteredArtistData((prev) =>
           prev.map((item, index) =>
             index === currentIndex ? { ...item, isShortlisted: true } : item
           )
         );
       } else {
-        console.log(`API returned success=false. Message: ${response.data.message}`);
-        Alert.alert('Error', response.data.message || 'Could not shortlist the artist.');
+        Alert.alert(
+          "Error",
+          response.data.message || "Could not shortlist the artist."
+        );
       }
     } catch (error) {
-      if (error.response && error.response.data && error.response.data.message === 'Artist already shortlisted.') {
-        console.log('Artist already shortlisted.');
-        Alert.alert('Already Shortlisted', 'Artist already in shortlist.');
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message === "Artist already shortlisted."
+      ) {
+        Alert.alert("Already Shortlisted", "Artist already in shortlist.");
       } else {
-        console.error('Shortlist API Error:', {
-          message: error.message,
-          response: error.response ? JSON.stringify(error.response.data, null, 2) : null,
-          request: error.request ? error.request : null,
-        });
-        Alert.alert('Error', 'An error occurred while shortlisting. Please try again.');
+        Alert.alert(
+          "Error",
+          "An error occurred while shortlisting. Please try again."
+        );
       }
     }
   };
 
-  const onViewableItemsChanged = React.useCallback(({ viewableItems }) => {
-    if (viewableItems.length > 0) {
-      const newIndex = viewableItems[0].index;
-      if (newIndex !== null && newIndex !== undefined) {
-        setCurrentIndex(newIndex);
-      }
-    }
-  }, []);
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+  const scrollViewRef = React.useRef(null);
 
-  const viewabilityConfig = React.useRef({
-    itemVisiblePercentThreshold: 50,
-  }).current;
+  // Handle scroll to update current index
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    {
+      useNativeDriver: true,
+      listener: (event) => {
+        const offsetX = event.nativeEvent.contentOffset.x;
+        const index = Math.round(offsetX / snapToInterval);
+        if (index >= 0 && index < filteredArtistData.length) {
+          setCurrentIndex(index);
+        }
+      },
+    }
+  );
 
   // Handle filter selection
   const handleFilterSelect = (category, value) => {
     setSelected((prev) => {
-      if (category === 'priceRanges') {
+      if (category === "priceRanges") {
         return {
           ...prev,
-          price: { ...prev.price, ranges: prev.price.ranges.includes(value)
-            ? prev.price.ranges.filter((r) => r !== value) // Toggle off
-            : [...prev.price.ranges, value] // Toggle on
+          price: {
+            ...prev.price,
+            ranges: prev.price.ranges.includes(value)
+              ? prev.price.ranges.filter((r) => r !== value)
+              : [...prev.price.ranges, value],
           },
         };
-      } else if (category === 'priceSort') {
+      } else if (category === "priceSort") {
         return {
           ...prev,
           price: { ...prev.price, sort: value },
         };
-      } else if (category === 'instruments') {
+      } else if (category === "instruments") {
         return {
           ...prev,
           instruments: prev.instruments.includes(value)
-            ? prev.instruments.filter((i) => i !== value) // Toggle off
-            : [...prev.instruments, value] // Toggle on
+            ? prev.instruments.filter((i) => i !== value)
+            : [...prev.instruments, value],
         };
-      } else if (category === 'genres') {
+      } else if (category === "genres") {
         return {
           ...prev,
           genres: prev.genres.includes(value)
-            ? prev.genres.filter((g) => g !== value) // Toggle off
-            : [...prev.genres, value] // Toggle on
+            ? prev.genres.filter((g) => g !== value)
+            : [...prev.genres, value],
         };
       }
       return prev;
@@ -303,20 +288,21 @@ const HomeScreen = ({ navigation }) => {
   // Reset filters
   const resetFilters = () => {
     setSelected({
-      price: { ranges: [], sort: 'low-high' },
+      price: { ranges: [], sort: "low-high" },
       instruments: [],
       genres: [],
     });
-    setPage(1); // Reset page for new fetch
+    setPage(1);
   };
 
   // Render filter pills
   const renderPills = (category, options) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       {options.map((option) => {
-        const isSelected = category === 'priceSort'
-          ? selected.price.sort === option
-          : category === 'priceRanges'
+        const isSelected =
+          category === "priceSort"
+            ? selected.price.sort === option
+            : category === "priceRanges"
             ? selected.price.ranges.includes(option)
             : selected[category].includes(option);
         return (
@@ -325,8 +311,19 @@ const HomeScreen = ({ navigation }) => {
             style={[styles.pillOption, isSelected && styles.pillOptionActive]}
             onPress={() => handleFilterSelect(category, option)}
           >
-            <Text style={[styles.pillOptionText, isSelected && styles.pillOptionTextActive]}>
-              {option.replace('under-1000', 'Under $1000').replace('1000-2000', '$1000-$2000').replace('2000-3000', '$2000-$3000').replace('3000-above', '$3000+').replace('low-high', 'Low - High').replace('high-low', 'High - Low')}
+            <Text
+              style={[
+                styles.pillOptionText,
+                isSelected && styles.pillOptionTextActive,
+              ]}
+            >
+              {option
+                .replace("under-1000", "Under $1000")
+                .replace("1000-2000", "$1000-$2000")
+                .replace("2000-3000", "$2000-$3000")
+                .replace("3000-above", "$3000+")
+                .replace("low-high", "Low - High")
+                .replace("high-low", "High - Low")}
             </Text>
           </TouchableOpacity>
         );
@@ -341,32 +338,47 @@ const HomeScreen = ({ navigation }) => {
     safeAreaBottom: Math.max(insets.bottom, 0),
     safeAreaLeft: Math.max(insets.left, 0),
     safeAreaRight: Math.max(insets.right, 0),
-    headerHeight: Math.max(dimensions.headerHeight + insets.top * 0.3, width >= 768 ? 100 : 80),
+    headerHeight: Math.max(
+      dimensions.headerHeight + insets.top * 0.3,
+      isBigScreen ? 100 : 80
+    ),
     containerPadding: {
-      horizontal: Math.max(insets.left + insets.right + dimensions.spacing.md, width >= 768 ? dimensions.spacing.lg : dimensions.spacing.md),
-      vertical: Math.max(insets.top + insets.bottom + dimensions.spacing.sm, dimensions.spacing.sm),
+      horizontal: Math.max(
+        insets.left + insets.right + dimensions.spacing.md,
+        isBigScreen ? dimensions.spacing.lg : dimensions.spacing.md
+      ),
+      vertical: Math.max(
+        insets.top + insets.bottom + dimensions.spacing.sm,
+        dimensions.spacing.sm
+      ),
     },
     spacing: {
-      xs: Math.max(dimensions.spacing.xs, width >= 768 ? 6 : 4),
-      sm: Math.max(dimensions.spacing.sm, width >= 768 ? 12 : 8),
-      md: Math.max(dimensions.spacing.md, width >= 768 ? 18 : 12),
-      lg: Math.max(dimensions.spacing.lg, width >= 768 ? 24 : 16),
-      xl: Math.max(dimensions.spacing.xl, width >= 768 ? 30 : 20),
+      xs: Math.max(dimensions.spacing.xs, isBigScreen ? 6 : 4),
+      sm: Math.max(dimensions.spacing.sm, isBigScreen ? 12 : 8),
+      md: Math.max(dimensions.spacing.md, isBigScreen ? 18 : 12),
+      lg: Math.max(dimensions.spacing.lg, isBigScreen ? 24 : 16),
+      xl: Math.max(dimensions.spacing.xl, isBigScreen ? 30 : 20),
     },
     fontSize: {
-      small: Math.max(dimensions.fontSize.small, width >= 768 ? 14 : 12),
-      medium: Math.max(dimensions.fontSize.medium, width >= 768 ? 16 : 14),
-      large: Math.max(dimensions.fontSize.large, width >= 768 ? 18 : 16),
-      xlarge: Math.max(dimensions.fontSize.xlarge, width >= 768 ? 26 : 22),
+      small: Math.max(dimensions.fontSize.small, isBigScreen ? 14 : 12),
+      medium: Math.max(dimensions.fontSize.medium, isBigScreen ? 16 : 14),
+      large: Math.max(dimensions.fontSize.large, isBigScreen ? 18 : 16),
+      xlarge: Math.max(dimensions.fontSize.xlarge, isBigScreen ? 26 : 22),
     },
   };
 
   const FilterModal = () => (
-    <Modal visible={showFilter} animationType="slide" transparent>
+    <Modal visible={showFilter && !isLoading} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <LinearGradient colors={['#B15CDE', '#7952FC']} style={styles.modalContainer}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => setShowFilter(false)}>
-            <Ionicons name="close" size={24} color="#7952FC" />
+        <LinearGradient
+          colors={["#B15CDE", "#7952FC"]}
+          style={styles.modalContainer}
+        >
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowFilter(false)}
+          >
+            <Ionicons name="close" size={responsiveDimensions.iconSize} color="#7952FC" />
           </TouchableOpacity>
 
           <View style={styles.filterContent}>
@@ -375,7 +387,7 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.sectionTitle}>PRICE RANGE</Text>
                 <Icon name="chevron-right" size={20} color="#fff" />
               </View>
-              {renderPills('priceRanges', filterOptions.priceRanges)}
+              {renderPills("priceRanges", filterOptions.priceRanges)}
             </View>
 
             <View style={styles.sectionContainer}>
@@ -383,7 +395,7 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.sectionTitle}>PRICE SORT</Text>
                 <Icon name="chevron-right" size={20} color="#fff" />
               </View>
-              {renderPills('priceSort', filterOptions.priceSort)}
+              {renderPills("priceSort", filterOptions.priceSort)}
             </View>
 
             <View style={styles.sectionContainer}>
@@ -391,7 +403,7 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.sectionTitle}>INSTRUMENTS</Text>
                 <Icon name="chevron-right" size={20} color="#fff" />
               </View>
-              {renderPills('instruments', filterOptions.instruments)}
+              {renderPills("instruments", filterOptions.instruments)}
             </View>
 
             <View style={styles.sectionContainer}>
@@ -399,7 +411,7 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.sectionTitle}>GENRES</Text>
                 <Icon name="chevron-right" size={20} color="#fff" />
               </View>
-              {renderPills('genres', filterOptions.genres)}
+              {renderPills("genres", filterOptions.genres)}
             </View>
           </View>
 
@@ -407,7 +419,10 @@ const HomeScreen = ({ navigation }) => {
             <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
               <Text style={styles.continueButtonText}>Reset Filters</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.continueButton} onPress={() => setShowFilter(false)}>
+            <TouchableOpacity
+              style={styles.continueButton}
+              onPress={() => setShowFilter(false)}
+            >
               <Text style={styles.continueButtonText}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
@@ -416,88 +431,116 @@ const HomeScreen = ({ navigation }) => {
     </Modal>
   );
 
-  const renderEventCard = ({ item, index }) => {
-    const inputRange = [(index - 1) * snapToInterval, index * snapToInterval, (index + 1) * snapToInterval];
-    const scale = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.85, 1, 0.85],
-      extrapolate: 'clamp',
-    });
-    const opacity = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.5, 1, 0.5],
-      extrapolate: 'clamp',
-    });
+ const renderEventCard = (item, index) => {
+  const inputRange = [
+    (index - 1) * snapToInterval,
+    index * snapToInterval,
+    (index + 1) * snapToInterval,
+  ];
+  const scale = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.85, 1, 0.85],
+    extrapolate: "clamp",
+  });
+  const opacity = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.5, 1, 0.5],
+    extrapolate: "clamp",
+  });
 
-    const imageSource = item.profileImageUrl ? { uri: item.profileImageUrl } : require('../assets/Videos/Video.mp4');
-    const genre = item.artistType || 'PERFORMANCE';
-    const price = item.budget ? `$${item.budget}` : '$0';
+  const imageSource = item.profileImageUrl
+    ? { uri: item.profileImageUrl }
+    : require("../assets/Videos/Video.mp4");
+  const genre = item.artistType || "PERFORMANCE";
+  const price = item.budget ? `₹${item.budget}` : "₹0";
 
-    return (
-      <Animated.View
-        style={[styles.eventCard, { transform: [{ scale }], opacity, width: dimensions.cardWidth, height: 440 }]}
+  return (
+    <Animated.View
+      key={item._id}
+      style={[
+        styles.eventCard,
+        {
+          transform: [{ scale }],
+          opacity,
+          width: responsiveDimensions.cardWidth,
+          height: responsiveDimensions.cardHeight,
+          marginRight: eventCardMarginRight,
+        },
+      ]}
+    >
+      <TouchableOpacity
+        onPress={() => {
+          navigation.navigate("HostPerfomanceDetails", { artist: item });
+        }}
+        style={styles.eventCardTouchable}
       >
-        <TouchableOpacity
-          onPress={() => {
-            console.log('Navigating to HostPerfomanceDetails with artist:', item);
-            navigation.navigate('HostPerfomanceDetails', { artist: item });
-          }}
-          style={styles.eventCardTouchable}
-        >
-          <View style={styles.videoContainer}>
-            {item.profileImageUrl ? (
-              <Image source={imageSource} style={styles.eventVideo} resizeMode="cover" />
-            ) : (
-              <Video
-                source={require('../assets/Videos/Video.mp4')}
-                style={styles.eventVideo}
-                resizeMode="cover"
-                repeat={true}
-                muted={true}
-                paused={false}
-                playInBackground={false}
-                playWhenInactive={false}
-                onError={(error) => console.log('Video Error:', error)}
-                onLoad={(data) => console.log('Video Loaded:', data)}
-              />
-            )}
+        <View style={styles.videoContainer}>
+          {item.profileImageUrl ? (
+            <Image
+              source={imageSource}
+              style={styles.eventVideo}
+              resizeMode="cover"
+            />
+          ) : (
+            <Video
+              source={require("../assets/Videos/Video.mp4")}
+              style={styles.eventVideo}
+              resizeMode="cover"
+              repeat={true}
+              muted={true}
+              paused={false}
+              playInBackground={false}
+              playWhenInactive={false}
+            />
+          )}
+        </View>
+
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.8)"]}
+          style={styles.gradientOverlay}
+        />
+
+        <View style={styles.crowdGuaranteeContainer}>
+          <Text style={styles.crowdGuaranteeText}>
+            {item.isCrowdGuarantee ? "Crowd Guarantee" : ""}
+          </Text>
+        </View>
+
+        <View style={styles.cardBottomPills}>
+          <View style={styles.pill}>
+            <Text style={styles.pillText}>{genre}</Text>
           </View>
-
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.gradientOverlay} />
-
-          <View style={styles.crowdGuaranteeContainer}>
-            <Text style={styles.crowdGuaranteeText}>{item.isCrowdGuarantee ? 'Crowd Guarantee' : ''}</Text>
+          <View style={styles.pill}>
+            <Text style={styles.pillText}>{price}</Text>
           </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
-          <View style={styles.cardBottomPills}>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>{genre}</Text>
-            </View>
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>{price}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
-
-  const availableWidth = width - (responsiveDimensions.safeAreaLeft + responsiveDimensions.safeAreaRight);
-  const eventCardWidth = 235;
-  const eventCardMarginRight = Math.max(Math.min(dimensions.spacing.sm, availableWidth * 0.02), 8);
+  const availableWidth =
+    width -
+    (responsiveDimensions.safeAreaLeft + responsiveDimensions.safeAreaRight);
+  const eventCardWidth = responsiveDimensions.cardWidth;
+  const eventCardMarginRight = Math.max(
+    Math.min(responsiveDimensions.spacing.sm, availableWidth * 0.02),
+    8
+  );
   const peekingDistance = Math.max(
     (availableWidth - eventCardWidth) / 2,
-    Math.max(responsiveDimensions.safeAreaLeft, responsiveDimensions.safeAreaRight) + dimensions.spacing.sm
+    Math.max(
+      responsiveDimensions.safeAreaLeft,
+      responsiveDimensions.safeAreaRight
+    ) + responsiveDimensions.spacing.sm
   );
   const snapToInterval = eventCardWidth + eventCardMarginRight;
 
-  const scrollX = React.useRef(new Animated.Value(0)).current;
-
   const [showDropdowns, setShowDropdowns] = React.useState(false);
   const dropdownButtons = [
-    { key: 'openmic', label: 'Open mic' },
-    { key: 'launchpad', label: 'Launchpad' },
-    { key: 'proposal', label: 'Proposal Curation' },
+    { key: "openmic", label: "Open mic" },
+    { key: "launchpad", label: "Launchpad" },
+    { key: "proposal", label: "Proposal Curation" },
   ];
 
   const dropdownAnimations = React.useRef([
@@ -559,66 +602,112 @@ const HomeScreen = ({ navigation }) => {
       ]}
     >
       <View style={styles.backgroundContainer}>
-        <SignUpBackground width={width} height={height} preserveAspectRatio="xMidYMid slice" />
+        <SignUpBackground
+          width={width}
+          height={height}
+          preserveAspectRatio="xMidYMid slice"
+        />
       </View>
 
       <View
-  style={[
-    styles.header,
-    {
-      paddingTop: Math.max(dimensions.spacing.md, 15),
-      paddingHorizontal: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.md),
-    },
-  ]}
->
-  <View style={styles.headerContent}>
-    <Text style={styles.greeting}>Hello {userData.name || 'User'}!</Text>
-    <Text style={styles.location}>📍 H-70, Sector 63, Noida</Text>
-  </View>
-  <View style={styles.headerIcons}>
-    <TouchableOpacity
-      onPress={() => navigation.navigate('HostChatEventList')}
-      style={{ padding: dimensions.spacing.sm, marginRight: dimensions.spacing.sm }}
-    >
-      <Icon name="message-circle" size={28} color="#a95eff" />
-    </TouchableOpacity>
-    <TouchableOpacity
-      onPress={() => navigation.navigate('Notification')}
-      style={{ padding: dimensions.spacing.sm }}
-    >
-      <NotificationIcon width={28} height={36} />
-    </TouchableOpacity>
-  </View>
-</View>
+        style={[
+          styles.header,
+          {
+            paddingTop: responsiveDimensions.spacing.md,
+            paddingHorizontal: Math.max(
+              responsiveDimensions.safeAreaLeft + responsiveDimensions.spacing.md,
+              responsiveDimensions.spacing.md
+            ),
+          },
+        ]}
+      >
+        <View style={styles.headerContent}>
+          <Text style={[styles.greeting, { fontSize: responsiveDimensions.fontSize.xlarge }]}>
+            Hello {userData.name || "User"}!
+          </Text>
+          <Text style={[styles.location, { fontSize: responsiveDimensions.fontSize.medium }]}>
+            📍 H-70, Sector 63, Noida
+          </Text>
+        </View>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("HostChatEventList")}
+            style={{
+              padding: responsiveDimensions.spacing.sm,
+              marginRight: responsiveDimensions.spacing.sm,
+            }}
+          >
+            <Icon name="message-circle" size={responsiveDimensions.iconSize} color="#a95eff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Notification")}
+            style={{ padding: responsiveDimensions.spacing.sm }}
+          >
+            <View style={{ position: 'relative' }}>
+            <NotificationIcon
+              width={responsiveDimensions.iconSize}
+              height={responsiveDimensions.iconSize + 8}
+            />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View
         style={[
           styles.buttonWithDropdownContainer,
           {
-            marginLeft: Math.max(responsiveDimensions.safeAreaLeft + dimensions.spacing.md, dimensions.spacing.md),
-            marginRight: Math.max(responsiveDimensions.safeAreaRight + dimensions.spacing.md, dimensions.spacing.md),
+            marginLeft: Math.max(
+              responsiveDimensions.safeAreaLeft + responsiveDimensions.spacing.md,
+              responsiveDimensions.spacing.md
+            ),
+            marginRight: Math.max(
+              responsiveDimensions.safeAreaRight + responsiveDimensions.spacing.md,
+              responsiveDimensions.spacing.md
+            ),
           },
         ]}
       >
         {showDropdowns ? (
-          <LinearGradient colors={['#B15CDE', '#7952FC']} style={styles.curatedButton}>
+          <LinearGradient
+            colors={["#B15CDE", "#7952FC"]}
+            style={styles.curatedButton}
+          >
             <TouchableOpacity
-              style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}
+              style={{
+                flex: 1,
+                width: "100%",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
               onPress={handleCuratedPress}
               activeOpacity={0.8}
             >
-              <Text style={[styles.curatedButtonText, { color: '#fff' }]}>
-                Personalised Curated Events by Scenezone
+              <Text style={[styles.curatedButtonText, { color: "#fff", fontSize: responsiveDimensions.fontSize.medium }]}>
+                Personalised Curated Events by Scenezone 
               </Text>
             </TouchableOpacity>
           </LinearGradient>
         ) : (
-          <TouchableOpacity style={styles.curatedButton} onPress={handleCuratedPress} activeOpacity={0.8}>
-            <Text style={styles.curatedButtonText}>Personalised Curated Events by Scenezone</Text>
+          <TouchableOpacity
+            style={styles.curatedButton}
+            onPress={handleCuratedPress}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.curatedButtonText, { fontSize: responsiveDimensions.fontSize.medium }]}>
+              Personalised Curated Events by Scenezone 
+            </Text>
           </TouchableOpacity>
         )}
 
-        {showDropdowns && (
+        {/* {showDropdowns && (
           <View style={styles.dropdownContainer}>
             {dropdownButtons.map((btn, index) => (
               <Animated.View
@@ -640,46 +729,49 @@ const HomeScreen = ({ navigation }) => {
                 ]}
               >
                 <TouchableOpacity style={styles.dropdownButtonTouchable}>
-                  <Text style={styles.dropdownButtonText}>{btn.label}</Text>
+                  <Text style={[styles.dropdownButtonText, { fontSize: responsiveDimensions.fontSize.medium }]}>
+                    {btn.label}
+                  </Text>
                 </TouchableOpacity>
               </Animated.View>
             ))}
           </View>
-        )}
+        )} */}
       </View>
 
-      <Animated.FlatList
-        data={filteredArtistData}
-        renderItem={renderEventCard}
-        keyExtractor={(item) => item._id}
+      <Animated.ScrollView
+        ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         snapToInterval={snapToInterval}
-        decelerationRate={'fast'}
-        pagingEnabled
+        decelerationRate="fast"
         contentContainerStyle={[
           styles.eventListContainer,
           {
-            paddingHorizontal: Math.max(peekingDistance + responsiveDimensions.safeAreaLeft, peekingDistance),
-            paddingTop: 8,
-            paddingBottom: 8,
+            paddingHorizontal: Math.max(
+              peekingDistance + responsiveDimensions.safeAreaLeft,
+              peekingDistance
+            ),
+            paddingTop: responsiveDimensions.spacing.sm,
+            paddingBottom: responsiveDimensions.spacing.sm,
           },
         ]}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
+        onScroll={handleScroll}
         scrollEventThrottle={16}
-      />
+        style={{ opacity: fadeAnim }}
+      >
+        {filteredArtistData.map((item, index) => renderEventCard(item, index))}
+      </Animated.ScrollView>
 
       <View
         style={[
           styles.middleIconsContainer,
           {
-            marginTop: Math.max(dimensions.spacing.xl + 20, 40),
-            marginBottom: Math.max(dimensions.spacing.lg + 60, 90),
-            paddingBottom: Math.max(dimensions.spacing.md, 10),
-            paddingHorizontal: Math.max(dimensions.spacing.md, dimensions.spacing.md),
-            position: 'absolute',
+            marginTop: responsiveDimensions.spacing.xl + 20,
+            marginBottom: responsiveDimensions.spacing.lg + 60,
+            paddingBottom: responsiveDimensions.spacing.md,
+            paddingHorizontal: responsiveDimensions.spacing.md,
+            position: "absolute",
             bottom: 0,
             left: 0,
             right: 0,
@@ -691,24 +783,30 @@ const HomeScreen = ({ navigation }) => {
           style={[styles.middleIconButton, styles.middleIconButtonBorder]}
           onPress={() => setShowFilter(true)}
         >
-          <Icon name="sliders" size={20} color="#a95eff" />
+          <Icon name="sliders" size={responsiveDimensions.iconSize} color="#a95eff" />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.middleIconButton, { backgroundColor: '#B15CDE', padding: 1 }]}
+          style={[
+            styles.middleIconButton,
+            { backgroundColor: "#B15CDE", padding: 1 },
+          ]}
           onPress={handleShortlist}
         >
           <View
             style={{
-              width: 45,
-              height: 45,
-              justifyContent: 'center',
-              alignItems: 'center',
-              borderRadius: 20,
-              backgroundColor: '#B15CDE',
+              width: isBigScreen ? 50 : 45,
+              height: isBigScreen ? 50 : 45,
+              justifyContent: "center",
+              alignItems: "center",
+              borderRadius: isBigScreen ? 25 : 20,
+              backgroundColor: "#B15CDE",
             }}
           >
-            <MiddleButton width={28} height={28} />
+            <MiddleButton
+              width={responsiveDimensions.iconSize}
+              height={responsiveDimensions.iconSize}
+            />
           </View>
         </TouchableOpacity>
       </View>
@@ -721,333 +819,358 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   filterContent: {
-  flex: 1,
-  paddingTop: 20,
-},
+    flex: 1,
+    paddingTop: dimensions.spacing.lg,
+  },
   fixedButtonContainer: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  paddingHorizontal: 20,
-  marginTop: 16,
-},
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: dimensions.spacing.lg,
+    marginTop: dimensions.spacing.md,
+  },
   noDataText: {
+    color: "#fff",
+    fontSize: dimensions.fontSize.large,
+    textAlign: "center",
+    marginTop: dimensions.spacing.xl,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
     color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 20,
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   backgroundContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     zIndex: 0,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingVertical: 12,
-    minHeight: 80,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: dimensions.spacing.sm,
+    paddingVertical: dimensions.spacing.sm,
+    minHeight: dimensions.headerHeight,
     zIndex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   headerContent: {
-    flexDirection: 'column',
+    flexDirection: "column",
   },
   sectionHeader: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  marginBottom: 8,
-},
-
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: dimensions.spacing.sm,
+  },
   greeting: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#a95eff',
+    fontWeight: "bold",
+    color: "#a95eff",
   },
   location: {
-    fontSize: 14,
-    color: '#aaa',
-    marginTop: 4,
+    color: "#aaa",
+    marginTop: dimensions.spacing.xs,
   },
   headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   buttonWithDropdownContainer: {
-    position: 'relative',
+    position: "relative",
     zIndex: 1,
   },
   curatedButton: {
-    backgroundColor: 'transparent',
-    padding: 12,
-    borderRadius: 17,
-    alignItems: 'center',
-    borderColor: '#B15CDE',
+    backgroundColor: "transparent",
+    padding: dimensions.spacing.sm,
+    borderRadius: dimensions.borderRadius.large,
+    alignItems: "center",
+    borderColor: "#B15CDE",
     borderWidth: 1,
     marginBottom: 0,
-    minHeight: 44,
-    justifyContent: 'center',
+    minHeight: dimensions.buttonHeight,
+    justifyContent: "center",
   },
   curatedButtonText: {
-    textAlign: 'center',
-    fontFamily: 'Nunito Sans',
-    fontSize: 12,
-    fontWeight: '500',
-    lineHeight: 18,
-    color: '#B15CDE',
+    textAlign: "center",
+    fontFamily: "Nunito Sans",
+    fontWeight: "500",
+    lineHeight: dimensions.fontSize.large,
+    color: "#B15CDE",
   },
   eventListContainer: {
-    paddingVertical: 8,
+    paddingVertical: dimensions.spacing.sm,
   },
   eventCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginRight: 8,
-    backgroundColor: '#000',
-    width: dimensions.cardWidth,
-    height: 540,
+    borderRadius: dimensions.borderRadius.large,
+    overflow: "hidden",
+    backgroundColor: "#000",
     flexShrink: 0,
   },
   eventCardTouchable: {
     flex: 1,
-    position: 'relative',
+    position: "relative",
   },
   videoContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
+    borderRadius: dimensions.borderRadius.nose, 
+    overflow: "hidden", 
   },
   eventVideo: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#000',
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#000",
+    borderRadius: dimensions.borderRadius.nose, // Rounded corners for iPhone-like effect
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   gradientOverlay: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: '70%',
+    height: "70%",
   },
   crowdGuaranteeContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
-    alignSelf: 'center',
-    backgroundColor: '#1a1a1a',
-    paddingVertical: 4,
-    paddingHorizontal: 20,
+    alignSelf: "center",
+    // backgroundColor: "",
+    paddingVertical: dimensions.spacing.xs,
+    paddingHorizontal: dimensions.spacing.md,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomLeftRadius: dimensions.borderRadius.xlarge,
+    borderBottomRightRadius: dimensions.borderRadius.xlarge,
+    flexDirection: "row",
+    alignItems: "center",
     zIndex: 1,
   },
   crowdGuaranteeText: {
-    color: '#a95eff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginRight: 4,
+    color: "#a95eff",
+    fontSize: dimensions.fontSize.small,
+    fontWeight: "bold",
+    marginRight: dimensions.spacing.xs,
   },
   cardBottomPills: {
-    position: 'absolute',
-    bottom: 40,
-    left: 10,
-    right: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    position: "absolute",
+    bottom: dimensions.spacing.xl,
+    left: dimensions.spacing.md,
+    right: dimensions.spacing.md,
+    flexDirection: "row",
+    justifyContent: "space-between",
     zIndex: 100,
-    minHeight: 24,
+    minHeight: dimensions.spacing.lg,
   },
   pill: {
-    backgroundColor: 'rgba(25, 25, 25, 0.95)',
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    backgroundColor: "rgba(25, 25, 25, 0.95)",
+    borderRadius: dimensions.borderRadius.medium,
+    paddingVertical: dimensions.spacing.xs,
+    paddingHorizontal: dimensions.spacing.sm,
     minWidth: 60,
-    minHeight: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    minHeight: dimensions.spacing.lg,
+    justifyContent: "center",
+    alignItems: "center",
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
     shadowRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(169, 94, 255, 0.3)',
+    borderColor: "rgba(169, 94, 255, 0.3)",
   },
   pillText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    lineHeight: 14,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    color: "#fff",
+    fontSize: dimensions.fontSize.small,
+    fontWeight: "bold",
+    textAlign: "center",
+    lineHeight: dimensions.fontSize.medium,
+    textShadowColor: "rgba(0, 0, 0, 0.8)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   middleIconsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 20,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginVertical: dimensions.spacing.md,
   },
   middleIconButton: {
     borderRadius: isBigScreen ? 56 : 32,
-    padding: isBigScreen ? 36 : 18,
-    marginHorizontal: 18,
-    backgroundColor: 'transparent',
+    padding: isBigScreen ? dimensions.spacing.xl : dimensions.spacing.md,
+    marginHorizontal: dimensions.spacing.md,
+    backgroundColor: "transparent",
     minWidth: isBigScreen ? 96 : 56,
     minHeight: isBigScreen ? 96 : 56,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   middleIconButtonBorder: {
-    borderColor: '#a95eff',
+    borderColor: "#a95eff",
     borderWidth: 1,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
   },
   modalContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    width: '100%',
-    maxWidth: 393,
-    height: 450,
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    alignSelf: 'center',
-    position: 'relative',
+    borderTopLeftRadius: dimensions.borderRadius.xlarge,
+    borderTopRightRadius: dimensions.borderRadius.xlarge,
+    width: "100%",
+    maxWidth: isBigScreen ? 500 : 393,
+    height: isBigScreen ? 500 : 450,
+    paddingTop: dimensions.spacing.md,
+    paddingHorizontal: dimensions.spacing.md,
+    paddingBottom: dimensions.spacing.sm,
+    alignSelf: "center",
+    position: "relative",
   },
   closeButton: {
-    position: 'absolute',
+    position: "absolute",
     top: -15,
     right: 30,
     zIndex: 10,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 8,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#fff",
+    borderRadius: dimensions.borderRadius.medium,
+    padding: dimensions.spacing.sm,
+    width: isBigScreen ? 48 : 40,
+    height: isBigScreen ? 48 : 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   sectionTitle: {
-    color: '#FFF',
-    textAlign: 'center',
-    fontFamily: 'Poppins',
-    fontSize: 14,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginTop: 0,
-    marginBottom: 8,
+    color: "#FFF",
+    textAlign: "center",
+    fontFamily: "Poppins",
+    fontSize: dimensions.fontSize.medium,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    marginBottom: dimensions.spacing.sm,
   },
   pillOption: {
-    height: 32,
-    paddingHorizontal: 12,
+    height: dimensions.buttonHeight * 0.8,
+    paddingHorizontal: dimensions.spacing.sm,
     paddingVertical: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 25,
-    marginRight: 8,
-    marginBottom: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: dimensions.borderRadius.xlarge,
+    marginRight: dimensions.spacing.sm,
+    marginBottom: dimensions.spacing.sm,
     flexShrink: 1,
     minWidth: 60,
   },
   pillOptionActive: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   pillOptionText: {
-    color: '#fff',
-    fontWeight: '500',
-    fontSize: 12,
-    fontFamily: 'Nunito Sans',
-    textAlign: 'center',
+    color: "#fff",
+    fontWeight: "500",
+    fontSize: dimensions.fontSize.small,
+    fontFamily: "Nunito Sans",
+    textAlign: "center",
     flexShrink: 1,
   },
   pillOptionTextActive: {
-    color: '#7952FC',
+    color: "#7952FC",
   },
   continueButton: {
-    width: '48%',
+    width: "48%",
     maxWidth: 180,
     height: dimensions.buttonHeight,
-    paddingHorizontal: 16,
+    paddingHorizontal: dimensions.spacing.sm,
     paddingVertical: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: '#fff',
-    borderRadius: 16,
-    backgroundColor: 'transparent',
+    borderColor: "#fff",
+    borderRadius: dimensions.borderRadius.medium,
+    backgroundColor: "transparent",
   },
   resetButton: {
-    width: '48%',
+    width: "48%",
     maxWidth: 180,
     height: dimensions.buttonHeight,
-    paddingHorizontal: 16,
+    paddingHorizontal: dimensions.spacing.sm,
     paddingVertical: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: '#fff',
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: "#fff",
+    borderRadius: dimensions.borderRadius.medium,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   continueButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
-    fontFamily: 'Nunito Sans',
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: dimensions.fontSize.medium,
+    fontFamily: "Nunito Sans",
   },
   dropdownContainer: {
-    position: 'absolute',
-    top: '100%',
+    position: "absolute",
+    top: "100%",
     left: 0,
     right: 0,
-    marginTop: 4,
+    marginTop: dimensions.spacing.xs,
     zIndex: 1000,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   dropdownButton: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderRadius: dimensions.borderRadius.large,
     borderWidth: 1,
-    borderColor: '#B15CDE',
-    overflow: 'hidden',
+    borderColor: "#B15CDE",
+    overflow: "hidden",
   },
   dropdownButtonTouchable: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
+    paddingVertical: dimensions.spacing.sm,
+    paddingHorizontal: dimensions.spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: dimensions.buttonHeight,
   },
   dropdownButtonText: {
-    color: '#a95eff',
-    fontSize: 12,
-    fontWeight: '500',
-    fontFamily: 'Nunito Sans',
+    color: "#a95eff",
+    fontSize: dimensions.fontSize.medium,
+    fontWeight: "500",
+    fontFamily: "Nunito Sans",
   },
 });
-
 export default HomeScreen;
+
+
+

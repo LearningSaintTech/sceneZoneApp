@@ -23,6 +23,7 @@ import TicketIcon from '../assets/icons/Ticket';
 const { width } = Dimensions.get('window');
 
 const UserFormBookingScreen = ({ navigation, route }) => {
+  console.log('UserFormBookingScreen: Render start');
   const [numberOfTickets, setNumberOfTickets] = useState('1');
   const [discountData, setDiscountData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,64 +32,96 @@ const UserFormBookingScreen = ({ navigation, route }) => {
 
   // Get event details from navigation parameters
   const { eventDetails } = route.params || {};
-  const eventId = eventDetails?.eventId;
-  const isFreeEvent = eventDetails?.ticketSetting?.ticketType === 'free';
-console.log("eventDetails",eventDetails)
+  const eventId = eventDetails?.id; // Use id instead of eventId
+  const isFreeEvent = eventDetails?.price === 'Free';
+  console.log('UserFormBookingScreen: eventDetails', eventDetails);
+  console.log('UserFormBookingScreen: eventId', eventId);
+  console.log('UserFormBookingScreen: isFreeEvent', isFreeEvent);
+  console.log('UserFormBookingScreen: token', token ? 'Present' : 'Missing');
+
+  // Log state changes
+  useEffect(() => {
+    console.log('UserFormBookingScreen: numberOfTickets changed', numberOfTickets);
+  }, [numberOfTickets]);
+
+  useEffect(() => {
+    console.log('UserFormBookingScreen: discountData changed', discountData);
+  }, [discountData]);
+
+  useEffect(() => {
+    console.log('UserFormBookingScreen: isLoading changed', isLoading);
+  }, [isLoading]);
+
   // Fetch discount data
   useEffect(() => {
+    console.log('UserFormBookingScreen: fetchDiscountData useEffect triggered', { eventId, token });
     const fetchDiscountData = async () => {
-      if (!eventId || !token) {
-        Alert.alert('Error', 'Event ID or authentication token is missing.');
+      if (!eventDetails || !eventId || !token) {
+        console.error('UserFormBookingScreen: Missing eventDetails, eventId, or token', { eventDetails, eventId, token });
+        Alert.alert('Error', 'Event details or authentication token is missing.');
         setIsLoading(false);
         return;
       }
 
       try {
         setIsLoading(true);
-        const response = await api.get(`http://10.0.2.2:3000/api/guest-list/events/${eventId}/discount`, {
+        console.log('UserFormBookingScreen: Fetching discount data', { endpoint: `/guest-list/events/${eventId}/discount` });
+        const response = await api.get(`/guest-list/events/${eventId}/discount`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
-        console.log('Discount data fetched:', response.data);
-        setDiscountData(response.data);
+        console.log('UserFormBookingScreen: Discount data fetched', { status: response.status, data: response.data });
+        setDiscountData(response.data.data || null);
       } catch (err) {
-        console.error('Error fetching discount data:', err);
+        console.error('UserFormBookingScreen: Error fetching discount data', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+          config: err.config,
+        });
         Alert.alert(
           'Error',
-          err.response?.data?.message || 'Failed to fetch discount information.'
+          err.response?.data?.message || 'Failed to fetch discount information. You can still proceed with booking.'
         );
+        setDiscountData(null); // Allow booking to proceed without discount data
       } finally {
+        console.log('UserFormBookingScreen: Setting isLoading to false');
         setIsLoading(false);
       }
     };
 
     fetchDiscountData();
-  }, [eventId, token]);
+  }, [eventId, token, eventDetails]);
 
   const handleContinueBooking = () => {
-    if (!discountData) {
-      Alert.alert('Error', 'Discount information not available.');
-      return;
+    console.log('UserFormBookingScreen: handleContinueBooking called', { eventId, numberOfTickets, isFreeEvent });
+    if (!isFreeEvent && !discountData) {
+      console.warn('UserFormBookingScreen: No discountData available, proceeding with default pricing');
+      // Allow proceeding without discount data for paid events
     }
+
     if (!isFreeEvent) {
       const tickets = parseInt(numberOfTickets, 10);
+      console.log('UserFormBookingScreen: Parsed tickets', tickets);
       if (!numberOfTickets || isNaN(tickets) || tickets < 1) {
+        console.error('UserFormBookingScreen: Invalid numberOfTickets', numberOfTickets);
         Alert.alert('Error', 'Please enter at least 1 ticket.');
         return;
       }
       if (eventDetails?.ticketSetting?.totalQuantity && tickets > eventDetails.ticketSetting.totalQuantity) {
+        console.error('UserFormBookingScreen: Requested tickets exceed available', { requested: tickets, available: eventDetails.ticketSetting.totalQuantity });
         Alert.alert('Error', `Only ${eventDetails.ticketSetting.totalQuantity} tickets available.`);
         return;
       }
-      console.log('Continue booking with:', tickets, discountData);
+      console.log('UserFormBookingScreen: Navigating to UserDetailBookingScreen', { tickets, discountData, eventDetails });
       navigation.navigate('UserDetailBookingScreen', {
         numberOfTickets: tickets,
         discountData,
         eventDetails,
       });
-    } else {   
-      console.log('Continue booking for free event:', discountData);
+    } else {
+      console.log('UserFormBookingScreen: Navigating to UserDetailBookingScreen for free event', { discountData, eventDetails });
       navigation.navigate('UserDetailBookingScreen', {
         numberOfTickets: 1, // Default to 1 for free events
         discountData,
@@ -99,10 +132,12 @@ console.log("eventDetails",eventDetails)
 
   // Format price display
   const formatPrice = (price) => {
-    return price === 0 ? 'Free' : `₹${price.toLocaleString('en-IN')}`;
+    console.log('UserFormBookingScreen: formatPrice called', { price });
+    return price === 0 || price === 'Free' ? 'Free' : `₹${parseFloat(price.replace('₹', '')).toLocaleString('en-IN')}`;
   };
 
   if (isLoading) {
+    console.log('UserFormBookingScreen: isLoading is true, rendering loading state');
     return (
       <SafeAreaView style={[styles.container, {
         paddingTop: insets.top,
@@ -117,6 +152,8 @@ console.log("eventDetails",eventDetails)
     );
   }
 
+  console.log('UserFormBookingScreen: Rendering main UI');
+
   return (
     <SafeAreaView style={[styles.container, {
       paddingTop: insets.top,
@@ -126,7 +163,10 @@ console.log("eventDetails",eventDetails)
     }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => {
+          console.log('UserFormBookingScreen: Back button pressed');
+          navigation.goBack();
+        }}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
@@ -142,6 +182,8 @@ console.log("eventDetails",eventDetails)
             source={eventDetails?.image || require('../assets/Images/ffff.jpg')}
             style={styles.eventImage}
             resizeMode="cover"
+            onLoad={() => console.log('UserFormBookingScreen: Event image loaded', eventDetails?.image?.uri)}
+            onError={(e) => console.error('UserFormBookingScreen: Event image load error', { error: e.nativeEvent.error })}
           />
           <View style={styles.eventInfo}>
             <View style={styles.eventTitleContainer}>
@@ -174,6 +216,7 @@ console.log("eventDetails",eventDetails)
                 keyboardType="number-pad"
                 value={numberOfTickets}
                 onChangeText={(text) => {
+                  console.log('UserFormBookingScreen: TextInput onChangeText', text);
                   // Allow empty string or positive integers up to max
                   if (/^\d*$/.test(text) && (text === '' || parseInt(text, 10) <= (eventDetails?.ticketSetting?.totalQuantity || 100))) {
                     setNumberOfTickets(text);
@@ -240,7 +283,13 @@ console.log("eventDetails",eventDetails)
           end={{ x: 1, y: 1 }}
           style={styles.continueButtonGradient}
         >
-          <TouchableOpacity style={styles.continueButton} onPress={handleContinueBooking}>
+          <TouchableOpacity
+            style={styles.continueButton}
+            onPress={() => {
+              console.log('UserFormBookingScreen: Continue button pressed');
+              handleContinueBooking();
+            }}
+          >
             <View style={styles.continueButtonTextContainer}>
               <Text style={styles.continueButtonText}>Continue</Text>
             </View>

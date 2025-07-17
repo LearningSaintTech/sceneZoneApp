@@ -63,7 +63,8 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
   const inputs = useRef([]);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  const { mobileNumber, confirmation, fullName } = route.params;
+  const { mobileNumber: rawMobileNumber, confirmation, fullName } = route.params;
+  const mobileNumber = rawMobileNumber && !rawMobileNumber.startsWith('+91') ? `+91${rawMobileNumber}` : rawMobileNumber;
 
   const responsiveDimensions = {
     ...dimensions,
@@ -197,8 +198,9 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
 
       setIsResending(true);
 
-      console.log('[UserLoginOtpVerificationScreen] Resending Firebase OTP for:', mobileNumber);
-      const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber);
+      const resendMobile = mobileNumber.startsWith('+91') ? mobileNumber : `+91${mobileNumber}`;
+      console.log('[UserLoginOtpVerificationScreen] Resending Firebase OTP for:', resendMobile);
+      const confirmationResult = await auth().signInWithPhoneNumber(resendMobile);
       console.log('[UserLoginOtpVerificationScreen] Firebase OTP resent successfully:', confirmationResult);
       Alert.alert('Success', 'OTP has been resent successfully!');
       setOtp(['', '', '', '', '', '']);
@@ -206,7 +208,7 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
 
       // Navigate back to the same screen with updated confirmation
       navigation.replace('UserLoginOtpVerificationScreen', {
-        mobileNumber,
+        mobileNumber: resendMobile,
         confirmation: confirmationResult,
         userId,
         fullName,

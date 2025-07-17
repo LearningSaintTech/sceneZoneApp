@@ -10,6 +10,9 @@ import {
   Dimensions,
   Platform,
   Alert,
+  Linking,
+  Modal,
+  Image,
 } from "react-native";
 import Feather from "react-native-vector-icons/Feather";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -107,6 +110,7 @@ const HostTicketSettingScreen = ({ navigation, route }) => {
   const [isTicketEnabled, setIsTicketEnabled] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(null);
   const [showTimePicker, setShowTimePicker] = useState(null);
+  const [showPosterModal, setShowPosterModal] = useState(false);
   const token = useSelector((state) => state.auth.token) || "";
   const eventId = route.params?.eventId || null;
   const insets = useSafeAreaInsets();
@@ -116,24 +120,11 @@ console.log("Event id",eventId);
 
 
   useEffect(() => {
-    const fetchTicketData = async () => {
-      if (!token) {
-        
-        setError("Please log in to view ticket settings");
-        setLoading(false);
-        return;
-      }
-
-      if (!eventId) {
-        console.log("No eventId provided, skipping fetch");
-        setError("Event ID is missing");
-        setLoading(false);
-        return;
-      }
-
+    const fetchEventDetails = async () => {
+      if (!token || !eventId) return;
       try {
-        const url = `${API_BASE_URL}/host/${eventId}/ticket-settings`;
-        console.log("Fetching ticket data from:", url);
+        const url = `${API_BASE_URL}/host/events/get-event/${eventId}`;
+        console.log("Fetching event details from:", url);
         const response = await api.get(url, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -141,61 +132,54 @@ console.log("Event id",eventId);
           },
           timeout: 10000,
         });
-        console.log("API response Get ticket data", response.data);
-
+        console.log("API response Get event details", response.data);
         if (response.data.success && response.data.data) {
-          const data = response.data.data;
-          setTicketType(data.ticketType?.toLowerCase() === "free" ? "free" : "paid");
-          setEventName(data.eventName || "");
-          setLocation(data.location || "");
-          setAboutEvent(data.aboutEvent || "");
-          setTicketQuantity(data.totalQuantity ? String(data.totalQuantity) : "");
-          setGstType(data.gstType?.toLowerCase() === "exclusive" ? "exclusive" : "inclusive");
-          setPrice(data.price ? String(data.price) : "");
-          setUploadedImageName(data.poster || "");
-          setIsTicketEnabled(data.isEnabled !== undefined ? data.isEnabled : true);
-
-          if (data.salesStart && !isNaN(new Date(data.salesStart).getTime())) {
-            const start = new Date(data.salesStart);
+          const event = response.data.data;
+          setEventName(event.eventName || "");
+          setLocation(event.location || "");
+          setAboutEvent(event.about || "");
+          setUploadedImageName(event.posterUrl || "");
+          // Ticket settings
+          if (event.ticketSetting) {
+            setTicketType(event.ticketSetting.ticketType || "paid");
+            setTicketQuantity(event.ticketSetting.totalQuantity ? String(event.ticketSetting.totalQuantity) : "");
+            setGstType(event.ticketSetting.gstType || "inclusive");
+            setPrice(event.ticketSetting.price ? String(event.ticketSetting.price) : "");
+            setIsTicketEnabled(event.ticketSetting.isEnabled !== undefined ? event.ticketSetting.isEnabled : true);
+            // Dates
+            if (event.ticketSetting.salesStart && !isNaN(new Date(event.ticketSetting.salesStart).getTime())) {
+              const start = new Date(event.ticketSetting.salesStart);
             setStartDate(start);
             setStartTime(start);
-          } else {
-            console.log("Invalid salesStart date, using default");
           }
-
-          if (data.salesEnd && !isNaN(new Date(data.salesEnd).getTime())) {
-            const end = new Date(data.salesEnd);
+            if (event.ticketSetting.salesEnd && !isNaN(new Date(event.ticketSetting.salesEnd).getTime())) {
+              const end = new Date(event.ticketSetting.salesEnd);
             setEndDate(end);
             setEndTime(end);
-          } else {
-            console.log("Invalid salesEnd date, using default");
           }
-
-          const status = data.ticketStatus?.toLowerCase();
+            // Ticket status
+            const status = event.ticketSetting.ticketStatus?.toLowerCase();
           setTicketStatus({
             Live: status === "live",
             ComingSoon: status === "comingsoon" || !status,
             SoldOut: status === "soldout",
           });
-        } else {
-          console.log("No data found in response");
-          setError("No ticket settings found");
+          }
         }
       } catch (error) {
-        console.log("Error fetching ticket data", {
+        console.log("Error fetching event details", {
           error: error.response?.data || error.message,
         });
         setError(
           error.response?.data?.message ||
-            "Failed to fetch ticket settings. Please try again."
+            "Failed to fetch event details. Please try again."
         );
       } finally {
         setLoading(false);
       }
     };
-
-    fetchTicketData();
-  }, [token, eventId])
+    fetchEventDetails();
+  }, [token, eventId]);
 
 
 
@@ -543,11 +527,40 @@ console.log("Event id",eventId);
           <Text style={styles.uploadHint}>Max Upload Size( 10mb )</Text>
 
           {uploadedImageName !== "" && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
             <Text style={styles.uploadHintImage}>
-              Selected file: {uploadedImageName}
+                Selected file: {uploadedImageName.split('/').pop()}
             </Text>
+              <TouchableOpacity
+                style={{ marginLeft: 8 }}
+                onPress={() => setShowPosterModal(true)}
+              >
+                <Feather name="eye" size={20} color="#a95eff" />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
+
+        {/* Poster Preview Modal */}
+        <Modal
+          visible={showPosterModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowPosterModal(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableOpacity
+              style={{ position: 'absolute', top: 60, right: 30, zIndex: 10 }}
+              onPress={() => setShowPosterModal(false)}
+            >
+              <Feather name="x" size={32} color="#fff" />
+            </TouchableOpacity>
+            <Image
+              source={{ uri: uploadedImageName.startsWith('http') ? uploadedImageName : `${API_BASE_URL}/${uploadedImageName.replace(/^\//, '')}` }}
+              style={{ width: 320, height: 240, borderRadius: 16, resizeMode: 'contain', backgroundColor: '#222' }}
+            />
+          </View>
+        </Modal>
 
         {/* Event Name */}
         <Text style={styles.label}>Event Name</Text>
@@ -884,7 +897,7 @@ console.log("Event id",eventId);
         {/* Enable Ticket (only if Paid or Free) */}
         {(ticketType === "paid" || ticketType === "free") && (
           <View style={styles.enableTicketContainer}>
-            <Text style={styles.label}>Enable Ticket</Text>
+            <Text style={styles.label}>{isTicketEnabled ? 'Disable Ticket' : 'Enable Ticket'}</Text>
             <CustomToggle
               value={isTicketEnabled}
               onValueChange={(value) => {

@@ -927,11 +927,11 @@ const SignInScreen = ({ navigation }) => {
             </LinearGradient>
           </TouchableOpacity>
 
-          <View style={styles.orContainer}>
+          {/* <View style={styles.orContainer}>
             <View style={styles.orLine} />
             <Text style={styles.orText}>or</Text>
             <View style={styles.orLine} />
-          </View>
+          </View> */}
           <TouchableOpacity onPress={toggleLoginMode}>
             <Text style={styles.loginOtp}>
               {isOtpLogin ? 'Login with Password' : 'Login with OTP'}
@@ -939,16 +939,16 @@ const SignInScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           {/* Google Sign In */}
-          <TouchableOpacity style={styles.socialButton}>
+          {/* <TouchableOpacity style={styles.socialButton}>
             <GoogleIcon style={styles.socialIcon} width={24} height={24} />
             <Text style={styles.socialButtonText}>Sign in with Google</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           {/* Apple Sign In */}
-          <TouchableOpacity style={styles.socialButton}>
+          {/* <TouchableOpacity style={styles.socialButton}>
             <AppleIcon style={styles.socialIcon} width={24} height={24} />
             <Text style={styles.socialButtonText}>Sign in with Apple</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </ScrollView>
       </SafeAreaView>
     </View>

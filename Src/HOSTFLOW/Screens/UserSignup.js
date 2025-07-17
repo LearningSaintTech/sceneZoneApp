@@ -372,17 +372,17 @@ const UserSignupScreen = ({ navigation }) => {
             </LinearGradient>
           </TouchableOpacity>
 
-          <Text style={[styles.orText, { color: '#ccc' }]}>or sign up with</Text>
+          {/* <Text style={[styles.orText, { color: '#ccc' }]}>or sign up with</Text> */}
 
-          <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>
-            <GoogleIcon style={styles.socialIcon} width={dimensions.socialIconSize} height={dimensions.socialIconSize} />
-            <Text style={styles.socialButtonText}>Sign up with Google</Text>
-          </TouchableOpacity>
+          {/* <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}> */}
+          {/*   <GoogleIcon style={styles.socialIcon} width={dimensions.socialIconSize} height={dimensions.socialIconSize} /> */}
+          {/*   <Text style={styles.socialButtonText}>Sign up with Google</Text> */}
+          {/* </TouchableOpacity> */}
 
-          <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>
-            <AppleIcon style={styles.socialIcon} width={dimensions.socialIconSize} height={dimensions.socialIconSize} />
-            <Text style={styles.socialButtonText}>Sign up with Apple</Text>
-          </TouchableOpacity>
+          {/* <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}> */}
+          {/*   <AppleIcon style={styles.socialIcon} width={dimensions.socialIconSize} height={dimensions.socialIconSize} /> */}
+          {/*   <Text style={styles.socialButtonText}>Sign up with Apple</Text> */}
+          {/* </TouchableOpacity> */}
 
           <Text style={[styles.termsText, { color: '#aaa' }]}>
             By clicking "Sign Up" you agree to Recognotes{' '}

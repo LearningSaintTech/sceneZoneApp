@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import messaging from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const firebaseConfig = {
@@ -31,4 +32,4 @@ try {
   throw new Error('Failed to initialize Firebase. Please check your configuration.');
 }
 
-export { auth };
+export { auth, messaging };

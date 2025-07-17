@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useRef as RNRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,7 @@ import CustomToggle from '../Components/CustomToggle'; // Adjust path as needed
 import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import HapticFeedback from 'react-native-haptic-feedback';
 import api from '../Config/api';
+import ArtistExploreEvent from './ArtistExploreEvent';
 
 const { width } = Dimensions.get('window');
 
@@ -104,16 +105,7 @@ const SearchBar = React.memo(({ searchText, onSearchChange, onSearchSubmit, onCl
         onChangeText={onSearchChange}
         returnKeyType="search"
         onSubmitEditing={onSearchSubmit}
-        autoCorrect={false}
-        autoCapitalize="none"
         blurOnSubmit={true}
-        enablesReturnKeyAutomatically={true}
-        keyboardType="default"
-        textContentType="none"
-        autoComplete="off"
-        selectTextOnFocus={false}
-        clearButtonMode="never"
-        spellCheck={false}
         autoFocus={false}
       />
       {searchText.length > 0 && (
@@ -499,15 +491,9 @@ const ArtistEventCard = ({ item, navigation, onEventApplied, onEventSaved, saved
       locations={[0.2658, 0.9098]}
       style={styles.eventCard}
     >
-<TouchableOpacity
-  onPress={() => {
-    console.log(`[${new Date().toISOString()}] Navigating to ArtistExploreEvent for eventId=${item.id}`);
-    navigation.navigate('ArtistExploreEvent', { eventId: item.id });
-  }}
-  activeOpacity={0.7}
->
-  <Image source={item.image} style={styles.eventImage} />
-</TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate('ArtistExploreEvent', { eventId: item.id })}>
+        <Image source={item.image} style={styles.eventImage} />
+      </TouchableOpacity>
       <View style={styles.dateOverlay}>
         <Text style={styles.dateMonth}>{item.dateMonth}</Text>
         <Text style={styles.dateDay}>{item.dateDay}</Text>
@@ -708,6 +694,7 @@ const ArtistHomeScreen = ({ navigation }) => {
   const authLocation = useSelector(selectLocation);
   const userData = useSelector(state => state.auth.userData);
   const appliedEventsFromRedux = useSelector(selectAppliedEvents);
+  const { unreadCount } = useSelector((state) => state.notifications);
   
   console.log('Redux Auth Data:', { authName, authLocation, userData });
   console.log('Redux Applied Events:', appliedEventsFromRedux);
@@ -1027,12 +1014,13 @@ const ArtistHomeScreen = ({ navigation }) => {
 
       console.log('📤 Sending filter data to backend:', filterData);
 
-      // Call the filter API
-      const response = await api.get('/artist/filter-events', filterData, {
+      // Call the filter API with token in headers and filterData as params
+      const response = await api.get('/artist/filter-events', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-        }
+        },
+        params: filterData,
       });
 
       console.log('✅ Filter API Response:', response.data);
@@ -1779,7 +1767,7 @@ const ArtistHomeScreen = ({ navigation }) => {
     }
   }, [hasNotification]);
 
-  const renderScrollableHeader = useCallback(() => (
+  const MemoizedHeader = useMemo(() => (
     <>
       {/* Search Bar */}
       <SearchBar
@@ -1997,9 +1985,16 @@ const ArtistHomeScreen = ({ navigation }) => {
           transform: [{ rotate: notificationAnim.interpolate({ inputRange: [-1, 1], outputRange: ['-15deg', '15deg'] }) }]
         }}>
           <TouchableOpacity style={styles.notificationIcon} onPress={() => navigation.navigate('ArtistNotification')}>
+            <View style={{ position: 'relative' }}>
             <Icon name="bell" size={24} color="#fff" />
-            {/* Notification dot */}
-            <View style={styles.notificationDot} />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -2038,7 +2033,7 @@ const ArtistHomeScreen = ({ navigation }) => {
               />
             )}
             keyExtractor={(item) => item.id}
-            ListHeaderComponent={renderScrollableHeader}
+            ListHeaderComponent={MemoizedHeader}
             ListFooterComponent={() => (
               isFilteringEvents ? (
                 <View style={styles.filteringLoadingContainer}>
@@ -2942,6 +2937,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
 

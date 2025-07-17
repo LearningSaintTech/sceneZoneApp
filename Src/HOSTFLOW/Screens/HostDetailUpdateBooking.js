@@ -86,11 +86,11 @@ const HostDetailBookingContent = ({ navigation, route }) => {
       setLoading(true);
       try {
         console.log('Fetching artist profile', {
-          url: `http://10.0.2.2:3000/api/artist/get-profile/${artistId}`,
+          url: `https://api.thescenezone.com/api/artist/get-profile/${artistId}`,
           headers: { Authorization: `Bearer ${token}` },
         });
         const artistResponse = await axios.get(
-          `http://10.0.2.2:3000/api/artist/get-profile/${artistId}`,
+          `https://api.thescenezone.com/api/artist/get-profile/${artistId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -100,10 +100,10 @@ const HostDetailBookingContent = ({ navigation, route }) => {
         console.log('Artist profile API response received', artistResponse.data.data);
 
         console.log('Fetching invoices', {
-          url: 'http://10.0.2.2:3000/api/invoices',
+          url: 'https://api.thescenezone.com/api/invoices',
           headers: { Authorization: `Bearer ${token}` },
         });
-        const invoicesResponse = await axios.get('http://10.0.2.2:3000/api/invoices', {
+        const invoicesResponse = await axios.get('https://api.thescenezone.com/api/invoices', {
           headers: {
             Authorization: `Bearer ${token}`,
           },

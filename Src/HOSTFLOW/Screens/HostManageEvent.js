@@ -8,6 +8,7 @@ import {
   FlatList,
   Dimensions,
   ScrollView,
+  Alert,
 } from "react-native";
 import {
   SafeAreaProvider,
@@ -60,42 +61,6 @@ const dimensions = {
   dateOverlaySize: Math.max(width * 0.12, 48),
 };
 
-// Sample data for artist status cards
-const artistStatusData = [
-  {
-    id: "1",
-    image: require("../assets/Images/frame1.png"),
-    budget: "$500",
-    genre: "Rock",
-    status: "Pending",
-    date: "06 Feb 2025",
-  },
-  {
-    id: "2",
-    image: require("../assets/Images/frame1.png"),
-    budget: "$500",
-    genre: "Rock",
-    status: "Pay Booking Amount",
-    date: "06 Feb 2025",
-  },
-  {
-    id: "3",
-    image: require("../assets/Images/frame1.png"),
-    budget: "$500",
-    genre: "Rock",
-    status: "Booked",
-    date: "06 Feb 2025",
-  },
-  {
-    id: "4",
-    image: require("../assets/Images/frame1.png"),
-    budget: "$500",
-    genre: "Rock",
-    status: "Rejected",
-    date: "06 Feb 2025",
-  },
-];
-
 // GradientText component for gradient text rendering
 const GradientText = ({ text, style, colors = ["#B15CDE", "#7952FC"] }) => (
   <MaskedView
@@ -111,65 +76,168 @@ const GradientText = ({ text, style, colors = ["#B15CDE", "#7952FC"] }) => (
 
 const HostManageEventContent = ({ navigation, route }) => {
   const token = useSelector((state) => state.auth.token);
-  console.log("this is the token", token);
   const insets = useSafeAreaInsets();
-  // Retrieve eventId from route.params or use fallback
   const eventId = route.params?.eventId;
-  console.log("manage events xxx ", eventId);
+  const [eventData, setEventData] = useState(null);
+  const [bookedArtists, setBookedArtists] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const [eventData, setEvenstData] = useState(null);
-
+  // Fetch event details
   useEffect(() => {
     const fetchEventById = async () => {
       try {
+        setLoading(true);
         const response = await api.get(`/host/events/get-event/${eventId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
-
-        console.log("this is api response", response.data);
-        setEvenstData(response?.data?.data);
+        setEventData(response?.data?.data);
       } catch (error) {
-        console.log(error);
+        console.error("Fetch event error:", error);
+        Alert.alert("Error", "Failed to fetch event details.");
+      } finally {
+        setLoading(false);
       }
     };
-    fetchEventById();
-  }, [eventId]);
+    if (eventId) {
+      fetchEventById();
+    }
+  }, [eventId, token]);
 
-  // Safely extract date
-  const rawDate = eventData?.eventDateTime?.[0]; // '2025-07-10T22:29:00.000Z'
+  // Fetch booked artists
+  useEffect(() => {
+    const fetchBookedArtists = async () => {
+      try {
+        setLoading(true);
+        console.log("eventId",eventId)
+        const response = await api.get(`/host/events/booked-artists/${eventId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setBookedArtists(response?.data?.data || []);
+      } catch (error) {
+        console.error("Fetch booked artists error:", error);
+        Alert.alert("Error", "Failed to fetch booked artists.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (eventId) {
+      fetchBookedArtists();
+    }
+  }, [eventId, token]);
+
+  // Handle Cancel Event
+  const handleCancelEvent = async () => {
+    Alert.alert(
+      "Confirm Cancel",
+      "Are you sure you want to cancel this event?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const response = await api.patch(
+                `/host/events/cancel-event/${eventId}`,
+                {},
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              setEventData(response?.data?.data);
+              Alert.alert("Success", "Event cancelled successfully.");
+            } catch (error) {
+              console.error("Cancel event error:", error);
+              Alert.alert("Error", "Failed to cancel event.");
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle Mark Event Completed
+  const handleMarkEventCompleted = async () => {
+    Alert.alert(
+      "Confirm Completion",
+      "Are you sure you want to mark this event as completed?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const response = await api.patch(
+                `/host/events/mark-event-completed/${eventId}`,
+                {},
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              setEventData(response?.data?.data);
+              Alert.alert("Success", "Event marked as completed successfully.");
+            } catch (error) {
+              console.error("Mark event completed error:", error);
+              Alert.alert("Error", "Failed to mark event as completed.");
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Format date
+  const rawDate = eventData?.eventDateTime?.[0];
   const dateObj = rawDate ? new Date(rawDate) : null;
-
-  // Format parts
   const month = dateObj
     ? dateObj.toLocaleString("en-US", { month: "short" })
     : "";
   const day = dateObj ? dateObj.getDate() : "";
+  const formattedDate = dateObj
+    ? dateObj.toLocaleDateString("en-US", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "";
 
-  console.log("this is to apply", eventData);
   const renderArtistStatusCard = ({ item }) => {
-    let statusButton;
     let statusButtonStyle = {};
     let statusButtonTextStyle = {};
     let showPlusButton = false;
+    let statusText = item.paymentStatus;
+    let gradientColors = ["#B15CDE", "#7952FC"];
 
-    switch (item.status) {
-      case "Pending":
+    switch (item.paymentStatus) {
+      case "pending":
         statusButtonStyle = styles.statusButtonPending;
         statusButtonTextStyle = styles.statusButtonTextPending;
+        gradientColors = ["#FF9500", "#FFC371"];
         break;
-      case "Pay Booking Amount":
-        statusButtonStyle = styles.statusButtonPayBooking;
-        statusButtonTextStyle = styles.statusButtonTextPayBooking;
-        break;
-      case "Booked":
+      case "completed":
         statusButtonStyle = styles.statusButtonBooked;
         statusButtonTextStyle = styles.statusButtonTextBooked;
+        gradientColors = ["#28a745", "#43e97b"];
+        statusText = "Booked";
         break;
-      case "Rejected":
+      case "failed":
         statusButtonStyle = styles.statusButtonRejected;
         statusButtonTextStyle = styles.statusButtonTextRejected;
+        gradientColors = ["#FF3B30", "#FF3B30"];
+        statusText = "Payment Failed";
         showPlusButton = true;
         break;
       default:
@@ -188,7 +256,7 @@ const HostManageEventContent = ({ navigation, route }) => {
         ]}
       >
         <Image
-          source={item.image}
+          source={{ uri: item.profileImageUrl || "https://via.placeholder.com/60" }}
           style={[
             styles.artistImage,
             {
@@ -208,7 +276,7 @@ const HostManageEventContent = ({ navigation, route }) => {
               },
             ]}
           >
-            Budget : {item.budget}
+            Budget: ${eventData?.budget || "N/A"}
           </Text>
           <Text
             style={[
@@ -222,7 +290,7 @@ const HostManageEventContent = ({ navigation, route }) => {
               },
             ]}
           >
-            Genre :{" "}
+            Genre:{" "}
             <Text
               style={{
                 color: "#000",
@@ -231,7 +299,7 @@ const HostManageEventContent = ({ navigation, route }) => {
                 fontWeight: "600",
               }}
             >
-              {item.genre}
+              {item.artistType || "N/A"}
             </Text>
           </Text>
           <View
@@ -250,93 +318,24 @@ const HostManageEventContent = ({ navigation, route }) => {
                 },
               ]}
             >
-              Status :
+              Status:
             </Text>
             <TouchableOpacity
-              style={[
-                statusButtonStyle,
-                {
-                  // Remove extra minWidth/padding for Pay Booking Amount and Booked
-                },
-              ]}
+              style={[statusButtonStyle]}
               onPress={() =>
-                item.status === "Pay Booking Amount" &&
-                navigation.navigate("HostManageEventDetailBooking")
+                item.paymentStatus === "pending" &&
+                navigation.navigate("HostManageEventDetailBooking", {
+                  artistId: item.artistId,
+                  eventId,
+                })
               }
               activeOpacity={0.8}
             >
-              {item.status === "Pay Booking Amount" ? (
-                <GradientText
-                  text={item.status}
-                  style={[
-                    styles.statusButtonTextPayBooking,
-                    {
-                      fontFamily: "Poppins",
-                      fontSize: 10,
-                      fontWeight: "400",
-                      textTransform: "capitalize",
-                      lineHeight: undefined,
-                    },
-                  ]}
-                />
-              ) : item.status === "Booked" ? (
-                <GradientText
-                  text={item.status}
-                  colors={["#28a745", "#43e97b"]}
-                  style={[
-                    styles.statusButtonTextBooked,
-                    {
-                      fontFamily: "Poppins",
-                      fontSize: 10,
-                      fontWeight: "400",
-                      textTransform: "capitalize",
-                      lineHeight: undefined,
-                    },
-                  ]}
-                />
-              ) : item.status === "Rejected" ? (
-                <GradientText
-                  text={item.status}
-                  colors={["#FF3B30", "#FF3B30"]}
-                  style={[
-                    styles.statusButtonTextRejected,
-                    {
-                      fontFamily: "Poppins",
-                      fontSize: 10,
-                      fontWeight: "400",
-                      textTransform: "capitalize",
-                      lineHeight: undefined,
-                    },
-                  ]}
-                />
-              ) : item.status === "Pending" ? (
-                <GradientText
-                  text={item.status}
-                  colors={["#FF9500", "#FFC371"]}
-                  style={[
-                    styles.statusButtonTextPending,
-                    {
-                      fontFamily: "Poppins",
-                      fontSize: 10,
-                      fontWeight: "400",
-                      textTransform: "capitalize",
-                      lineHeight: undefined,
-                    },
-                  ]}
-                />
-              ) : (
-                <Text
-                  style={[
-                    statusButtonTextStyle,
-                    {
-                      fontSize: Math.max(dimensions.fontSize.small, 12),
-                      fontWeight: "bold",
-                    },
-                  ]}
-                >
-                  {item.status}
-                </Text>
-              )}
+              <GradientText
+                text={statusText}
+                colors={gradientColors}
+                style={[statusButtonTextStyle, { fontSize: Math.max(dimensions.fontSize.small, 10) }]}
+              />
             </TouchableOpacity>
             {showPlusButton && (
               <TouchableOpacity
@@ -370,7 +369,7 @@ const HostManageEventContent = ({ navigation, route }) => {
               },
             ]}
           >
-            {item.date}
+            {formattedDate}
           </Text>
           <TouchableOpacity style={styles.trashButton} activeOpacity={0.7}>
             <TrashIcon width={14} height={14} />
@@ -400,36 +399,10 @@ const HostManageEventContent = ({ navigation, route }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View
-          style={[
-            styles.header,
-            {
-              width: 393,
-              paddingTop: 20,
-              paddingBottom: 20,
-              paddingRight: 90,
-              alignItems: "center",
-              gap: 16,
-              borderBottomWidth: 1,
-              borderBottomColor: "#C6C5ED",
-              backgroundColor: "#121212",
-              shadowColor: "#683BFC",
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.05,
-              shadowRadius: 12,
-              elevation: 4,
-            },
-          ]}
-        >
+        <View style={styles.header}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            style={[
-              styles.backButton,
-              {
-                padding: Math.max(dimensions.spacing.sm, 8),
-                borderRadius: dimensions.borderRadius.sm,
-              },
-            ]}
+            style={styles.backButton}
             activeOpacity={0.7}
           >
             <Feather
@@ -438,160 +411,55 @@ const HostManageEventContent = ({ navigation, route }) => {
               color="#fff"
             />
           </TouchableOpacity>
-          <Text
-            style={[
-              styles.headerTitle,
-              {
-                fontSize: Math.max(dimensions.fontSize.header, 18),
-              },
-            ]}
-          >
-            {eventData?.about}
-          </Text>
+          <Text style={styles.headerTitle}>{eventData?.about || "Event Details"}</Text>
           <View style={{ width: Math.max(dimensions.iconSize + 4, 24) }} />
         </View>
 
         {/* Event Image with Date Overlay */}
-        <View
-          style={[
-            styles.imageContainer,
-            {
-              marginHorizontal: dimensions.marginHorizontal,
-              marginTop: Math.max(dimensions.spacing.lg, 15),
-              borderRadius: dimensions.borderRadius.lg,
-            },
-          ]}
-        >
+        <View style={styles.imageContainer}>
           <Image
-            source={{ uri: eventData?.posterUrl }}
-            style={[
-              styles.eventImage,
-              {
-                height: dimensions.imageHeight,
-                borderRadius: dimensions.borderRadius.lg,
-              },
-            ]}
+            source={{ uri: eventData?.posterUrl || "https://via.placeholder.com/300" }}
+            style={styles.eventImage}
             resizeMode="cover"
           />
-
-          <View
-            style={[
-              styles.dateOverlay,
-              {
-                top: Math.max(dimensions.spacing.md, 10),
-                left: Math.max(dimensions.spacing.md, 10),
-                borderRadius: dimensions.borderRadius.sm,
-                paddingHorizontal: Math.max(dimensions.spacing.sm, 8),
-                paddingVertical: Math.max(dimensions.spacing.xs, 4),
-                minWidth: dimensions.dateOverlaySize,
-              },
-            ]}
-          >
-            {/* <Text
-              style={[
-                styles.dateMonth,
-                {
-                  fontSize: Math.max(dimensions.fontSize.small, 12),
-                },
-              ]}
-            >
-              {eventData.date.split(" ")[0]}
-            </Text>
-            <Text
-              style={[
-                styles.dateDay,
-                {
-                  fontSize: Math.max(dimensions.fontSize.header, 18),
-                },
-              ]}
-            >
-              {eventData.date.split(" ")[1]}
-            </Text> */}
-
-            <Text
-              style={[
-                styles.dateMonth,
-                {
-                  fontSize: Math.max(dimensions.fontSize.small, 12),
-                },
-              ]}
-            >
-              {month}
-            </Text>
-            <Text
-              style={[
-                styles.dateDay,
-                {
-                  fontSize: Math.max(dimensions.fontSize.header, 18),
-                },
-              ]}
-            >
-              {day}
-            </Text>
+          <View style={styles.dateOverlay}>
+            <Text style={styles.dateMonth}>{month}</Text>
+            <Text style={styles.dateDay}>{day}</Text>
           </View>
         </View>
 
         {/* Event Title */}
-        <Text
-          style={[
-            styles.eventTitle,
-            {
-              fontSize: Math.max(dimensions.fontSize.large, 20),
-              marginHorizontal: dimensions.marginHorizontal,
-              marginTop: Math.max(dimensions.spacing.md, 10),
-            },
-          ]}
-        >
-          {eventData?.about}
-        </Text>
+        <Text style={styles.eventTitle}>{eventData?.eventName || "Event Name"}</Text>
         <View style={styles.sectionSeparator} />
 
         {/* Artists Status Section */}
-        <Text
-          style={[
-            styles.sectionTitle,
-            {
-              fontSize: Math.max(dimensions.fontSize.title, 16),
-              marginBottom: Math.max(dimensions.spacing.md, 10),
-              marginLeft: dimensions.marginHorizontal,
-            },
-          ]}
-        >
-          Artists Status :
-        </Text>
-        <View
-          style={[
-            styles.artistStatusSection,
-            {
-              marginTop: Math.max(dimensions.spacing.lg, 15),
-              paddingHorizontal: dimensions.marginHorizontal,
-            },
-          ]}
-        >
-          {artistStatusData.map((item) => (
-            <View key={item.id}>{renderArtistStatusCard({ item })}</View>
-          ))}
+        <Text style={styles.sectionTitle}>Booked Artists:</Text>
+        <View style={styles.artistStatusSection}>
+          {loading ? (
+            <Text style={styles.loadingText}>Loading...</Text>
+          ) : bookedArtists.length > 0 ? (
+            <FlatList
+              data={bookedArtists}
+              renderItem={renderArtistStatusCard}
+              keyExtractor={(item) => item.artistId.toString()}
+              scrollEnabled={false}
+            />
+          ) : (
+            <Text style={styles.noArtistsText}>No booked artists found.</Text>
+          )}
         </View>
 
         {/* Separator */}
         <View style={styles.sectionSeparator} />
 
         {/* Action Buttons */}
-        <View
-          style={[
-            styles.eventActionButtonsContainer,
-            {
-              marginTop: Math.max(dimensions.spacing.lg, 15),
-              marginHorizontal: dimensions.marginHorizontal,
-            },
-          ]}
-        >
+        <View style={styles.eventActionButtonsContainer}>
           <View style={styles.topActionButtonsContainer}>
             <LinearGradient
               colors={["#B15CDE", "#7952FC"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={[styles.gradientBorderButton, { marginRight: 5 }]}
+              style={styles.gradientBorderButton}
             >
               <LinearGradient
                 colors={["#b33bf6", "#a95eff"]}
@@ -599,17 +467,29 @@ const HostManageEventContent = ({ navigation, route }) => {
                 end={{ x: 1, y: 0 }}
                 style={styles.cancelEventButton}
               >
-                <TouchableOpacity style={{ width: "100%" }} activeOpacity={0.8}>
-                  <Text style={styles.cancelEventButtonText}>Cancel Event</Text>
+                <TouchableOpacity
+                  style={styles.buttonTouchableOpacity}
+                  onPress={handleCancelEvent}
+                  activeOpacity={0.8}
+                  disabled={loading || eventData?.isCancelled}
+                >
+                  <Text style={styles.cancelEventButtonText}>
+                    {eventData?.isCancelled ? "Event Cancelled" : "Cancel Event"}
+                  </Text>
                 </TouchableOpacity>
               </LinearGradient>
             </LinearGradient>
             <TouchableOpacity
-              style={styles.eventCompletedButton}
+              style={[
+                styles.eventCompletedButton,
+                eventData?.isCompleted && { opacity: 0.5 },
+              ]}
+              onPress={handleMarkEventCompleted}
               activeOpacity={0.8}
+              disabled={loading || eventData?.isCompleted || eventData?.isCancelled}
             >
               <GradientText
-                text="Event Completed"
+                text={eventData?.isCompleted ? "Event Completed" : "Mark Event Completed"}
                 colors={["#B15CDE", "#7952FC"]}
                 style={styles.eventCompletedButtonText}
               />
@@ -617,14 +497,9 @@ const HostManageEventContent = ({ navigation, route }) => {
           </View>
           <TouchableOpacity
             style={styles.ticketSettingsButton}
-            onPress={() => {
-              console.log("Navigating to HostTicketSettingScreen", {
-                timestamp: new Date().toISOString(),
-                eventId,
-              });
-              navigation.navigate("HostTicketSetting", { eventId });
-            }}
+            onPress={() => navigation.navigate("HostTicketSetting", { eventId })}
             activeOpacity={0.8}
+            disabled={loading}
           >
             <Text style={styles.ticketSettingsButtonText}>Ticket Settings</Text>
           </TouchableOpacity>
@@ -657,13 +532,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    width: 393,
+    paddingHorizontal: dimensions.marginHorizontal,
     paddingTop: 20,
     paddingBottom: 20,
-    paddingLeft: 16,
-    paddingRight: 16,
-    alignItems: "center",
-    gap: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#C6C5ED",
     backgroundColor: "#121212",
@@ -674,26 +545,24 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   backButton: {
-    // Enhanced touch target for better accessibility
     minWidth: 44,
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    fontWeight: 600,
+    fontWeight: "600",
     color: "#fff",
     textAlign: "center",
     flex: 1,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#333",
+    fontSize: Math.max(dimensions.fontSize.header, 18),
   },
   imageContainer: {
+    marginHorizontal: dimensions.marginHorizontal,
+    marginTop: Math.max(dimensions.spacing.lg, 15),
+    borderRadius: dimensions.borderRadius.lg,
     overflow: "hidden",
     position: "relative",
-    // Enhanced shadow for better depth perception
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -702,9 +571,17 @@ const styles = StyleSheet.create({
   },
   eventImage: {
     width: "100%",
+    height: dimensions.imageHeight,
+    borderRadius: dimensions.borderRadius.lg,
   },
   dateOverlay: {
     position: "absolute",
+    top: Math.max(dimensions.spacing.md, 10),
+    left: Math.max(dimensions.spacing.md, 10),
+    borderRadius: dimensions.borderRadius.sm,
+    paddingHorizontal: Math.max(dimensions.spacing.sm, 8),
+    paddingVertical: Math.max(dimensions.spacing.xs, 4),
+    minWidth: dimensions.dateOverlaySize,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
     alignItems: "center",
     justifyContent: "center",
@@ -712,31 +589,41 @@ const styles = StyleSheet.create({
   dateMonth: {
     color: "#fff",
     fontWeight: "bold",
+    fontSize: Math.max(dimensions.fontSize.small, 12),
   },
   dateDay: {
     color: "#fff",
     fontWeight: "bold",
+    fontSize: Math.max(dimensions.fontSize.header, 18),
   },
   eventTitle: {
-    fontWeight: 500,
-
+    fontWeight: "500",
     color: "#fff",
+    fontSize: Math.max(dimensions.fontSize.large, 20),
+    marginHorizontal: dimensions.marginHorizontal,
+    marginTop: Math.max(dimensions.spacing.md, 10),
     textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  artistStatusSection: {
-    // Container styles handled dynamically
-  },
   sectionTitle: {
     color: "#fff",
     fontWeight: "600",
+    fontSize: Math.max(dimensions.fontSize.title, 16),
+    marginBottom: Math.max(dimensions.spacing.md, 10),
+    marginLeft: dimensions.marginHorizontal,
+  },
+  artistStatusSection: {
+    marginTop: Math.max(dimensions.spacing.lg, 15),
+    paddingHorizontal: dimensions.marginHorizontal,
   },
   artistCard: {
     flexDirection: "row",
     backgroundColor: "#fff",
     alignItems: "center",
-    // Enhanced shadow
+    padding: dimensions.cardPadding,
+    marginBottom: Math.max(dimensions.spacing.lg, 15),
+    borderRadius: dimensions.borderRadius.md,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -744,7 +631,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   artistImage: {
-    // Dimensions handled dynamically
+    width: dimensions.artistImageSize,
+    height: dimensions.artistImageSize,
+    borderRadius: dimensions.borderRadius.sm,
+    marginRight: Math.max(dimensions.spacing.md, 10),
   },
   artistInfo: {
     flex: 1,
@@ -752,31 +642,25 @@ const styles = StyleSheet.create({
   artistBudget: {
     color: "#6A6A6A",
     fontFamily: "Poppins",
-    fontSize: 10,
-    fontWeight: "400",
-    lineHeight: undefined, // normal
+    fontSize: Math.max(dimensions.fontSize.body, 14),
   },
   artistGenre: {
-    color: "#888",
+    color: "#A6A6A6",
     fontFamily: "Poppins",
-    fontSize: 16,
-    fontWeight: "600",
-    lineHeight: undefined, // normal
+    fontSize: Math.max(dimensions.fontSize.body, 14),
+    marginVertical: Math.max(dimensions.spacing.xs, 2),
+    fontWeight: "400",
   },
   artistStatusLabel: {
     color: "#888",
+    fontSize: Math.max(dimensions.fontSize.body, 14),
   },
   artistStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  // Status Button Styles
-  statusButton: {
-    alignItems: "center",
-    justifyContent: "center",
+    marginTop: Math.max(dimensions.spacing.xs, 5),
   },
   statusButtonPending: {
-    display: "flex",
     width: 78,
     height: 20,
     marginLeft: 10,
@@ -788,43 +672,27 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   statusButtonTextPending: {
-    color: "#FF9500",
     fontFamily: "Poppins",
     fontSize: 10,
     fontWeight: "400",
-    lineHeight: undefined, // normal
     textTransform: "capitalize",
-  },
-  statusButtonPayBooking: {
-    height: 20,
-    paddingHorizontal: 12,
-    marginLeft: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 6,
-    borderWidth: 0.5,
-    borderColor: "#B15CDE",
-    backgroundColor: "transparent",
-    flexDirection: "row",
   },
   statusButtonBooked: {
     height: 20,
     paddingHorizontal: 12,
+    marginLeft: 10,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 6,
-    marginLeft: 10,
     borderWidth: 0.5,
     borderColor: "#28a745",
     backgroundColor: "transparent",
-    flexDirection: "row",
   },
   statusButtonTextBooked: {
     fontFamily: "Poppins",
     fontSize: 10,
     fontWeight: "400",
     textTransform: "capitalize",
-    lineHeight: undefined, // normal
   },
   statusButtonRejected: {
     height: 20,
@@ -836,14 +704,12 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: "#FF3B30",
     backgroundColor: "transparent",
-    flexDirection: "row",
   },
   statusButtonTextRejected: {
     fontFamily: "Poppins",
     fontSize: 10,
     fontWeight: "400",
     textTransform: "capitalize",
-    lineHeight: undefined, // normal
   },
   plusButton: {
     backgroundColor: "#a95eff",
@@ -855,9 +721,10 @@ const styles = StyleSheet.create({
   },
   artistDate: {
     color: "#a95eff",
+    fontSize: Math.max(dimensions.fontSize.small, 12),
+    marginBottom: Math.max(dimensions.spacing.xs, 5),
   },
   trashButton: {
-    display: "flex",
     width: 20,
     height: 20,
     justifyContent: "center",
@@ -867,19 +734,18 @@ const styles = StyleSheet.create({
     borderColor: "#FF3B30",
   },
   eventActionButtonsContainer: {
-    // Margins handled dynamically
+    marginTop: Math.max(dimensions.spacing.lg, 15),
+    marginHorizontal: dimensions.marginHorizontal,
   },
   topActionButtonsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 24,
   },
   gradientBorderButton: {
     flex: 1,
     borderRadius: 12,
-    padding: 1.5, // border thickness
+    padding: 1.5,
     marginRight: 5,
-    marginLeft: 0,
   },
   cancelEventButton: {
     flex: 1,
@@ -905,7 +771,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   eventCompletedButtonText: {
-    color: "#A95EFF",
     fontWeight: "600",
     fontSize: 14,
     textAlign: "center",
@@ -938,7 +803,17 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#4F4F59",
     alignSelf: "center",
-    marginVertical: 16, // optional, for spacing
+    marginVertical: 16,
+  },
+  loadingText: {
+    color: "#fff",
+    fontSize: Math.max(dimensions.fontSize.body, 14),
+    textAlign: "center",
+  },
+  noArtistsText: {
+    color: "#fff",
+    fontSize: Math.max(dimensions.fontSize.body, 14),
+    textAlign: "center",
   },
 });
 

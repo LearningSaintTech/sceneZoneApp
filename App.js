@@ -5,8 +5,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider, useSelector } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AppState } from "react-native";
-import { io } from "socket.io-client";
+import { AppState, Linking } from "react-native";
+import messaging from '@react-native-firebase/messaging';
+import ChatService from "./Src/HOSTFLOW/services/chatService";
+import notificationService from "./Src/HOSTFLOW/services/notificationService";
 import { store, persistor } from "./Src/HOSTFLOW/Redux/store";
 import { selectIsLoggedIn, selectUserType, selectToken } from "./Src/HOSTFLOW/Redux/slices/authSlice";
 
@@ -43,6 +45,10 @@ import ArtistCheckMailbox from "./Src/HOSTFLOW/Screens/ArtistCheckMailBox";
 import ArtistCreateNewPassword from "./Src/HOSTFLOW/Screens/ArtistCreateNewPassword";
 import ArtistUpload from "./Src/HOSTFLOW/Screens/ArtistUpload";
 import ArtistExploreEvent from "./Src/HOSTFLOW/Screens/ArtistExploreEvent";
+import ArtistPrivacyScreen from './Src/HOSTFLOW/Screens/ArtistPrivacy';
+import ArtistTermsScreen from './Src/HOSTFLOW/Screens/ArtistTerm';
+import ArtistAboutScreen from './Src/HOSTFLOW/Screens/ArtistAbout.js';
+
 // Host Screens
 import SignUpScreen from "./Src/HOSTFLOW/Screens/SignupScreen";
 import SigninScreen from "./Src/HOSTFLOW/Screens/SigninScreen";
@@ -71,9 +77,10 @@ import HostManageEventDetailBookingScreen from "./Src/HOSTFLOW/Screens/HostManag
 import HostPerfomanceDetailsScreen from "./Src/HOSTFLOW/Screens/HostPerfomanceDetails";
 import HostVerifiedScreen from "./Src/HOSTFLOW/Screens/HostVerifiedScreen";
 import HostAddPayment from "./Src/HOSTFLOW/Screens/HostAddPayment";
-import HostDetailUpdateBookingScreen from './Src/HOSTFLOW/Screens/HostDetailUpdateBooking'
-import HostChatEventList from './Src/HOSTFLOW/Screens/HostChatEventList'
-import HostChatList from './Src/HOSTFLOW/Screens/HostChatList'
+import HostDetailUpdateBookingScreen from "./Src/HOSTFLOW/Screens/HostDetailUpdateBooking";
+import HostChatEventList from "./Src/HOSTFLOW/Screens/HostChatEventList";
+import HostChatList from "./Src/HOSTFLOW/Screens/HostChatList";
+import NegotiationScreen from "./Src/HOSTFLOW/Screens/HostNegotiationAvailable";
 
 // User Screens
 import UserSignupScreen from "./Src/HOSTFLOW/Screens/UserSignup";
@@ -104,13 +111,37 @@ import UserVerifiedScreen from "./Src/HOSTFLOW/Screens/UserVerified";
 import UserCreateNewPassword from "./Src/HOSTFLOW/Screens/UserCreateNewPassword";
 import UserCheckMailbox from "./Src/HOSTFLOW/Screens/UserCheckMailBox";
 import UserTicketDownload from "./Src/HOSTFLOW/Screens/UserTicketDownload";
-
+import NotificationDebugScreen from "./Src/HOSTFLOW/Screens/NotificationDebugScreen";
 
 // Socket.IO Context
+const SocketContext = React.createContext(null);
+export { SocketContext };
 
+// Background message handler for Firebase Cloud Messaging
+messaging().setBackgroundMessageHandler(async remoteMessage => {
+  console.log('[App] Background message received:', remoteMessage);
+  // The notification service will handle this in its own background handler
+});
 
-// Socket.IO URL
-
+// Deep linking configuration
+const linking = {
+  prefixes: ['scenezone://', 'https://scenezone.app'],
+  config: {
+    screens: {
+      Chat: {
+        path: 'chat/:chatId/:eventId?',
+        parse: {
+          chatId: (chatId) => chatId,
+          eventId: (eventId) => eventId,
+        },
+      },
+      // Add other deep link routes as needed
+      ArtistHome: 'artist/home',
+      MainTabs: 'host/home',
+      UserHome: 'user/home',
+    },
+  },
+};
 
 const Stack = createNativeStackNavigator();
 
@@ -130,68 +161,73 @@ if (!Array.prototype.findLastIndex) {
   });
 }
 
-function AppNavigator() {
+function AuthenticatedNavigator({ socket }) {
   const isLoggedIn = useSelector(selectIsLoggedIn);
   const userType = useSelector(selectUserType);
   const token = useSelector(selectToken);
   const [initialRoute, setInitialRoute] = React.useState(null);
   const navigationRef = React.useRef();
 
+  // Set navigationRef for notificationService
+  React.useEffect(() => {
+    notificationService.setNavigationRef(navigationRef);
+  }, []);
+
   React.useEffect(() => {
     const checkLogin = async () => {
-      console.log(`[${new Date().toISOString()}] [App] Starting checkLogin`);
+      console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Starting checkLogin`);
 
       try {
         // Check AsyncStorage
-        console.log(`[${new Date().toISOString()}] [App] Fetching token from AsyncStorage`);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Fetching token from AsyncStorage`);
         const storedToken = await AsyncStorage.getItem("token");
-        console.log(`[${new Date().toISOString()}] [App] Stored Token: ${storedToken ? "Found" : "Not found"}`);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Stored Token: ${storedToken ? "Found" : "Not found"}`);
 
-        console.log(`[${new Date().toISOString()}] [App] Fetching userType from AsyncStorage`);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Fetching userType from AsyncStorage`);
         const storedUserType = await AsyncStorage.getItem("userType");
-        console.log(`[${new Date().toISOString()}] [App] Stored UserType: ${storedUserType || "Not found"}`);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Stored UserType: ${storedUserType || "Not found"}`);
 
         // Check Redux state
-        console.log(`[${new Date().toISOString()}] [App] Redux isLoggedIn: ${isLoggedIn}`);
-        console.log(`[${new Date().toISOString()}] [App] Redux userType: ${userType || "Not set"}`);
-        console.log(`[${new Date().toISOString()}] [App] Redux token: ${token ? "Found" : "Not set"}`);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Redux isLoggedIn: ${isLoggedIn}`);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Redux userType: ${userType || "Not set"}`);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Redux token: ${token ? "Found" : "Not set"}`);
 
         // Use AsyncStorage if available, otherwise fall back to Redux
         const finalToken = storedToken || token;
         const finalUserType = storedUserType || userType;
 
         if (finalToken && finalUserType && isLoggedIn) {
-          console.log(`[${new Date().toISOString()}] [App] Valid token and userType found, selecting route`);
+          console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Valid token and userType found, selecting route`);
           const normalizedUserType = finalUserType.toLowerCase();
           switch (normalizedUserType) {
             case "artist":
-              console.log(`[${new Date().toISOString()}] [App] Setting initialRoute to ArtistHome`);
+              console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Setting initialRoute to ArtistHome`);
               setInitialRoute("ArtistHome");
               break;
             case "host":
-              console.log(`[${new Date().toISOString()}] [App] Setting initialRoute to MainTabs`);
+              console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Setting initialRoute to MainTabs`);
               setInitialRoute("MainTabs");
               break;
             case "user":
-              console.log(`[${new Date().toISOString()}] [App] Setting initialRoute to UserHome`);
+              console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Setting initialRoute to UserHome`);
               setInitialRoute("UserHome");
               break;
             default:
-              console.warn(`[${new Date().toISOString()}] [App] Invalid userType: ${finalUserType}, falling back to Onboard1`);
+              console.warn(`[${new Date().toISOString()}] [AuthenticatedNavigator] Invalid userType: ${finalUserType}, falling back to Onboard1`);
               setInitialRoute("Onboard1");
           }
         } else {
-          console.log(`[${new Date().toISOString()}] [App] Missing token, userType, or not logged in, falling back to Onboard1`);
+          console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Missing token, userType, or not logged in, falling back to Onboard1`);
           setInitialRoute("Onboard1");
         }
       } catch (err) {
-        console.error(`[${new Date().toISOString()}] [App] Error in checkLogin:`, err.message);
-        console.log(`[${new Date().toISOString()}] [App] Falling back to Onboard1 due to error`);
+        console.error(`[${new Date().toISOString()}] [AuthenticatedNavigator] Error in checkLogin:`, err.message);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Falling back to Onboard1 due to error`);
         setInitialRoute("Onboard1");
       }
     };
 
-    console.log(`[${new Date().toISOString()}] [App] Initiating checkLogin`);
+    console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Initiating checkLogin`);
     checkLogin();
   }, [isLoggedIn, userType, token]);
 
@@ -199,12 +235,23 @@ function AppNavigator() {
     <NavigationContainer
       ref={navigationRef}
       onReady={() => {
-        console.log(`[${new Date().toISOString()}] [App] NavigationContainer ready, initialRoute: ${initialRoute || "Not set"}`);
+        console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] NavigationContainer ready, initialRoute: ${initialRoute || "Not set"}`);
+      }}
+      linking={linking}
+      onNotificationOpenedApp={async remoteMessage => {
+        console.log('[App] Notification opened app from background', remoteMessage);
+        const notification = remoteMessage.notification;
+        if (notification && notification.data && notification.data.chatId) {
+          const chatId = notification.data.chatId;
+          const eventId = notification.data.eventId;
+          console.log(`[App] Opening chat with chatId: ${chatId}, eventId: ${eventId}`);
+          navigationRef.current?.navigate('Chat', { chatId, eventId });
+        }
       }}
     >
       {initialRoute ? (
         <>
-          {console.log(`[${new Date().toISOString()}] [App] Rendering Stack.Navigator with initialRoute: ${initialRoute}`)}
+          {console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Rendering Stack.Navigator with initialRoute: ${initialRoute}`)}
           <Stack.Navigator
             screenOptions={{
               headerShown: false,
@@ -245,8 +292,11 @@ function AppNavigator() {
             <Stack.Screen name="ArtistCreateNewPassword" component={ArtistCreateNewPassword} />
             <Stack.Screen name="ArtistUpload" component={ArtistUpload} />
             <Stack.Screen name="ArtistExploreEvent" component={ArtistExploreEvent} />
+            <Stack.Screen name="ArtistPrivacy" component={ArtistPrivacyScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ArtistTerms" component={ArtistTermsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ArtistAbout" component={ArtistAboutScreen} options={{ headerShown: false }} />
 
-            
+
             {/* Host Screens */}
             <Stack.Screen name="Signup" component={SignUpScreen} options={{ animation: "slide_from_left" }} />
             <Stack.Screen name="SignIn" component={SigninScreen} options={{ animation: "slide_from_right" }} />
@@ -278,8 +328,7 @@ function AppNavigator() {
             <Stack.Screen name="HostDetailUpdateBookingScreen" component={HostDetailUpdateBookingScreen} />
             <Stack.Screen name="HostChatEventList" component={HostChatEventList} />
             <Stack.Screen name="HostChatList" component={HostChatList} />
-
-
+            <Stack.Screen name="NegotiationScreen" component={NegotiationScreen} />
 
             {/* User Screens */}
             <Stack.Screen name="UserSignup" component={UserSignupScreen} />
@@ -310,13 +359,12 @@ function AppNavigator() {
             <Stack.Screen name="UserVerifiedScreen" component={UserVerifiedScreen} />
             <Stack.Screen name="UserCreateNewPassword" component={UserCreateNewPassword} />
             <Stack.Screen name="UserTicketDownload" component={UserTicketDownload} />
-
-             
+            <Stack.Screen name="NotificationDebug" component={NotificationDebugScreen} />
           </Stack.Navigator>
         </>
       ) : (
         <>
-          {console.log(`[${new Date().toISOString()}] [App] Rendering SplashScreen (initialRoute not set)`)}
+          {console.log(`[${new Date().toISOString()}] [AuthenticatedNavigator] Rendering SplashScreen (initialRoute not set)`)}
           <Stack.Screen name="Splash" component={SplashScreen} />
         </>
       )}
@@ -324,19 +372,95 @@ function AppNavigator() {
   );
 }
 
+function AppWithSocketHooks({ socket, setSocket, initializeSocket }) {
+  const isLoggedIn = useSelector(state => state.auth.isLoggedIn);
+  const userType = useSelector(state => state.auth.userType);
+  const token = useSelector(state => state.auth.token);
+
+  React.useEffect(() => {
+    if (isLoggedIn && userType && token && !socket) {
+      console.log('[App] Auth state ready, initializing socket...');
+      initializeSocket();
+    }
+  }, [isLoggedIn, userType, token, socket, initializeSocket]);
+
+  // Initialize notification service when user is authenticated
+  React.useEffect(() => {
+    if (isLoggedIn && userType && token) {
+      console.log('[App] Auth state ready, initializing notification service...');
+      notificationService.initialize();
+    }
+  }, [isLoggedIn, userType, token]);
+
+  return <AuthenticatedNavigator socket={socket} />;
+}
+
 export default function App() {
   const [socket, setSocket] = React.useState(null);
   const [isAppInBackground, setIsAppInBackground] = React.useState(false);
 
-  // Initialize Socket.IO
-  
+  // Move initializeSocket outside so it's available in both useEffects
+  const initializeSocket = React.useCallback(async () => {
+      const isLoggedIn = store.getState().auth.isLoggedIn;
+      const userType = store.getState().auth.userType;
+      const token = store.getState().auth.token;
+
+    console.log(`[App] initializeSocket called. isLoggedIn: ${isLoggedIn}, userType: ${userType}, token: ${!!token}`);
+
+      if (!isLoggedIn || !userType || !token) {
+        console.log(`[${new Date().toISOString()}] [App] Skipping socket init: not logged in`, {
+          isLoggedIn,
+          userType,
+          token: !!token,
+        });
+        return;
+      }
+
+      try {
+        const decoded = require("jwt-decode").jwtDecode(token);
+        const userId = decoded.hostId || decoded.artistId;
+        if (!userId) {
+          console.warn(`[${new Date().toISOString()}] [App] No userId in token`);
+          return;
+        }
+
+      console.log(`[${new Date().toISOString()}] [App] About to call ChatService.connect with userId:`, userId);
+        await ChatService.connect(userId);
+        setSocket(ChatService);
+        console.log(`[${new Date().toISOString()}] [App] Socket.IO connected for user: ${userId}`);
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] [App] Socket.IO connection failed:`, error.message);
+      }
+  }, []);
+
+  // Initialize and manage Socket.IO connection
+  React.useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      console.log(`[${new Date().toISOString()}] [App] AppState changed to: ${nextAppState}`);
+      setIsAppInBackground(nextAppState !== "active");
+    };
+
+    initializeSocket();
+
+    const appStateSubscription = AppState.addEventListener("change", handleAppStateChange);
+
+    return () => {
+      appStateSubscription.remove();
+      if (socket) {
+        console.log(`[${new Date().toISOString()}] [App] Disconnecting Socket.IO`);
+        ChatService.disconnect();
+        setSocket(null);
+      }
+    };
+  }, []);
+
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <SafeAreaProvider>
-         
-            <AppNavigator />
-       
+          <SocketContext.Provider value={socket}>
+            <AppWithSocketHooks socket={socket} setSocket={setSocket} initializeSocket={initializeSocket} />
+          </SocketContext.Provider>
         </SafeAreaProvider>
       </PersistGate>
     </Provider>

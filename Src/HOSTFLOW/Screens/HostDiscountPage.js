@@ -57,7 +57,7 @@ const HostDiscountPage = () => {
 
     try {
       console.log(
-        `Making PATCH request to http://localhost:3000/api/host/events/update-event-discount/${eventId}`
+        `Making PATCH request to https://api.thescenezone.com/api/host/events/update-event-discount/${eventId}`
       );
       const response = await axios.patch(
         `${API_BASE_URL}/host/events/update-event-discount/${eventId}`,

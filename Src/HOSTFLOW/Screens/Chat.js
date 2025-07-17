@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import axios from 'axios';
+import { API_BASE_URL } from '../Config/env';
 import { useSelector } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 import SignUpBackground from '../assets/Banners/SignUp';
+import { SocketContext } from '../../../App';
 
-const API_BASE_URL = 'http://10.0.2.2:3000';
 const { width } = Dimensions.get('window');
 
 // Utility for retrying API calls with exponential backoff
@@ -44,10 +45,18 @@ const ChatScreen = ({ navigation, route }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isUpdatePriceEnabled, setIsUpdatePriceEnabled] = useState(true);
   const flatListRef = useRef(null);
-  const isFetching = useRef(false); // Prevent duplicate API calls
+  const isFetching = useRef(false);
   const defaultImage = require('../assets/Images/profile.png');
   const { chatId, eventId } = route.params || {};
   const { token } = useSelector((state) => state.auth);
+  const socket = useContext(SocketContext);
+  if (!socket) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1e1e1e' }}>
+        <Text style={{ color: '#fff', fontSize: 16 }}>Connecting to chat service...</Text>
+      </SafeAreaView>
+    );
+  }
 
   console.log("chatId", chatId);
   console.log("eventId", eventId);
@@ -78,10 +87,10 @@ const ChatScreen = ({ navigation, route }) => {
 
         logDebug('Fetching artist details', { userId });
         const response = await withRetry(() =>
-          axios.get(`${API_BASE_URL}/api/artist/auth/get-artist`, {
+          axios.get(`${API_BASE_URL}/artist/auth/get-artist`, {
             headers: { Authorization: `Bearer ${token}` },
             params: { id: userId },
-            timeout: 5000, // 5-second timeout
+            timeout: 5000,
           })
         );
 
@@ -145,7 +154,7 @@ const ChatScreen = ({ navigation, route }) => {
       setLoading(true);
       logDebug('Fetching chat history', { chatId });
       const response = await withRetry(() =>
-        axios.get(`${API_BASE_URL}/api/chat/get-chat/${chatId}`, {
+        axios.get(`${API_BASE_URL}/chat/get-chat/${chatId}`, {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 5000,
         })
@@ -158,20 +167,17 @@ const ChatScreen = ({ navigation, route }) => {
         throw new Error('Invalid chat data');
       }
 
-      // Set participant details (host, since user is artist)
-      const participantData = chatData.hostId;
       setParticipant({
-        id: participantData._id,
-        fullName: participantData.fullName || 'Unknown',
-        profileImageUrl: participantData.profileImageUrl || null,
+        id: chatData.hostId._id,
+        fullName: chatData.hostId.fullName || 'Unknown',
+        profileImageUrl: chatData.hostId.profileImageUrl || null,
       });
       logDebug('Participant set', {
-        id: participantData._id,
-        fullName: participantData.fullName,
-        profileImageUrl: participantData.profileImageUrl,
+        id: chatData.hostId._id,
+        fullName: chatData.hostId.fullName,
+        profileImageUrl: chatData.hostId.profileImageUrl,
       });
 
-      // Process messages
       const sortedMessages = (chatData.messages || []).sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       );
@@ -185,7 +191,6 @@ const ChatScreen = ({ navigation, route }) => {
         timestamp: msg.createdAt,
       })));
 
-      // Check negotiation status
       setIsUpdatePriceEnabled(!chatData.isNegotiationComplete);
       logDebug('UpdatePriceEnabled status set', {
         isUpdatePriceEnabled: !chatData.isNegotiationComplete,
@@ -225,7 +230,7 @@ const ChatScreen = ({ navigation, route }) => {
       logDebug('Marking messages as read', { chatId });
       await withRetry(() =>
         axios.put(
-          `${API_BASE_URL}/api/chat/read/${chatId}`,
+          `${API_BASE_URL}/chat/read/${chatId}`,
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -243,7 +248,78 @@ const ChatScreen = ({ navigation, route }) => {
     }
   };
 
-  // Split useEffect to prevent duplicate API calls
+  // Socket.IO listeners
+  useEffect(() => {
+    if (!socket || !chatId || !currentUser) return;
+
+    socket.onNewMessage((chat) => {
+      if (chat._id === chatId) {
+        logDebug('Received new message via Socket.IO', { chat });
+        const sortedMessages = (chat.messages || []).sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setMessages(sortedMessages.map((msg) => ({
+          _id: msg._id,
+          senderModel: msg.senderType,
+          message: msg.proposedPrice ? `${msg.senderType === 'HostAuthentication' ? 'Host' : 'Artist'}: ₹${msg.proposedPrice}` : '',
+          price: msg.proposedPrice || 0,
+          artistApproved: chat.isArtistApproved,
+          hostApproved: chat.isHostApproved,
+          timestamp: msg.createdAt,
+        })));
+        setIsUpdatePriceEnabled(!chat.isNegotiationComplete);
+        if (chat.isNegotiationComplete) {
+          alert(`Price of ₹${chat.latestProposedPrice} has been finalized by both parties!`);
+          navigation.navigate('HostDetailUpdateBooking', {
+            host: {
+              hostId: chat.hostId._id,
+              profileImageUrl: chat.hostId.profileImageUrl,
+              approvedPrice: chat.latestProposedPrice,
+            },
+            eventId,
+          });
+        }
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }
+    });
+
+    socket.onPriceApproved((chat) => {
+      if (chat._id === chatId) {
+        logDebug('Price approved via Socket.IO', { chat });
+        const sortedMessages = (chat.messages || []).sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setMessages(sortedMessages.map((msg) => ({
+          _id: msg._id,
+          senderModel: msg.senderType,
+          message: msg.proposedPrice ? `${msg.senderType === 'HostAuthentication' ? 'Host' : 'Artist'}: ₹${msg.proposedPrice}` : '',
+          price: msg.proposedPrice || 0,
+          artistApproved: chat.isArtistApproved,
+          hostApproved: chat.isHostApproved,
+          timestamp: msg.createdAt,
+        })));
+        setIsUpdatePriceEnabled(!chat.isNegotiationComplete);
+        if (chat.isNegotiationComplete) {
+          alert(`Price of ₹${chat.latestProposedPrice} has been finalized by both parties!`);
+          navigation.navigate('HostDetailUpdateBooking', {
+            host: {
+              hostId: chat.hostId._id,
+              profileImageUrl: chat.hostId.profileImageUrl,
+              approvedPrice: chat.latestProposedPrice,
+            },
+            eventId,
+          });
+        }
+      }
+    });
+
+    return () => {
+      socket.onNewMessage(null);
+      socket.onPriceApproved(null);
+    };
+  }, [socket, chatId, currentUser, navigation, eventId]);
+
+  // Fetch initial chat history and mark messages as read
   useEffect(() => {
     if (currentUser && chatId && eventId) {
       fetchChatHistory();
@@ -269,7 +345,7 @@ const ChatScreen = ({ navigation, route }) => {
       });
       const response = await withRetry(() =>
         axios.post(
-          `${API_BASE_URL}/api/chat/send-message/${chatId}`,
+          `${API_BASE_URL}/chat/send-message/${chatId}`,
           {
             proposedPrice: parseFloat(price),
           },
@@ -287,25 +363,6 @@ const ChatScreen = ({ navigation, route }) => {
       setPrice('');
       await fetchChatHistory();
       flatListRef.current?.scrollToEnd({ animated: true });
-
-      // Check if negotiation is complete
-      if (response.data.isNegotiationComplete) {
-        const approvedPrice = response.data.latestProposedPrice;
-        logDebug('Negotiation complete, navigating to HostDetailUpdateBooking', {
-          hostId: participant?.id,
-          profileImageUrl: participant?.profileImageUrl,
-          approvedPrice,
-          eventId,
-        });
-        navigation.navigate('HostDetailUpdateBooking', {
-          host: {
-            hostId: participant?.id,
-            profileImageUrl: participant?.profileImageUrl,
-            approvedPrice,
-          },
-          eventId,
-        });
-      }
     } catch (err) {
       logDebug('Error sending price message', {
         message: err.message,
@@ -326,8 +383,8 @@ const ChatScreen = ({ navigation, route }) => {
 
       logDebug('Approving price', { chatId });
       const response = await withRetry(() =>
-        axios.post(
-          `${API_BASE_URL}/api/chat/approve-price/${chatId}`,
+        axios.patch(
+          `${API_BASE_URL}/chat/approve-price/${chatId}`,
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -338,25 +395,6 @@ const ChatScreen = ({ navigation, route }) => {
 
       logDebug('Price approved successfully', { response: response.data });
       await fetchChatHistory();
-
-      if (response.data.isNegotiationComplete) {
-        alert(`Price of ₹${response.data.latestProposedPrice} has been finalized by both parties!`);
-        const approvedPrice = response.data.latestProposedPrice;
-        logDebug('Price finalized, navigating to HostDetailUpdateBooking', {
-          hostId: participant?.id,
-          profileImageUrl: participant?.profileImageUrl,
-          approvedPrice,
-          eventId,
-        });
-        navigation.navigate('HostDetailUpdateBooking', {
-          host: {
-            hostId: participant?.id,
-            profileImageUrl: participant?.profileImageUrl,
-            approvedPrice,
-          },
-          eventId,
-        });
-      }
     } catch (err) {
       logDebug('Error approving price', {
         message: err.message,
@@ -523,7 +561,6 @@ const ChatScreen = ({ navigation, route }) => {
   );
 };
 
-// CSS remains unchanged as per request
 const styles = StyleSheet.create({
   container: {
     flex: 1,

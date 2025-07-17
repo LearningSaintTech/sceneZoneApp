@@ -15,40 +15,22 @@ const ArtistGeneralSettingsScreen = ({ navigation }) => {
       </View>
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollViewContent}>
         {/* Placeholder Settings Options */}
-        <TouchableOpacity style={styles.optionItem}>
-          <Ionicons name="notifications-outline" size={24} color="#a95eff" style={styles.optionIcon} />
-          <Text style={styles.optionText}>Notification Settings</Text>
-          <Icon name="chevron-right" size={20} color="#aaa" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.optionItem}>
+        <TouchableOpacity style={styles.optionItem} onPress={() => navigation.navigate('ArtistPrivacy')}>
           <Ionicons name="shield-checkmark-outline" size={24} color="#a95eff" style={styles.optionIcon} />
           <Text style={styles.optionText}>Privacy Policy</Text>
-          <Icon name="chevron-right" size={20} color="#aaa" />
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.optionItem}>
+        <TouchableOpacity style={styles.optionItem} onPress={() => navigation.navigate('ArtistTerms')}>
           <Ionicons name="document-text-outline" size={24} color="#a95eff" style={styles.optionIcon} />
           <Text style={styles.optionText}>Terms of Service</Text>
-          <Icon name="chevron-right" size={20} color="#aaa" />
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.optionItem}>
-          <MaterialIcons name="rate-review" size={24} color="#a95eff" style={styles.optionIcon} />
-          <Text style={styles.optionText}>Rate Us</Text>
-          <Icon name="chevron-right" size={20} color="#aaa" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.optionItem}>
-          <Ionicons name="share-social-outline" size={24} color="#a95eff" style={styles.optionIcon} />
-          <Text style={styles.optionText}>Share App</Text>
-          <Icon name="chevron-right" size={20} color="#aaa" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.optionItem}>
+        <TouchableOpacity style={styles.optionItem} onPress={() => navigation.navigate('ArtistAbout')}>
           <Ionicons name="information-circle-outline" size={24} color="#a95eff" style={styles.optionIcon} />
           <Text style={styles.optionText}>About Us</Text>
-          <Icon name="chevron-right" size={20} color="#aaa" />
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
       </ScrollView>
@@ -62,7 +44,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    paddingTop:40,
+    paddingTop: 30,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -82,20 +64,39 @@ const styles = StyleSheet.create({
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginBottom: 10,
-    padding: 16,
+    backgroundColor: '#18171D',
+    borderRadius: 20,
+    marginVertical: 6,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    height: 72,
+    borderWidth: 1.5,
+    borderColor: '#39355B',
+    width: '92%',
+    alignSelf: 'center',
+    shadowColor: 'transparent',
   },
   optionIcon: {
-    marginRight: 16,
+    marginLeft: 28,
+    marginRight: 20,
+    alignSelf: 'center',
   },
   optionText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     color: '#fff',
+    fontFamily: 'Nunito Sans',
+    fontWeight: '600',
+    lineHeight: 22,
+    textAlignVertical: 'center',
+  },
+  chevronIcon: {
+    marginRight: 28,
+    alignSelf: 'center',
   },
 });
 
 export default ArtistGeneralSettingsScreen; 
+
+
+

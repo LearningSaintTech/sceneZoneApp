@@ -21,6 +21,7 @@ import RingIcon from '../assets/icons/ring';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
+import { API_BASE_URL } from '../Config/env';
 
 const { width, height } = Dimensions.get('window');
 
@@ -70,7 +71,7 @@ const EventScreen = ({ navigation }) => {
 
   const fetchEvents = useCallback(async () => {
     try {
-      const response = await axios.get('http://10.0.2.2:3000/api/host/events/get-all-events', {
+      const response = await axios.get(`${API_BASE_URL}/host/events/eventByHostID`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -123,7 +124,7 @@ const EventScreen = ({ navigation }) => {
 
   const handleDeleteEvent = async (eventId) => {
     try {
-      const response = await axios.delete(`http://10.0.2.2:3000/api/host/events/delete-event/${eventId}`, {
+      const response = await axios.delete(`${API_BASE_URL}/host/events/delete-event/${eventId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -145,9 +146,7 @@ const EventScreen = ({ navigation }) => {
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Event</Text>
-        <TouchableOpacity style={styles.headerIconButton}>
-          <Calender width={32} height={32} />
-        </TouchableOpacity>
+        
       </View>
       <LinearGradient
         colors={['rgba(252,252,253,0.04)', 'rgba(252,252,253,0.03)']}

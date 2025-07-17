@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,11 @@ import {
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import axios from 'axios';
+import { API_BASE_URL } from '../Config/env';
 import { useSelector } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
-const API_BASE_URL = 'http://10.0.2.2:3000';
+import { SocketContext } from '../../../App';
+
 const { width } = Dimensions.get('window');
 
 const NegotiationScreen = ({ navigation, route }) => {
@@ -26,11 +28,19 @@ const NegotiationScreen = ({ navigation, route }) => {
   const [error, setError] = useState(null);
   const [participant, setParticipant] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [isUpdatePriceEnabled, setIsUpdatePriceEnabled] = useState(true); // Default to true for initial price proposal
+  const [isUpdatePriceEnabled, setIsUpdatePriceEnabled] = useState(true);
   const flatListRef = useRef(null);
   const defaultImage = require('../assets/Images/profile.png');
-  const { chatId, eventId } = route.params || {}; // Get chatId and eventId from navigation params
+  const { chatId, eventId } = route.params || {};
   const { token } = useSelector((state) => state.auth);
+  const socket = useContext(SocketContext);
+  if (!socket) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1e1e1e' }}>
+        <Text style={{ color: '#fff', fontSize: 16 }}>Connecting to chat service...</Text>
+      </SafeAreaView>
+    );
+  }
 
   console.log('NegotiationScreen initialized', {
     timestamp: new Date().toISOString(),
@@ -63,7 +73,7 @@ const NegotiationScreen = ({ navigation, route }) => {
           throw new Error('Invalid token data: missing userId or role');
         }
 
-        const endpoint = role === 'host' ? '/api/host/auth/getHost' : '/api/artist/auth/get-artist';
+        const endpoint = role === 'host' ? '/host/auth/getHost' : '/artist/auth/get-artist';
         logDebug('Fetching user details', { endpoint, userId });
         const response = await axios.get(`${API_BASE_URL}${endpoint}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -113,7 +123,7 @@ const NegotiationScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
       logDebug('Fetching chat history', { chatId });
-      const response = await axios.get(`${API_BASE_URL}/api/chat/get-chat/${chatId}`, {
+      const response = await axios.get(`${API_BASE_URL}/chat/get-chat/${chatId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -124,7 +134,6 @@ const NegotiationScreen = ({ navigation, route }) => {
         throw new Error('Invalid chat data');
       }
 
-      // Set participant details based on current user's role
       const participantData = currentUser.role === 'host' ? chatData.artistId : chatData.hostId;
       setParticipant({
         id: participantData._id,
@@ -137,7 +146,6 @@ const NegotiationScreen = ({ navigation, route }) => {
         profileImageUrl: participantData.profileImageUrl,
       });
 
-      // Process messages
       const sortedMessages = (chatData.messages || []).sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       );
@@ -151,7 +159,6 @@ const NegotiationScreen = ({ navigation, route }) => {
         timestamp: msg.createdAt,
       })));
 
-      // Determine if price updates are allowed
       setIsUpdatePriceEnabled(!chatData.isNegotiationComplete);
       logDebug('UpdatePriceEnabled status set', {
         isUpdatePriceEnabled: !chatData.isNegotiationComplete,
@@ -181,7 +188,7 @@ const NegotiationScreen = ({ navigation, route }) => {
       }
       logDebug('Marking messages as read', { chatId });
       await axios.put(
-        `${API_BASE_URL}/api/chat/read/${chatId}`,
+        `${API_BASE_URL}/chat/read/${chatId}`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -196,6 +203,78 @@ const NegotiationScreen = ({ navigation, route }) => {
     }
   };
 
+  // Socket.IO listeners
+  useEffect(() => {
+    if (!socket || !chatId || !currentUser) return;
+
+    socket.onNewMessage((chat) => {
+      if (chat._id === chatId) {
+        logDebug('Received new message via Socket.IO', { chat });
+        const sortedMessages = (chat.messages || []).sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setMessages(sortedMessages.map((msg) => ({
+          _id: msg._id,
+          senderModel: msg.senderType,
+          message: msg.proposedPrice ? `${msg.senderType === 'HostAuthentication' ? 'Host' : 'Artist'}: ₹${msg.proposedPrice}` : '',
+          price: msg.proposedPrice || 0,
+          artistApproved: chat.isArtistApproved,
+          hostApproved: chat.isHostApproved,
+          timestamp: msg.createdAt,
+        })));
+        setIsUpdatePriceEnabled(!chat.isNegotiationComplete);
+        if (chat.isNegotiationComplete) {
+          alert(`Price of ₹${chat.latestProposedPrice} has been finalized by both parties!`);
+          navigation.navigate('HostDetailUpdateBookingScreen', {
+            artist: {
+              artistId: chat.artistId._id,
+              profileImageUrl: chat.artistId.profileImageUrl,
+              approvedPrice: chat.latestProposedPrice,
+            },
+            eventId,
+          });
+        }
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }
+    });
+
+    socket.onPriceApproved((chat) => {
+      if (chat._id === chatId) {
+        logDebug('Price approved via Socket.IO', { chat });
+        const sortedMessages = (chat.messages || []).sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setMessages(sortedMessages.map((msg) => ({
+          _id: msg._id,
+          senderModel: msg.senderType,
+          message: msg.proposedPrice ? `${msg.senderType === 'HostAuthentication' ? 'Host' : 'Artist'}: ₹${msg.proposedPrice}` : '',
+          price: msg.proposedPrice || 0,
+          artistApproved: chat.isArtistApproved,
+          hostApproved: chat.isHostApproved,
+          timestamp: msg.createdAt,
+        })));
+        setIsUpdatePriceEnabled(!chat.isNegotiationComplete);
+        if (chat.isNegotiationComplete) {
+          alert(`Price of ₹${chat.latestProposedPrice} has been finalized by both parties!`);
+          navigation.navigate('HostDetailUpdateBookingScreen', {
+            artist: {
+              artistId: chat.artistId._id,
+              profileImageUrl: chat.artistId.profileImageUrl,
+              approvedPrice: chat.latestProposedPrice,
+            },
+            eventId,
+          });
+        }
+      }
+    });
+
+    return () => {
+      socket.onNewMessage(null);
+      socket.onPriceApproved(null);
+    };
+  }, [socket, chatId, currentUser, navigation, eventId]);
+
+  // Fetch initial chat history and mark messages as read
   useEffect(() => {
     if (currentUser && chatId) {
       fetchParticipantDetailsAndChat();
@@ -221,7 +300,7 @@ const NegotiationScreen = ({ navigation, route }) => {
         message: `${messagePrefix}: ₹${price}`,
       });
       const response = await axios.post(
-        `${API_BASE_URL}/api/chat/send-message/${chatId}`,
+        `${API_BASE_URL}/chat/send-message/${chatId}`,
         {
           proposedPrice: parseFloat(price),
         },
@@ -237,25 +316,6 @@ const NegotiationScreen = ({ navigation, route }) => {
       setPrice('');
       await fetchParticipantDetailsAndChat();
       flatListRef.current?.scrollToEnd({ animated: true });
-
-      // Check if negotiation is complete
-      if (response.data.isNegotiationComplete) {
-        const approvedPrice = response.data.latestProposedPrice;
-        logDebug('Negotiation complete, navigating to HostDetailUpdateBooking', {
-          artistId: participant?.id,
-          profileImageUrl: participant?.profileImageUrl,
-          approvedPrice,
-          eventId,
-        });
-        navigation.navigate('HostDetailUpdateBooking', {
-          artist: {
-            artistId: participant?.id,
-            profileImageUrl: participant?.profileImageUrl,
-            approvedPrice,
-          },
-          eventId,
-        });
-      }
     } catch (err) {
       logDebug('Error sending price message', {
         message: err.message,
@@ -275,7 +335,7 @@ const NegotiationScreen = ({ navigation, route }) => {
 
       logDebug('Approving price', { chatId });
       const response = await axios.patch(
-        `${API_BASE_URL}/api/chat/approve-price/${chatId}`,
+        `${API_BASE_URL}/chat/approve-price/${chatId}`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -284,25 +344,6 @@ const NegotiationScreen = ({ navigation, route }) => {
 
       logDebug('Price approved successfully', { response: response.data });
       await fetchParticipantDetailsAndChat();
-
-      if (response.data.isNegotiationComplete) {
-        alert(`Price of ₹${response.data.latestProposedPrice} has been finalized by both parties!`);
-        const approvedPrice = response.data.latestProposedPrice;
-        logDebug('Price finalized, navigating to HostDetailUpdateBooking', {
-          artistId: participant?.id,
-          profileImageUrl: participant?.profileImageUrl,
-          approvedPrice,
-          eventId,
-        });
-        navigation.navigate('HostDetailUpdateBooking', {
-          artist: {
-            artistId: participant?.id,
-            profileImageUrl: participant?.profileImageUrl,
-            approvedPrice,
-          },
-          eventId,
-        });
-      }
     } catch (err) {
       logDebug('Error approving price', {
         message: err.message,

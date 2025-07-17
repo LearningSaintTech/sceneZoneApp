@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import favoritesReducer from './slices/favoritesSlice';
 import authReducer from './slices/authSlice';
 import appliedReducer from './slices/appliedSlice';
+import notificationReducer from './slices/notificationSlice';
 
 const persistConfig = {
   key: 'root',
@@ -15,6 +16,7 @@ const rootReducer = combineReducers({
   favorites: favoritesReducer,
   auth: authReducer,
   applied: appliedReducer,
+  notifications: notificationReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

@@ -38,7 +38,7 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
 
     try {
       const response = await api.post(
-        'http://10.0.2.2:3000/api/eventhost/tickets/book',
+        'https://api.thescenezone.com/api/eventhost/tickets/book',
         {
           eventId: bookingDetails.eventId,
           numberOfTickets: bookingDetails.numberOfTickets,

@@ -1,8 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../Redux/slices/notificationSlice';
 
 const notificationsData = [
   {
@@ -34,111 +36,155 @@ const notificationsData = [
 const AVATAR = require('../assets/Images/frame1.png'); // Adjust path as needed
 
 const ArtistNotificationScreen = ({ navigation }) => {
-  const renderNotificationItem = ({ item }) => {
-    if (item.type === 'booking') {
-      return (
-        <View style={styles.notificationCard}>
-          <View style={styles.cardRowMain}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarShadow}>
-                <View style={styles.avatarBorder}>
-                  <View style={styles.avatarInner}>
-                    <Image source={AVATAR} style={{ width: 64, height: 64, borderRadius: 12 }} />
-                  </View>
-                </View>
-              </View>
-            </View>
-            <View style={styles.cardContentMain}>
-              <View style={styles.cardRow}>
-                <Text>
-                  <Text style={styles.budgetLabel}>Budget : </Text>
-                  <Text style={styles.budgetValue}>{item.budget}</Text>
-                </Text>
-                <Text style={styles.cardDate}>{item.date}</Text>
-              </View>
-              <Text style={styles.genreRow}>
-                <Text style={styles.genreLabel}>Genre : </Text>
-                <Text style={styles.genreValue}>{item.genre}</Text>
-              </Text>
-              <View style={styles.starRating}>
-                {[...Array(5)].map((_, i) => (
-                  <Icon
-                    key={i}
-                    name={i < item.rating ? 'star' : 'star-o'}
-                    size={16}
-                    color={i < item.rating ? '#ffc107' : '#aaa'}
-                    style={{ marginRight: 2 }}
-                  />
-                ))}
-              </View>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.acceptButton}>
-                  <LinearGradient colors={['#28a745', '#218838']} style={styles.buttonGradient}>
-                    <Text style={styles.buttonText}>Accept</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.rejectButton}>
-                  <Text style={[styles.buttonText, styles.rejectButtonText]}>Reject</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      );
-    } else if (item.type === 'guest_list') {
-      return (
-        <View style={styles.notificationCard}>
-          <View style={styles.cardRowMain}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarShadow}>
-                <View style={styles.avatarBorder}>
-                  <View style={styles.avatarInner}>
-                    <Image source={AVATAR} style={{ width: 64, height: 64, borderRadius: 12 }} />
-                  </View>
-                </View>
-              </View>
-            </View>
-            <View style={styles.cardContentMain}>
-              <View style={styles.cardRow}>
-                <Text style={styles.guestListLabel}>Guest List Request</Text>
-                <Text style={styles.cardDate}>{item.date}</Text>
-              </View>
-              <Text style={styles.guestUser}>{item.user}</Text>
-              <View style={styles.starRating}>
-                {[...Array(5)].map((_, i) => (
-                  <Icon
-                    key={i}
-                    name={i < item.rating ? 'star' : 'star-o'}
-                    size={16}
-                    color={i < item.rating ? '#ffc107' : '#aaa'}
-                    style={{ marginRight: 2 }}
-                  />
-                ))}
-              </View>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.addButton}
-                  onPress={() => navigation.navigate('ArtistFormBooking')}
-                >
-                  <LinearGradient colors={['#a95eff', '#b33bf6']} style={styles.buttonGradient}>
-                    <Text style={styles.buttonText}>Add</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.rejectButtonGuest}>
-                  <Text style={[styles.buttonText, styles.rejectButtonTextGuest]}>Reject</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-      );
-    } else if (item.type === 'placeholder') {
-      return (
-        <View style={styles.placeholderCard}>
-          <Text style={styles.placeholderText}>{item.text}</Text>
-        </View>
-      );
+  const dispatch = useDispatch();
+  const { notifications, loading, hasMore, currentPage } = useSelector(state => state.notifications);
+
+  useEffect(() => {
+    // Fetch notifications on component mount
+    console.log('🔔 [ArtistNotificationScreen] useEffect: Fetching notifications on mount');
+    dispatch(fetchNotifications({ page: 1, limit: 20 }));
+  }, [dispatch]);
+
+  const handleRefresh = () => {
+    console.log('🔔 [ArtistNotificationScreen] handleRefresh: Refreshing notifications');
+    dispatch(fetchNotifications({ page: 1, limit: 20 }));
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      console.log('🔔 [ArtistNotificationScreen] handleLoadMore: Loading more notifications', { nextPage: currentPage + 1 });
+      dispatch(fetchNotifications({ page: currentPage + 1, limit: 20 }));
     }
-    return null;
+  };
+
+  const handleMarkAsRead = (notificationId) => {
+    console.log('🔔 [ArtistNotificationScreen] handleMarkAsRead:', { notificationId });
+    dispatch(markNotificationAsRead(notificationId));
+  };
+
+  const handleMarkAllAsRead = () => {
+    console.log('🔔 [ArtistNotificationScreen] handleMarkAllAsRead');
+    dispatch(markAllNotificationsAsRead());
+  };
+
+  useEffect(() => {
+    console.log('🔔 [ArtistNotificationScreen] Notifications updated:', notifications);
+  }, [notifications]);
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'chat_message':
+      case 'price_proposal':
+      case 'price_approved':
+        return 'message-circle';
+      case 'event_invitation':
+        return 'calendar';
+      case 'booking_confirmed':
+      case 'payment_received':
+        return 'check-circle';
+      case 'guest_list_request':
+        return 'users';
+      default:
+        return 'bell';
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'chat_message':
+      case 'price_proposal':
+      case 'price_approved':
+        return '#a95eff';
+      case 'event_invitation':
+        return '#FF9500';
+      case 'booking_confirmed':
+      case 'payment_received':
+        return '#34C759';
+      case 'guest_list_request':
+        return '#FF6B35';
+      default:
+        return '#A6A6A6';
+    }
+  };
+
+  const handleNotificationPress = (notification) => {
+    console.log('🔔 [ArtistNotificationScreen] Notification pressed:', notification);
+    
+    // Mark as read first
+    if (!notification.isRead) {
+      handleMarkAsRead(notification._id);
+    }
+
+    // Handle different notification types
+    switch (notification.type) {
+      case 'guest_list_request':
+        // Navigate to guest list management screen
+        if (notification.data?.eventId) {
+          navigation.navigate('ArtistGuestList', {
+            eventId: notification.data.eventId,
+            eventName: notification.data.eventName,
+            userId: notification.data.userId
+          });
+        }
+        break;
+      case 'chat_message':
+      case 'price_proposal':
+      case 'price_approved':
+        // Navigate to chat
+        if (notification.data?.chatId) {
+          navigation.navigate('Chat', {
+            chatId: notification.data.chatId,
+            eventId: notification.data.eventId
+          });
+        }
+        break;
+      case 'event_invitation':
+        // Navigate to event details
+        if (notification.data?.eventId) {
+          navigation.navigate('Event', {
+            eventId: notification.data.eventId
+          });
+        }
+        break;
+      default:
+        // Default: just mark as read
+        break;
+    }
+  };
+
+  const renderNotificationItem = ({ item }) => {
+      return (
+      <TouchableOpacity
+        style={[
+          styles.notificationItem,
+          !item.isRead && styles.unreadNotification
+        ]}
+        onPress={() => handleNotificationPress(item)}
+      >
+        <View style={styles.notificationIconContainer}>
+                  <Icon
+            name={getNotificationIcon(item.type)} 
+            size={20} 
+            color={getNotificationColor(item.type)} 
+          />
+        </View>
+        <View style={styles.notificationContent}>
+          <Text style={styles.notificationTitle}>{item.title}</Text>
+          <Text style={styles.notificationBody}>{item.body}</Text>
+          <Text style={styles.notificationTime}>{formatDate(item.createdAt)}</Text>
+        </View>
+        {!item.isRead && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+      );
   };
 
   return (
@@ -148,14 +194,45 @@ const ArtistNotificationScreen = ({ navigation }) => {
           <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notification</Text>
-        <View style={{ width: 24 }} />{/* Spacer */}
+        {notifications.length > 0 && (
+          <TouchableOpacity onPress={handleMarkAllAsRead}>
+            <Text style={styles.markAllReadText}>Mark all read</Text>
+          </TouchableOpacity>
+        )}
       </View>
+      
+      {loading && currentPage === 1 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#a95eff" />
+          <Text style={styles.loadingText}>Loading notifications...</Text>
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Icon name="bell-off" size={48} color="#A6A6A6" />
+          <Text style={styles.emptyText}>No notifications yet</Text>
+          <Text style={styles.emptySubtext}>You'll see notifications here when you receive them</Text>
+        </View>
+      ) : (
       <FlatList
-        data={notificationsData}
+          data={notifications}
         renderItem={renderNotificationItem}
-        keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item._id || item.id}
         contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={loading && currentPage === 1} onRefresh={handleRefresh} />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.1}
+          ListFooterComponent={
+            loading && currentPage > 1 ? (
+              <View style={styles.loadingMoreContainer}>
+                <ActivityIndicator size="small" color="#a95eff" />
+                <Text style={styles.loadingMoreText}>Loading more...</Text>
+              </View>
+            ) : null
+          }
       />
+      )}
     </SafeAreaView>
   );
 };
@@ -178,6 +255,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  markAllReadText: {
+    color: '#a95eff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -357,6 +439,97 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: '#aaa',
     fontSize: 16,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: '#18171D',
+    borderWidth: 1,
+    borderColor: '#34344A',
+  },
+  unreadNotification: {
+    backgroundColor: 'rgba(169, 94, 255, 0.1)',
+    borderColor: '#a95eff',
+  },
+  notificationIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(169, 94, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
+    color: '#C6C5ED',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  notificationBody: {
+    color: '#A6A6A6',
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 4,
+  },
+  notificationTime: {
+    color: '#666',
+    fontSize: 10,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#a95eff',
+    marginLeft: 8,
+    alignSelf: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    color: '#A6A6A6',
+    fontSize: 14,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    color: '#C6C5ED',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    color: '#A6A6A6',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+  },
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  loadingMoreText: {
+    color: '#A6A6A6',
+    fontSize: 12,
+    marginLeft: 8,
   },
 });
 

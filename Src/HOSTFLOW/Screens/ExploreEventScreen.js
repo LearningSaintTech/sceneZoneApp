@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventDashIcon from '../assets/icons/evendash';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
+import { API_BASE_URL } from '../Config/env';
 
 const { width } = Dimensions.get('window');
 
@@ -47,8 +48,8 @@ const ExploreEventScreen = ({ navigation, route }) => {
       }
 
       try {
-        console.log(`Making GET request to http://10.0.2.2:3000/api/host/get-event/${eventId}`);
-        const response = await axios.get(`http://10.0.2.2:3000/api/host/events/get-event/${eventId}`, {
+      
+        const response = await axios.get(`${API_BASE_URL}/host/events/get-event/${eventId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -129,9 +130,7 @@ const ExploreEventScreen = ({ navigation, route }) => {
 </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity style={styles.iconCircle}>
-            <Feather name="share-2" size={22} color="#fff" />
-          </TouchableOpacity>
+        
         </View>
       </View>
 

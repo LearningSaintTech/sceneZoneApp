@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,12 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../Redux/slices/notificationSlice';
 
 const notificationsToday = [
   {
@@ -71,6 +75,92 @@ const NotificationItem = ({ title, description, date, time }) => (
 );
 
 const UserNotificationScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const { notifications, loading, hasMore, currentPage, unreadCount } = useSelector(state => state.notifications);
+
+  useEffect(() => {
+    // Fetch notifications on component mount
+    dispatch(fetchNotifications({ page: 1, limit: 20 }));
+  }, [dispatch]);
+
+  const handleRefresh = () => {
+    dispatch(fetchNotifications({ page: 1, limit: 20 }));
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      dispatch(fetchNotifications({ page: currentPage + 1, limit: 20 }));
+    }
+  };
+
+  const handleMarkAsRead = (notificationId) => {
+    dispatch(markNotificationAsRead(notificationId));
+  };
+
+  const handleMarkAllAsRead = () => {
+    dispatch(markAllNotificationsAsRead());
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
+      return 'TODAY';
+    } else if (diffDays === 2) {
+      return 'YESTERDAY';
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      });
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'chat_message':
+      case 'price_proposal':
+      case 'price_approved':
+        return 'chatbubble-outline';
+      case 'event_invitation':
+        return 'calendar-outline';
+      case 'booking_confirmed':
+      case 'payment_received':
+        return 'checkmark-circle-outline';
+      default:
+        return 'notifications-outline';
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'chat_message':
+      case 'price_proposal':
+      case 'price_approved':
+        return '#a95eff';
+      case 'event_invitation':
+        return '#FF9500';
+      case 'booking_confirmed':
+      case 'payment_received':
+        return '#34C759';
+      default:
+        return '#a95eff';
+    }
+  };
+
+  const groupedNotifications = notifications.reduce((groups, notification) => {
+    const dateGroup = formatDate(notification.createdAt);
+    if (!groups[dateGroup]) {
+      groups[dateGroup] = [];
+    }
+    groups[dateGroup].push(notification);
+    return groups;
+  }, {});
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -79,35 +169,87 @@ const UserNotificationScreen = ({ navigation }) => {
           <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notification</Text>
-        <TouchableOpacity style={styles.newButton}>
-          <Text style={styles.newButtonText}>1 NEW</Text>
-        </TouchableOpacity>
+        {unreadCount > 0 && (
+          <TouchableOpacity style={styles.newButton}>
+            <Text style={styles.newButtonText}>{unreadCount} NEW</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Today's Notifications */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>TODAY</Text>
-          <TouchableOpacity>
-             <Text style={styles.markAsReadText}>Mark all as read</Text>
-          </TouchableOpacity>
+      {loading && currentPage === 1 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#a95eff" />
+          <Text style={styles.loadingText}>Loading notifications...</Text>
         </View>
-        {notificationsToday.map(notification => (
-          <NotificationItem key={notification.id} {...notification} />
-        ))}
-
-        {/* Yesterday's Notifications */}
-         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>YESTERDAY</Text>
-          <TouchableOpacity>
-             <Text style={styles.markAsReadText}>Mark all as read</Text>
-          </TouchableOpacity>
+      ) : notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="notifications-off-outline" size={48} color="#A6A6A6" />
+          <Text style={styles.emptyText}>No notifications yet</Text>
+          <Text style={styles.emptySubtext}>You'll see notifications here when you receive them</Text>
         </View>
-         {notificationsYesterday.map(notification => (
-          <NotificationItem key={notification.id} {...notification} />
-        ))}
-
-      </ScrollView>
+      ) : (
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={loading && currentPage === 1} onRefresh={handleRefresh} />
+          }
+          onScroll={({ nativeEvent }) => {
+            const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+            const paddingToBottom = 20;
+            if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+              handleLoadMore();
+            }
+          }}
+          scrollEventThrottle={400}
+        >
+          {Object.entries(groupedNotifications).map(([dateGroup, groupNotifications]) => (
+            <View key={dateGroup}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{dateGroup}</Text>
+                <TouchableOpacity onPress={handleMarkAllAsRead}>
+                  <Text style={styles.markAsReadText}>Mark all as read</Text>
+                </TouchableOpacity>
+              </View>
+              {groupNotifications.map((notification, index) => (
+                <TouchableOpacity
+                  key={notification._id || index}
+                  style={[
+                    styles.notificationItem,
+                    !notification.isRead && styles.unreadNotification
+                  ]}
+                  onPress={() => handleMarkAsRead(notification._id)}
+                >
+                  <View style={styles.notificationIconContainer}>
+                    <Ionicons 
+                      name={getNotificationIcon(notification.type)} 
+                      size={24} 
+                      color={getNotificationColor(notification.type)} 
+                    />
+                  </View>
+                  <View style={styles.notificationContent}>
+                    <Text style={styles.notificationTitle}>{notification.title}</Text>
+                    <Text style={styles.notificationDescription}>{notification.body}</Text>
+                    <Text style={styles.notificationTimestamp}>
+                      {new Date(notification.createdAt).toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </Text>
+                  </View>
+                  {!notification.isRead && <View style={styles.unreadDot} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
+          
+          {loading && currentPage > 1 && (
+            <View style={styles.loadingMoreContainer}>
+              <ActivityIndicator size="small" color="#a95eff" />
+              <Text style={styles.loadingMoreText}>Loading more...</Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -193,6 +335,58 @@ const styles = StyleSheet.create({
   notificationTimestamp: {
     fontSize: 12,
     color: '#888',
+  },
+  unreadNotification: {
+    backgroundColor: 'rgba(169, 94, 255, 0.1)',
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#a95eff',
+    marginLeft: 8,
+    alignSelf: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    color: '#A6A6A6',
+    fontSize: 14,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    color: '#A6A6A6',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+  },
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  loadingMoreText: {
+    color: '#A6A6A6',
+    fontSize: 12,
+    marginLeft: 8,
   },
 });
 

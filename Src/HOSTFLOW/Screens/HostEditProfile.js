@@ -325,7 +325,7 @@ const HostEditProfileScreen = ({ navigation }) => {
       Alert.alert(
         "Error",
         error.response?.data?.message ||
-          "Failed to update profile. Ensure server is running at http://10.0.2.2:3000."
+          "Failed to update profile. Ensure server is running at https://api.thescenezone.com."
       );
     } finally {
       setLoading(false);

@@ -42,7 +42,7 @@ const UserTicketScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
-  const baseUrl = 'http://10.0.2.2:3000';
+  const baseUrl = 'https://api.thescenezone.com';
   const token = useSelector((state) => state.auth.token);
 
   useEffect(() => {

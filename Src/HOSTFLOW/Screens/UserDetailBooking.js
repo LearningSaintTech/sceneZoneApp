@@ -54,13 +54,13 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
       try {
         setIsLoading(true);
 
-        const userResponse = await api.get('http://10.0.2.2:3000/api/user/auth/get-user', {
+        const userResponse = await api.get('https://api.thescenezone.com/api/user/auth/get-user', {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log('User data fetched:', userResponse.data);
         setUserName(userResponse.data.data.user.fullName || 'Guest');
 
-        const invoiceResponse = await api.get('http://10.0.2.2:3000/api/eventhost/invoices/getInvoices', {
+        const invoiceResponse = await api.get('https://api.thescenezone.com/api/eventhost/invoices/getInvoices', {
           headers: { Authorization: `Bearer ${token}` },
         });
         console.log('Invoice settings fetched:', invoiceResponse.data);
@@ -153,7 +153,7 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
       if (isFreeEvent) {
         // Handle free event booking
         const response = await api.post(
-          'http://10.0.2.2:3000/api/eventhost/tickets/book',
+          'https://api.thescenezone.com/api/eventhost/tickets/book',
           {
             eventId: eventDetails.eventId,
             numberOfTickets,
@@ -177,7 +177,7 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
         // Handle paid event with Razorpay
         const amount = Math.round(totalAmount * 100); // Convert to paise
         const orderResponse = await api.post(
-          'http://10.0.2.2:3000/api/eventhost/tickets/create-order',
+          'https://api.thescenezone.com/api/eventhost/tickets/create-order',
           {
             eventId: eventDetails.eventId,
             numberOfTickets,
@@ -234,7 +234,7 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
 
         // Verify payment and book ticket
         const response = await api.post(
-          'http://10.0.2.2:3000/api/eventhost/tickets/book',
+          'https://api.thescenezone.com/api/eventhost/tickets/book',
           {
             eventId: eventDetails.eventId,
             numberOfTickets,

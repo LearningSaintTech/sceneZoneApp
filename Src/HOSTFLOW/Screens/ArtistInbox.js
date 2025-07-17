@@ -11,7 +11,7 @@ import CustomToggle from '../Components/CustomToggle';
 import SignUpBackground from '../assets/Banners/SignUp';
 import debounce from 'lodash.debounce';
 
-const API_BASE_URL = 'http://10.0.2.2:3000';
+const API_BASE_URL = 'https://api.thescenezone.com';
 const { width } = Dimensions.get('window');
 
 // MusicBeatsLoader: Animated music bars loader
@@ -203,6 +203,14 @@ console.log("chat",chat)
         defaultSource={require('../assets/Images/profile.png')}
       />
       <View style={styles.eventContent}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={styles.eventName}>{item.eventName}</Text>
+          {item.unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadText}>{item.unreadCount}</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.eventDate}>
           {new Date(item.eventDateTime instanceof Array ? item.eventDateTime[0] : item.eventDateTime).toLocaleDateString('en-US', {
             day: '2-digit',
@@ -210,7 +218,6 @@ console.log("chat",chat)
             year: 'numeric',
           })}
         </Text>
-        <Text style={styles.eventName}>{item.eventName}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -426,6 +433,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 20,
     fontFamily: 'Nunito Sans',
+  },
+  unreadBadge: {
+    backgroundColor: '#a95eff',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 6,
+  },
+  unreadText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
 });
 

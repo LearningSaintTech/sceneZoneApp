@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -13,12 +13,19 @@ const ArtistHelpCentreScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Help Centre</Text>
       </View>
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollViewContent}>
-        {/* Restore Events Option */}
-        <TouchableOpacity style={styles.optionItem}>
-          <Text style={styles.optionText}>Restore Events</Text>
-          <Icon name="chevron-right" size={20} color="#aaa" />
-        </TouchableOpacity>
-
+        <View style={styles.contentContainer}>
+          <Text style={styles.text}>
+            For any query kindly contact -{' '}
+            <Text style={styles.link} onPress={() => {
+              const email = 'thescenezoneofficial@gmail.com';
+              const subject = encodeURIComponent('SceneZone App Query');
+              const mailtoUrl = `mailto:${email}?subject=${subject}`;
+              Linking.openURL(mailtoUrl);
+            }} accessibilityRole="link">
+              thescenezoneofficial@gmail.com
+            </Text>
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -30,7 +37,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    paddingTop:40,
+    paddingTop:30,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -60,6 +67,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#fff',
+  },
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  text: {
+    fontSize: 16,
+    color: '#808080',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  link: {
+    color: '#a95eff',
+    textDecorationLine: 'underline',
+    fontWeight: '500',
   },
 });
 

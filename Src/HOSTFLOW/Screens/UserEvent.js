@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,25 +14,32 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectFavorites, toggleFavorite, setLoading, setError } from '../Redux/slices/favoritesSlice';
+import { selectIsLoggedIn } from '../Redux/slices/authSlice';
 import api from '../Config/api';
 
 const { width, height } = Dimensions.get('window');
 
 const UserEvent = ({ navigation }) => {
+  console.log('UserEvent: Component mounted');
   const insets = useSafeAreaInsets();
-  const [eventDetails, setEventDetails] = React.useState(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [eventDetails, setEventDetails] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useDispatch();
+  const favorites = useSelector(selectFavorites);
+  const isLoggedIn = useSelector(selectIsLoggedIn);
+  const token = useSelector((state) => state.auth.token);
 
   const route = useRoute();
   const { eventId } = route.params || {};
-  console.log('UserEvent received eventId:', eventId);
-  const token = useSelector((state) => state.auth.token);
+  console.log('UserEvent: Received eventId', { eventId, isFavorite: !!favorites[eventId] });
 
   useEffect(() => {
+    console.log('UserEvent: useEffect for fetching event details triggered', { eventId, token });
     const fetchEventDetails = async () => {
       if (!eventId || !token) {
-        console.error('Missing eventId or token');
+        console.error('UserEvent: Missing eventId or token', { eventId, token });
         Alert.alert('Error', 'Unable to fetch event details. Please try again.');
         setIsLoading(false);
         return;
@@ -40,21 +47,28 @@ const UserEvent = ({ navigation }) => {
 
       try {
         setIsLoading(true);
+        console.log('UserEvent: Fetching event details from API', { endpoint: `/host/events/get-event/${eventId}` });
         const response = await api.get(`/host/events/get-event/${eventId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
-        console.log('Fetched Event by ID:', response.data);
+        console.log('UserEvent: Fetched event details', { status: response.status, data: response.data });
         setEventDetails(response.data.data);
       } catch (err) {
-        console.error('Error fetching event:', err);
+        console.error('UserEvent: Error fetching event details', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+          config: err.config,
+        });
         Alert.alert(
           'Error',
           err.response?.data?.message || 'Failed to fetch event details. Please try again.'
         );
       } finally {
+        console.log('UserEvent: Setting isLoading to false');
         setIsLoading(false);
       }
     };
@@ -67,14 +81,17 @@ const UserEvent = ({ navigation }) => {
   }, [eventId, token]);
 
   const handleGuestListRequest = async () => {
+    console.log('UserEvent: handleGuestListRequest called', { eventId, token });
     if (!eventId || !token) {
+      console.error('UserEvent: Missing eventId or token for guest list request', { eventId, token });
       Alert.alert('Error', 'Event ID or authentication token is missing.');
       return;
     }
 
     try {
+      console.log('UserEvent: Submitting guest list request', { endpoint: `/guest-list/apply/${eventId}` });
       const response = await api.post(
-        `http://10.0.2.2:3000/api/guest-list/apply/${eventId}`,
+        `/guest-list/apply/${eventId}`,
         {},
         {
           headers: {
@@ -82,10 +99,18 @@ const UserEvent = ({ navigation }) => {
           },
         }
       );
-      console.log('Guest List Request Response:', response.data);
-      Alert.alert('Success', response.data.message || 'Your guest list request has been submitted!');
+      console.log('UserEvent: Guest list request response', { status: response.status, data: response.data });
+      Alert.alert(
+        'Success',
+        'Your guest list request has been submitted! The event artists will be notified and can approve your request.'
+      );
     } catch (err) {
-      console.error('Error submitting guest list request:', err);
+      console.error('UserEvent: Error submitting guest list request', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+        config: err.config,
+      });
       let errorMessage = 'Failed to submit guest list request. Please try again.';
       if (err.response) {
         if (err.response.status === 404) {
@@ -98,7 +123,73 @@ const UserEvent = ({ navigation }) => {
     }
   };
 
+  const handleFavoriteToggle = async () => {
+    console.log('UserEvent: handleFavoriteToggle called', { eventId, isFavorite: !!favorites[eventId] });
+    if (!isLoggedIn || !token) {
+      console.log('UserEvent: User not logged in, navigating to UserSignup');
+      Alert.alert('Error', 'Please log in to add events to your favorites.');
+      navigation.navigate('UserSignup');
+      return;
+    }
+
+    try {
+      dispatch(setLoading(true));
+      const isFavorite = !!favorites[eventId];
+      if (isFavorite) {
+        console.log('UserEvent: Removing favorite event', eventId);
+        const response = await api.delete(`/user/remove-favourite-event/${eventId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log('UserEvent: Remove favorite response', {
+          status: response.status,
+          data: response.data,
+        });
+        if (response.data.success) {
+          console.log('UserEvent: Dispatching toggleFavorite for removal', eventId);
+          dispatch(toggleFavorite(eventId));
+        } else {
+          console.error('UserEvent: Failed to remove favorite event', response.data);
+          dispatch(setError(response.data.message || 'Failed to remove favorite event'));
+          Alert.alert('Error', response.data.message || 'Failed to remove favorite event.');
+        }
+      } else {
+        console.log('UserEvent: Adding favorite event', eventId);
+        const response = await api.post(
+          '/user/add-favourite-event',
+          { eventId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log('UserEvent: Add favorite response', {
+          status: response.status,
+          data: response.data,
+        });
+        if (response.data.success) {
+          console.log('UserEvent: Dispatching toggleFavorite for addition', eventId);
+          dispatch(toggleFavorite(eventId));
+        } else {
+          console.error('UserEvent: Failed to add favorite event', response.data);
+          dispatch(setError(response.data.message || 'Failed to add favorite event'));
+          Alert.alert('Error', response.data.message || 'Failed to add favorite event.');
+        }
+      }
+    } catch (error) {
+      console.error('UserEvent: Error updating favorite', {
+        eventId,
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        config: error.config,
+      });
+      dispatch(setError(error.message || 'Failed to update favorite'));
+      Alert.alert('Error', error.message || 'Failed to update favorite.');
+    } finally {
+      console.log('UserEvent: Setting loading to false after toggle');
+      dispatch(setLoading(false));
+    }
+  };
+
   const formatEventDate = (dateTimeArray) => {
+    console.log('UserEvent: Formatting event date', { dateTimeArray });
     if (!Array.isArray(dateTimeArray) || dateTimeArray.length === 0) {
       return 'N/A';
     }
@@ -107,6 +198,7 @@ const UserEvent = ({ navigation }) => {
   };
 
   const formatEventTime = (dateTimeArray) => {
+    console.log('UserEvent: Formatting event time', { dateTimeArray });
     if (!Array.isArray(dateTimeArray) || dateTimeArray.length === 0) {
       return 'N/A';
     }
@@ -115,15 +207,16 @@ const UserEvent = ({ navigation }) => {
   };
 
   const formatBudget = (budget) => {
+    console.log('UserEvent: Formatting budget', { budget });
     if (!budget) return 'N/A';
     return `₹${budget.toLocaleString('en-IN')}`;
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#18151f', paddingTop: insets.top, paddingBottom: insets.bottom }}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#18151f' }}>
-          <Text style={{ color: '#C6C5ED', fontSize: 16, fontFamily: 'Nunito Sans' }}>Loading event details...</Text>
+      <SafeAreaView style={[styles.loadingContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading event details...</Text>
         </View>
       </SafeAreaView>
     );
@@ -145,113 +238,83 @@ const UserEvent = ({ navigation }) => {
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ width: '100%', height: 320, position: 'relative', marginBottom: 0 }}>
+        <View style={styles.eventImageWrapper}>
           {eventDetails?.posterUrl ? (
             <Image
               source={{ uri: eventDetails.posterUrl }}
-              style={{ width: '100%', height: 320, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}
+              style={styles.eventImage}
               resizeMode="cover"
+              onLoad={() => console.log('UserEvent: Image loaded for event', eventId)}
+              onError={(e) => console.error('UserEvent: Image load error', { eventId, error: e.nativeEvent.error })}
             />
           ) : (
             <Image
               source={require('../assets/Images/ffff.jpg')}
-              style={{ width: '100%', height: 320, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}
+              style={styles.eventImage}
               resizeMode="cover"
+              onLoad={() => console.log('UserEvent: Fallback image loaded for event', eventId)}
+              onError={(e) => console.error('UserEvent: Fallback image load error', { eventId, error: e.nativeEvent.error })}
             />
           )}
 
           <LinearGradient
             colors={['rgba(0,0,0,0)', 'rgba(24,21,31,0.8)', '#18151f']}
             locations={[0, 0.6, 1]}
-            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 200, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 }}
+            style={styles.eventImageGradient}
           />
 
           <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: 20,
-              left: 20,
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: 'rgba(198,197,237,0.3)',
-              backgroundColor: 'rgba(24,21,31,0.8)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
+            style={styles.fabLeft}
+            onPress={() => {
+              console.log('UserEvent: Back button pressed');
+              navigation.goBack();
             }}
-            onPress={() => navigation.goBack()}
           >
             <Ionicons name="arrow-back-outline" size={24} color="#C6C5ED" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: 20,
-              right: 20,
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: 'rgba(198,197,237,0.3)',
-              backgroundColor: 'rgba(24,21,31,0.8)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-            }}
+            style={styles.fabRight}
+            onPress={() => console.log('UserEvent: Share button pressed')}
           >
             <Ionicons name="share-social-outline" size={20} color="#C6C5ED" />
           </TouchableOpacity>
 
           {eventDetails?.eventGuestEnabled && (
-            <View style={{ position: 'absolute', top: 20, left: 0, right: 0, alignItems: 'center', zIndex: 9 }}>
+            <View style={styles.guestListButtonWrapper}>
               <TouchableOpacity
                 onPress={handleGuestListRequest}
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#fff',
-                  borderRadius: 20,
-                  paddingVertical: 10,
-                  paddingHorizontal: 24,
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 160,
-                }}
+                style={styles.guestListButton}
               >
-                <Text style={{ color: '#000', fontSize: 14, fontWeight: '600', fontFamily: 'Nunito Sans' }}>
-                  Apply For Guest List
-                </Text>
+                <Text style={styles.guestListText}>Apply For Guest List</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 16, paddingHorizontal: 20 }}>
+        <View style={styles.organizerRow}>
           <Image
             source={
               eventDetails?.hostId?.profileImageUrl
                 ? { uri: eventDetails.hostId.profileImageUrl }
                 : require('../assets/Images/Avatar.png')
             }
-            style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: '#fff' }}
+            style={styles.organizerAvatar}
+            onLoad={() => console.log('UserEvent: Organizer avatar loaded', eventDetails?.hostId?.profileImageUrl)}
+            onError={(e) => console.error('UserEvent: Organizer avatar load error', { eventId, error: e.nativeEvent.error })}
           />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#C6C5ED', fontFamily: 'Nunito Sans' }}>
+          <View style={styles.organizerInfo}>
+            <Text style={styles.organizerName}>
               {eventDetails?.hostId?.fullName || 'Unknown Organizer'}
             </Text>
-            <Text style={{ fontSize: 12, color: '#b3b3cc', marginTop: 2, fontFamily: 'Nunito Sans' }}>
-              Organizer
-            </Text>
+            <Text style={styles.organizerSubtitle}>Organizer</Text>
           </View>
-          <View style={{ marginLeft: 'auto' }}>
+          <View style={styles.upcomingPillContainer}>
             <LinearGradient
               colors={['#7952FC', '#B15CDE']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 28, paddingHorizontal: 12, borderRadius: 14 }}
+              style={styles.upcomingPill}
             >
               <Ionicons
                 name="musical-notes-outline"
@@ -259,208 +322,161 @@ const UserEvent = ({ navigation }) => {
                 color="#fff"
                 style={{ marginRight: 4 }}
               />
-              <Text style={{ color: '#fff', fontFamily: 'Nunito Sans', fontWeight: '600', fontSize: 12 }}>
+              <Text style={styles.upcomingPillText}>
                 {eventDetails?.showStatus?.[0]?.status || 'Upcoming'}
               </Text>
             </LinearGradient>
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', height: 28, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: '#7952FC', backgroundColor: 'transparent' }}>
+        <View style={styles.timingPriceRow}>
+          <View style={styles.timingPill}>
             <Ionicons
               name="time-outline"
               size={14}
               color="#a95eff"
               style={{ marginRight: 6 }}
             />
-            <Text style={{ fontFamily: 'Nunito Sans', fontSize: 10, fontWeight: '400', color: '#B15CDE', marginRight: 4 }}>
-              Timing:
-            </Text>
-            <Text style={{ color: '#D9D8F3', fontFamily: 'Nunito Sans', fontSize: 10, fontWeight: '400' }}>
+            <Text style={styles.timingPillLabel}>Timing:</Text>
+            <Text style={styles.timingPillTime}>
               {formatEventTime(eventDetails?.eventDateTime)}
             </Text>
           </View>
-          <Text style={{ color: '#B15CDE', fontSize: 16, fontWeight: '600', fontFamily: 'Nunito Sans' }}>
-            {eventDetails?.ticketSetting?.ticketType === 'free' ? 'Free' : formatBudget(eventDetails?.budget)}
+          <Text style={styles.priceText}>
+            {eventDetails?.ticketSetting?.ticketType === 'free' ? 'Free' : formatBudget(eventDetails?.ticketSetting?.price || eventDetails?.budget)}
           </Text>
         </View>
 
-        <Text style={{ color: '#C6C5ED', fontFamily: 'Nunito Sans', fontSize: 18, fontWeight: '700', lineHeight: 24, paddingHorizontal: 20, marginBottom: 16 }}>
+        <Text style={styles.eventTitle}>
           {eventDetails?.eventName || 'Event Name'}
         </Text>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, marginBottom: 24 }}>
+        <View style={styles.categoryPillsRow}>
           {(eventDetails?.genre || ['Rock']).map((tag, index) => (
             <View
               key={index}
-              style={{ borderWidth: 1, borderColor: '#b3b3cc', backgroundColor: 'transparent', borderRadius: 12, marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 6 }}
+              style={styles.categoryPill}
             >
-              <Text style={{ color: '#C6C5ED', fontFamily: 'Nunito Sans', fontSize: 11, fontWeight: '500' }}>
-                {tag}
-              </Text>
+              <Text style={styles.categoryPillText}>{tag}</Text>
             </View>
           ))}
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'stretch', backgroundColor: 'rgba(30,30,40,0.85)', borderWidth: 1, borderColor: '#7952FC', borderRadius: 24, marginHorizontal: 16, marginBottom: 24, paddingVertical: 18, paddingHorizontal: 0 }}>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 0 }}>
-            <Ionicons name="calendar-outline" size={14} color="#a95eff" style={{ marginBottom: 2 }} />
-            <Text style={{ color: '#b3b3cc', fontSize: 8, fontWeight: '400', marginTop: 4, fontFamily: 'Nunito Sans', textAlign: 'center' }}>
-              Date
-            </Text>
-            <Text style={{ color: '#a95eff', fontSize: 14, fontWeight: '700', marginTop: 2, fontFamily: 'Nunito Sans', textAlign: 'center' }}>
+        <View style={styles.eventDetailsCard}>
+          <View style={styles.eventDetailsCol}>
+            <Ionicons name="calendar-outline" size={14} color="#a95eff" style={styles.eventDetailsIcon} />
+            <Text style={styles.eventDetailsLabel}>Date</Text>
+            <Text style={styles.eventDetailsValue}>
               {formatEventDate(eventDetails?.eventDateTime)}
             </Text>
           </View>
-          <View style={{ width: 1, backgroundColor: 'rgba(198,197,237,0.12)', marginVertical: 8 }} />
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 0 }}>
-            <Ionicons name="location-outline" size={14} color="#a95eff" style={{ marginBottom: 2 }} />
-            <Text style={{ color: '#b3b3cc', fontSize: 8, fontWeight: '400', marginTop: 4, fontFamily: 'Nunito Sans', textAlign: 'center' }}>
-              Location
-            </Text>
-            <Text style={{ color: '#a95eff', fontSize: 14, fontWeight: '700', marginTop: 2, fontFamily: 'Nunito Sans', textAlign: 'center' }}>
+          <View style={styles.eventDetailsDivider} />
+          <View style={styles.eventDetailsCol}>
+            <Ionicons name="location-outline" size={14} color="#a95eff" style={styles.eventDetailsIcon} />
+            <Text style={styles.eventDetailsLabel}>Location</Text>
+            <Text style={styles.eventDetailsValue}>
               {eventDetails?.venue || 'N/A'}
             </Text>
           </View>
-          <View style={{ width: 1, backgroundColor: 'rgba(198,197,237,0.12)', marginVertical: 8 }} />
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 0 }}>
-            <Ionicons name="people-outline" size={18} color="#a95eff" style={{ marginBottom: 2 }} />
-            <Text style={{ color: '#b3b3cc', fontSize: 8, fontWeight: '400', marginTop: 4, fontFamily: 'Nunito Sans', textAlign: 'center' }}>
-              Crowd Capacity
-            </Text>
-            <Text style={{ color: '#a95eff', fontSize: 14, fontWeight: '700', marginTop: 2, fontFamily: 'Nunito Sans', textAlign: 'center' }}>
+          <View style={styles.eventDetailsDivider} />
+          <View style={styles.eventDetailsCol}>
+            <Ionicons name="people-outline" size={18} color="#a95eff" style={styles.eventDetailsIcon} />
+            <Text style={styles.eventDetailsLabel}>Crowd Capacity</Text>
+            <Text style={styles.eventDetailsValue}>
               {eventDetails?.ticketSetting?.totalQuantity || 'N/A'}
             </Text>
           </View>
         </View>
 
-        <Text style={{ color: '#C6C5ED', fontSize: 16, fontWeight: '600', marginHorizontal: 20, marginBottom: 12, fontFamily: 'Nunito Sans' }}>
-          Sound System Availability
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 24 }}>
+        <Text style={styles.sectionTitle}>Sound System Availability</Text>
+        <View style={styles.soundSystemRow}>
           <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              borderWidth: 0,
-              borderColor: 'transparent',
-              borderRadius: 8,
-              paddingHorizontal: 0,
-              paddingVertical: 0,
-              marginRight: 24,
-              backgroundColor: 'transparent',
-              ...(eventDetails?.isSoundSystem && { backgroundColor: 'transparent', borderColor: 'transparent' }),
-            }}
+            style={[
+              styles.checkboxPill,
+              eventDetails?.isSoundSystem && styles.checkboxPillActive
+            ]}
           >
             <View
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 4,
-                borderWidth: 2,
-                borderColor: '#a95eff',
-                backgroundColor: 'transparent',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 8,
-                ...(eventDetails?.isSoundSystem && { backgroundColor: '#a95eff' }),
-              }}
+              style={[
+                styles.customCheckbox,
+                eventDetails?.isSoundSystem && styles.customCheckboxChecked
+              ]}
             >
-              {eventDetails?.isSoundSystem && <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
+              {eventDetails?.isSoundSystem && <Text style={styles.checkmark}>✓</Text>}
             </View>
             <Text
-              style={{
-                color: '#C6C5ED',
-                fontSize: 14,
-                fontWeight: '500',
-                fontFamily: 'Nunito Sans',
-                ...(eventDetails?.isSoundSystem && { color: '#a95eff', fontWeight: '700' }),
-              }}
+              style={[
+                styles.checkboxPillText,
+                eventDetails?.isSoundSystem && styles.checkboxPillTextActive
+              ]}
             >
               Yes
             </Text>
           </View>
           <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              borderWidth: 0,
-              borderColor: 'transparent',
-              borderRadius: 8,
-              paddingHorizontal: 0,
-              paddingVertical: 0,
-              marginRight: 24,
-              backgroundColor: 'transparent',
-              ...(!eventDetails?.isSoundSystem && { backgroundColor: 'transparent', borderColor: 'transparent' }),
-            }}
+            style={[
+              styles.checkboxPill,
+              !eventDetails?.isSoundSystem && styles.checkboxPillActive
+            ]}
           >
             <View
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 4,
-                borderWidth: 2,
-                borderColor: '#a95eff',
-                backgroundColor: 'transparent',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: 8,
-                ...(!eventDetails?.isSoundSystem && { backgroundColor: 'transparent' }),
-              }}
+              style={[
+                styles.customCheckbox,
+                !eventDetails?.isSoundSystem && styles.customCheckboxCheckedNo
+              ]}
             >
-              {!eventDetails?.isSoundSystem && <Text style={{ color: 'transparent' }}></Text>}
+              {!eventDetails?.isSoundSystem && <Text style={styles.checkmarkNo}></Text>}
             </View>
             <Text
-              style={{
-                color: '#C6C5ED',
-                fontSize: 14,
-                fontWeight: '500',
-                fontFamily: 'Nunito Sans',
-                ...(!eventDetails?.isSoundSystem && { color: '#a95eff', fontWeight: '700' }),
-              }}
+              style={[
+                styles.checkboxPillText,
+                !eventDetails?.isSoundSystem && styles.checkboxPillTextActive
+              ]}
             >
               No
             </Text>
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 20, gap: 12, marginTop: 20 }}>
+        <View style={styles.fixedBottomButtonsContainer}>
           <TouchableOpacity
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              backgroundColor: '#fff',
-              justifyContent: 'center',
-              alignItems: 'center',
+            style={styles.heartButton}
+            onPress={() => {
+              console.log('UserEvent: Like button pressed', { eventId, isFavorite: !!favorites[eventId] });
+              handleFavoriteToggle();
             }}
           >
-            <Ionicons name="heart-outline" size={24} color="#a95eff" />
+            <Ionicons
+              name={favorites[eventId] ? 'heart' : 'heart-outline'}
+              size={24}
+              color="#a95eff"
+            />
           </TouchableOpacity>
           <LinearGradient
             colors={['#B15CDE', '#7952FC']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ flex: 1, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}
+            style={styles.continueButton}
           >
             <TouchableOpacity
-              style={{ flex: 1, height: '100%', justifyContent: 'center', alignItems: 'center' }}
-              onPress={() =>
+              style={styles.continueButtonInner}
+              onPress={() => {
+                console.log('UserEvent: Continue button pressed', { eventId });
                 navigation.navigate('UserFormBookingScreen', {
                   eventDetails: {
+                    id: eventId,
                     title: eventDetails?.eventName || 'Event Name',
-                    price: eventDetails?.ticketSetting?.ticketType === 'free' ? 'Free' : formatBudget(eventDetails?.ticketSetting?.price || 0),                    location: eventDetails?.venue || 'N/A',
+                    price: eventDetails?.ticketSetting?.ticketType === 'free'
+                      ? 'Free'
+                      : formatBudget(eventDetails?.ticketSetting?.price || eventDetails?.budget),
+                    location: eventDetails?.venue || 'N/A',
                     image: eventDetails?.posterUrl ? { uri: eventDetails.posterUrl } : require('../assets/Images/ffff.jpg'),
-                    eventId:eventId,
-                    eventDate:eventDetails?.eventDateTime
+                    eventDateTime: eventDetails?.eventDateTime,
                   },
-                })
-              }
+                });
+              }}
             >
-              <Text style={{ color: '#fff', fontFamily: 'Nunito Sans', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
-                Continue
-              </Text>
+              <Text style={styles.continueButtonText}>Continue</Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>

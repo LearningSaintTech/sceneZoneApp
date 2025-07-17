@@ -82,9 +82,9 @@ const EventDashboardScreen = ({ navigation, route }) => {
     }
 
     try {
-      console.log(`Making POST request to http://10.0.2.2:3000/api/host/events/toggle-guest-list/${eventId}`);
+      console.log(`Making POST request to https://api.thescenezone.com/api/host/events/toggle-guest-list/${eventId}`);
       const response = await axios.patch(
-        `http://10.0.2.2:3000/api/host/events/toggle-guest-list/${eventId}`,
+        `https://api.thescenezone.com/api/host/events/toggle-guest-list/${eventId}`,
         { eventGuestEnabled: !isGuestListEnabled },
         {
           headers: {

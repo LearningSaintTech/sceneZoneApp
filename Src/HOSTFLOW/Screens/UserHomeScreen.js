@@ -10,7 +10,9 @@ import {
   Dimensions,
   Animated,
   Easing,
-  Modal
+  Modal,
+  TextInput,
+  Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -18,7 +20,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useDispatch, useSelector } from 'react-redux';
-import { toggleFavorite, selectIsFavorite } from '../Redux/slices/favoritesSlice';
+import { toggleFavorite, setFavorites, setLoading, setError } from '../Redux/slices/favoritesSlice';
 import { selectIsLoggedIn, selectUserData } from '../Redux/slices/authSlice';
 import Video from 'react-native-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,7 +45,6 @@ import NotiIcon from '../assets/icons/Noti';
 import ArrowIcon from '../assets/icons/arrow';
 import HapticFeedback from 'react-native-haptic-feedback';
 import api from '../Config/api';
-// import SlLogo from '../assets/icons/sl.svg';
 
 const { width, height } = Dimensions.get('window');
 
@@ -52,7 +53,6 @@ const isTablet = width >= 768;
 const isSmallPhone = width < 350;
 const scale = width / 375;
 
-// Comprehensive responsive dimensions that work across all Android devices
 const dimensions = {
   spacing: {
     xs: Math.max(width * 0.01, 4),
@@ -89,12 +89,6 @@ const dimensions = {
   exploreCardHeight: Math.min(height * 0.65, 520),
   logoHeight: Math.max(height * 0.06, 40),
   bottomNavHeight: 48,
-};
-
-const userData = {
-  name: "Name Placeholder",
-  email: "email@example.com",
-  image: require('../assets/Images/frame1.png'),
 };
 
 // Haptic feedback options
@@ -157,9 +151,9 @@ const MusicBeatsLoader = () => {
 };
 
 // Custom Plan For Button Component
-const PlanForButton = ({ type, onPress }) => {
+const PlanForButton = ({ type, onPress, isActive }) => {
   const getButtonConfig = () => {
-    switch(type) {
+    switch (type) {
       case 'today':
         return {
           text: 'TODAY',
@@ -190,16 +184,19 @@ const PlanForButton = ({ type, onPress }) => {
   const config = getButtonConfig();
 
   return (
-    <TouchableOpacity style={[styles.calendarPlanForButton, { borderColor: config.borderColor }]} onPress={onPress}>
-      {/* Calendar-style indicators at top */}
+    <TouchableOpacity
+      style={[styles.calendarPlanForButton, {
+        borderColor: config.borderColor,
+        backgroundColor: isActive ? config.indicatorColor : '#1a1a1a'
+      }]}
+      onPress={onPress}
+    >
       <View style={styles.calendarIndicators}>
         <View style={[styles.calendarDot, { backgroundColor: config.indicatorColor }]} />
         <View style={[styles.calendarDot, { backgroundColor: config.indicatorColor }]} />
       </View>
-      
-      {/* Main button content */}
       <View style={styles.calendarButtonContent}>
-        <Text style={styles.calendarPlanForButtonText}>{config.text}</Text>
+        <Text style={[styles.calendarPlanForButtonText, { color: isActive ? '#fff' : '#C6C5ED' }]}>{config.text}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -208,35 +205,21 @@ const PlanForButton = ({ type, onPress }) => {
 // Custom Category Nav Icon Component
 const CategoryNavIcon = ({ type, isActive = false }) => {
   const getIconConfig = () => {
-    switch(type) {
+    switch (type) {
       case 'spotlight':
-        return {
-          component: Spotlight
-        };
+        return { component: Spotlight };
       case 'sports':
-        return {
-          component: Sports
-        };
+        return { component: Sports };
       case 'party':
-        return {
-          component: Party
-        };
+        return { component: Party };
       case 'events':
-        return {
-          component: Events
-        };
+        return { component: Events };
       case 'comedy':
-        return {
-          component: Comedy
-        };
+        return { component: Comedy };
       case 'workshop':
-        return {
-          component: Workshop
-        };
+        return { component: Workshop };
       default:
-        return {
-          component: Events
-        };
+        return { component: Events };
     }
   };
 
@@ -244,9 +227,10 @@ const CategoryNavIcon = ({ type, isActive = false }) => {
   const IconComponent = config.component;
 
   return (
-    <IconComponent 
-      width={24} 
+    <IconComponent
+      width={24}
       height={24}
+      fill={isActive ? '#B15CDE' : '#fff'}
     />
   );
 };
@@ -256,67 +240,480 @@ const UserHomeScreen = ({ navigation, route }) => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const snapToInterval = dimensions.cardWidth + dimensions.spacing.lg;
   const insets = useSafeAreaInsets();
-  
-  // Add loading state
+
+  // State for loading and events
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-  
-  // Get isLoggedIn and userData from Redux store
+  const [events, setEvents] = useState([]);
+  const [latestEvents, setLatestEvents] = useState([]);
+  const [exploreEvents, setExploreEvents] = useState([]);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [activeCategory, setActiveCategory] = useState('');
+  const [showSearchBar, setShowSearchBar] = useState(false);
+
+  // Get isLoggedIn, userData, and token from Redux store
   const isLoggedIn = useSelector(selectIsLoggedIn);
   const userData = useSelector(selectUserData);
   const token = useSelector(state => state.auth.token);
-  
-  // State for fetched profile
-  const [profile, setProfile] = useState({ name: '', location: '' });
+  const favorites = useSelector(state => state.favorites.favorites);
+  const favoritesLoading = useSelector(state => state.favorites.loading);
+  const favoritesError = useSelector(state => state.favorites.error);
 
-  // Fetch user profile from API
+  // State for fetched profile
+  const [profile, setProfile] = useState({ name: 'Guest User', location: 'Noida' });
+
+  // Fetch user profile from API (requires token)
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!token) return;
+      if (!token) {
+        setProfile({ name: 'Guest User', location: 'Noida' });
+        return;
+      }
       try {
         const response = await api.get('/user/get-profile', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (response.data && response.data.data) {
+        if (response.data && response.data.success && response.data.data) {
           const data = response.data.data;
           setProfile({
-            name: data.fullName || data.name || '',
-            location: data.address || data.location || '',
+            name: data.fullName || data.name || 'Guest User',
+            location: data.address || data.location || 'Noida',
           });
+        } else {
+          console.error('Error fetching profile: Invalid response data', response.data);
+          setProfile({ name: 'Guest User', location: 'Noida' });
         }
       } catch (err) {
-        // Optionally handle error
+        console.error('Error fetching profile:', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+        });
+        setProfile({ name: 'Guest User', location: 'Noida' });
       }
     };
     fetchProfile();
   }, [token]);
 
-  // Function to get first word from full name
-  const getFirstName = (fullName) => {
-    if (!fullName) return 'User';
-    return fullName.split(' ')[0];
-  };
-  
-  // Use fetched profile for greeting and location
-  const userName = getFirstName(profile.name);
-  const userLocation = profile.location || 'Location';
-
-  // Simulate loading for a brief moment when component mounts
+  // Fetch favorite events from API (no token required, but still check isLoggedIn for consistency)
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const fetchFavorites = async () => {
+      dispatch(setLoading(true));
+      try {
+        const config = isLoggedIn && token ? {
+          headers: { Authorization: `Bearer ${token}` },
+        } : {};
+        const response = await api.get('/user/get-favourite-events', config);
+        if (response.data && response.data.success && response.data.data) {
+          const favoriteEvents = response.data.data.reduce((acc, item) => {
+            acc[item.eventId] = true;
+            return acc;
+          }, {});
+          dispatch(setFavorites(favoriteEvents));
+        } else {
+          dispatch(setFavorites({})); // Set empty favorites if no data
+        }
+      } catch (err) {
+        // console.error('Error fetching favorite events:', {
+        //   status: err.response?.status,
+        //   data: err.response?.data,
+        //   message: err.message,
+        // });
+        dispatch(setFavorites({})); // Set empty favorites on error
+      } finally {
+        dispatch(setLoading(false));
+      }
+    };
+    fetchFavorites();
+  }, [dispatch, isLoggedIn, token]);
+
+  // Fetch events from search API (no token required)
+  useEffect(() => {
+    const fetchEvents = async () => {
+      setIsLoadingEvents(true);
+      try {
+        const response = await api.post('/user/event/search', { keyword: searchKeyword }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        });
+        console.log('response.data.dataaaaaaaaa', response.data.data)
+        if (response.data && response.data.success && response.data.data) {
+          const formattedEvents = response.data.data.map(event => ({
+            ...event,
+            isFavorite: !!favorites[event._id],
+          }));
+          setEvents(formattedEvents);
+        } else {
+          console.error('Error fetching events: Invalid response data', response.data);
+          setEvents([]);
+        }
+      } catch (err) {
+        console.error('Error fetching events:', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+          config: err.config,
+        });
+        setEvents([]);
+      }
       setIsLoadingEvents(false);
-    }, 1500); // Show loader for 1.5 seconds
+    };
+    fetchEvents();
+  }, [searchKeyword, favorites]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Fetch latest events from API (no token required)
+  useEffect(() => {
+    const fetchLatestEvents = async () => {
+      setIsLoadingEvents(true);
+      try {
+        const response = await api.post('/user/event/latest', { limit: 10 }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        });
+        if (response.data && response.data.success && response.data.data) {
+          const formattedEvents = response.data.data.map((event) => {
+            const earliestDate = event.eventDateTime && event.eventDateTime.length > 0
+              ? new Date(event.eventDateTime.reduce((earliest, curr) =>
+                new Date(curr) < new Date(earliest) ? curr : earliest
+              ))
+              : null;
+            const dateMonth = earliestDate ? earliestDate.toLocaleString('en-US', { month: 'short' }) : 'N/A';
+            const dateDay = earliestDate ? earliestDate.getDate().toString().padStart(2, '0') : 'N/A';
+            const price = event.ticketSetting.ticketType === 'free'
+              ? 'Free'
+              : `₹${event.ticketSetting.price || 0} - ₹${(event.ticketSetting.price || 0) + 100}`;
+            return {
+              id: event._id,
+              image: { uri: event.posterUrl },
+              dateMonth,
+              dateDay,
+              title: event.eventName,
+              price,
+              location: event.location,
+              eventId: event._id,
+              isFavorite: !!favorites[event._id],
+              hasGuestListButton: false,
+            };
+          });
+          setLatestEvents(formattedEvents);
+        } else {
+          console.error('Error fetching latest events: Invalid response data', response.data);
+          setLatestEvents([]);
+        }
+      } catch (err) {
+        console.error('Error fetching latest events:', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+          config: err.config,
+        });
+        setLatestEvents([]);
+      }
+      setIsLoadingEvents(false);
+    };
+    fetchLatestEvents();
+  }, [favorites]);
 
-  // Add notification animation state
-  const [hasNotification, setHasNotification] = useState(true); // For demo, set to true
+  // Fetch explore events from filter API (no token required)
+  useEffect(() => {
+    const fetchExploreEvents = async () => {
+      setIsLoadingEvents(true);
+      try {
+        const payload = {};
+        if (activeFilter) {
+          const filterMap = {
+            'Nearby': 'nearby',
+            'Today': 'today',
+            'This Week': 'this week',
+            'This Weekend': 'this weekend',
+            'Next Weekend': 'next weekend',
+            'Tickets less than ₹1000': 'ticket less than 1000',
+            '₹1000 - ₹5000': '1000-5000',
+            '₹5000+': '5000+',
+          };
+          payload.dateFilter = filterMap[activeFilter] || activeFilter.toLowerCase();
+          if (activeFilter.includes('km') || activeFilter === 'Nearby') {
+            payload.location = profile.location;
+            const radiusMap = {
+              '1km-3km': 3,
+              '3km-5km': 5,
+              '5km+': 10,
+              'Nearby': 50,
+            };
+            payload.radius = radiusMap[activeFilter] || 50;
+          }
+        }
+        if (activeCategory) {
+          payload.genre = activeCategory.toLowerCase();
+        }
+        const response = await api.post('/user/event/filter', payload, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        });
+        if (response.data && response.data.success && response.data.data) {
+          const formattedEvents = response.data.data.map((event) => {
+            const earliestDate = event.eventDateTime && event.eventDateTime.length > 0
+              ? new Date(event.eventDateTime.reduce((earliest, curr) =>
+                new Date(curr) < new Date(earliest) ? curr : earliest
+              ))
+              : null;
+            const dateMonth = earliestDate ? earliestDate.toLocaleString('en-US', { month: 'short' }) : 'N/A';
+            const dateDay = earliestDate ? earliestDate.getDate().toString().padStart(2, '0') : 'N/A';
+            const price = event.ticketSetting.ticketType === 'free'
+              ? 'Free'
+              : `₹${event.ticketSetting.price || 0} - ₹${(event.ticketSetting.price || 0) + 100}`;
+            return {
+              id: event._id,
+              image: { uri: event.posterUrl },
+              dateMonth,
+              dateDay,
+              title: event.eventName,
+              price,
+              location: event.location,
+              eventId: event._id,
+              isFavorite: !!favorites[event._id],
+              hasGuestListButton: false,
+            };
+          });
+          setExploreEvents(formattedEvents);
+        } else {
+          console.error('Error fetching explore events: Invalid response data', response.data);
+          setExploreEvents([]);
+        }
+      } catch (err) {
+        console.error('Error fetching explore events:', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+          config: err.config,
+        });
+        setExploreEvents([]);
+      }
+      setIsLoadingEvents(false);
+    };
+    fetchExploreEvents();
+  }, [activeFilter, activeCategory, favorites, profile.location]);
+
+  // Handle search submission
+  const handleSearch = async () => {
+    setIsLoadingEvents(true);
+    setShowSearchBar(false);
+    Keyboard.dismiss();
+    try {
+      const response = await api.post(
+        '/user/event/search',
+        { keyword: searchKeyword.trim() },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        }
+      );
+      if (response.data && response.data.success && response.data.data) {
+        const formattedEvents = response.data.data.map(event => ({
+          ...event,
+          isFavorite: !!favorites[event._id],
+        }));
+        setEvents(formattedEvents);
+      } else {
+        console.error('Error searching events: Invalid response data', response.data);
+        setEvents([]);
+      }
+    } catch (err) {
+      console.error('Error searching events:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+        config: err.config,
+      });
+      setEvents([]);
+    }
+    setIsLoadingEvents(false);
+  };
+
+  // Handle filter submission
+  const handleFilter = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const payload = {};
+      if (selected.filter) {
+        const filterMap = {
+          'Near - Far': 'nearby',
+          'Far - Near': 'nearby',
+          'Today': 'today',
+          'This Week': 'this week',
+          'This Weekend': 'this weekend',
+          'Next Weekend': 'next weekend',
+          '1km-3km': 'nearby',
+          '3km-5km': 'nearby',
+          '5km+': 'nearby',
+        };
+        payload.dateFilter = filterMap[selected.filter] || selected.filter.toLowerCase();
+      }
+      if (selected.price) {
+        const priceMap = {
+          'Tickets under ₹1000': 'ticket less than 1000',
+          '₹1000-₹2000': '1000-5000',
+          '₹2000-₹3000': '1000-5000',
+          '₹3000+': '5000+',
+        };
+        payload.priceRange = priceMap[selected.price] || selected.price.toLowerCase();
+      }
+      if (selected.instrument) {
+        payload.genre = selected.instrument.toLowerCase();
+      }
+      if (selected.type) {
+        payload.genre = selected.type.toLowerCase();
+      }
+      if (profile.location && (selected.filter.includes('km') || selected.filter === 'Near - Far' || selected.filter === 'Far - Near')) {
+        payload.location = profile.location;
+        const radiusMap = {
+          '1km-3km': 3,
+          '3km-5km': 5,
+          '5km+': 10,
+        };
+        payload.radius = radiusMap[selected.filter] || 50;
+      } else if (profile.location) {
+        payload.location = profile.location;
+      }
+      const response = await api.post('/user/event/filter', payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+      if (response.data && response.data.success && response.data.data) {
+        const formattedEvents = response.data.data.map((event) => {
+          const earliestDate = event.eventDateTime && event.eventDateTime.length > 0
+            ? new Date(event.eventDateTime.reduce((earliest, curr) =>
+              new Date(curr) < new Date(earliest) ? curr : earliest
+            ))
+            : null;
+          const dateMonth = earliestDate ? earliestDate.toLocaleString('en-US', { month: 'short' }) : 'N/A';
+          const dateDay = earliestDate ? earliestDate.getDate().toString().padStart(2, '0') : 'N/A';
+          const price = event.ticketSetting.ticketType === 'free'
+            ? 'Free'
+            : `₹${event.ticketSetting.price || 0} - ₹${(event.ticketSetting.price || 0) + 100}`;
+          return {
+            id: event._id,
+            image: { uri: event.posterUrl },
+            dateMonth,
+            dateDay,
+            title: event.eventName,
+            price,
+            location: event.location,
+            eventId: event._id,
+            isFavorite: !!favorites[event._id],
+            hasGuestListButton: false,
+          };
+        });
+        setExploreEvents(formattedEvents);
+      } else {
+        console.error('Error filtering events: Invalid response data', response.data);
+        setExploreEvents([]);
+      }
+    } catch (err) {
+      console.error('Error filtering events:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+        config: err.config,
+      });
+      setExploreEvents([]);
+    }
+    setIsLoadingEvents(false);
+    setShowFilter(false);
+  };
+
+  // Clear filters
+  const clearFilters = () => {
+    setSelected({
+      filter: 'Today',
+      price: 'Low - High',
+      instrument: 'Acoustic Guitar',
+      type: 'Musician',
+    });
+    setActiveFilter('');
+    setActiveCategory('');
+    setShowFilter(false);
+  };
+
+  // Handle category filter
+  const handleCategoryFilter = (category) => {
+    setActiveCategory(category);
+    setActiveFilter('');
+  };
+
+  // Handle time filter
+  const handleTimeFilter = (filter) => {
+    setActiveFilter(filter);
+    setActiveCategory('');
+  };
+
+  // Handle favorite toggle with API
+  const handleFavoriteToggle = async (eventId) => {
+    if (!isLoggedIn || !token) {
+      triggerHaptic('impactMedium');
+      navigation.navigate('UserSignup');
+      return;
+    }
+
+    try {
+      triggerHaptic('impactMedium');
+      dispatch(setLoading(true));
+      const isFavorite = favorites[eventId];
+      if (isFavorite) {
+        // Remove from favorites
+        const response = await api.delete(`/user/remove-favourite-event/${eventId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.data.success) {
+          dispatch(toggleFavorite(eventId));
+        } else {
+          dispatch(setError('Failed to remove favorite event'));
+        }
+      } else {
+        // Add to favorites
+        const response = await api.post(
+          '/user/add-favourite-event',
+          { eventId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (response.data.success) {
+          dispatch(toggleFavorite(eventId));
+        } else {
+          dispatch(setError('Failed to add favorite event'));
+        }
+      }
+      if (typeof jitterFavoriteTab === 'function') {
+        jitterFavoriteTab();
+      }
+    } catch (error) {
+      console.error('Error updating favorite:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      dispatch(setError(error.message));
+    } finally {
+      dispatch(setLoading(false));
+    }
+  };
+
+  // Notification animation state
+  const [hasNotification, setHasNotification] = useState(true);
   const notificationAnim = useRef(new Animated.Value(0)).current;
 
   // Jiggle animation effect for notification button
   useEffect(() => {
     if (hasNotification) {
-      // Delay for 5 seconds before starting jitter animation
       const timer = setTimeout(() => {
         const jitterAnimation = Animated.loop(
           Animated.sequence([
@@ -331,13 +728,12 @@ const UserHomeScreen = ({ navigation, route }) => {
             Animated.timing(notificationAnim, { toValue: 0.2, duration: 20, useNativeDriver: true }),
             Animated.timing(notificationAnim, { toValue: -0.2, duration: 20, useNativeDriver: true }),
             Animated.timing(notificationAnim, { toValue: 0, duration: 15, useNativeDriver: true }),
-            Animated.delay(2000), // Pause for 2 seconds before next jitter cycle
+            Animated.delay(2000),
           ]),
-          { iterations: -1 } // Infinite loop
+          { iterations: -1 }
         );
         jitterAnimation.start();
-      }, 5000); // 5 second delay
-
+      }, 5000);
       return () => {
         clearTimeout(timer);
         notificationAnim.stopAnimation();
@@ -346,8 +742,6 @@ const UserHomeScreen = ({ navigation, route }) => {
   }, [hasNotification]);
 
   const handleFeatureNavigation = (screenName) => {
-    // If logged in, navigate directly to the feature
-    // If not logged in, go to signup
     if (isLoggedIn) {
       if (screenName === 'ArtistBooking') {
         navigation.navigate('Home');
@@ -358,118 +752,6 @@ const UserHomeScreen = ({ navigation, route }) => {
       navigation.navigate('UserSignup');
     }
   };
-
-  // Event IDs for each event in the home screen
-  const eventIds = {
-    featured: 'featured_event_1',
-    upcoming1: 'upcoming_event_1',
-    upcoming2: 'upcoming_event_2',
-    upcoming3: 'upcoming_event_3',
-    upcoming4: 'upcoming_event_4',
-    upcoming5: 'upcoming_event_5',
-    explore1: 'explore_event_1',
-    explore2: 'explore_event_2',
-    explore3: 'explore_event_3',
-    explore4: 'explore_event_4'
-  };
-
-  // Get favorite status for each event
-  const isFeaturedFavorite = useSelector(state => selectIsFavorite(state, eventIds.featured));
-  const isUpcoming1Favorite = useSelector(state => selectIsFavorite(state, eventIds.upcoming1));
-  const isUpcoming2Favorite = useSelector(state => selectIsFavorite(state, eventIds.upcoming2));
-  const isUpcoming3Favorite = useSelector(state => selectIsFavorite(state, eventIds.upcoming3));
-  const isUpcoming4Favorite = useSelector(state => selectIsFavorite(state, eventIds.upcoming4));
-  const isUpcoming5Favorite = useSelector(state => selectIsFavorite(state, eventIds.upcoming5));
-  const isExplore1Favorite = useSelector(state => selectIsFavorite(state, eventIds.explore1));
-  const isExplore2Favorite = useSelector(state => selectIsFavorite(state, eventIds.explore2));
-  const isExplore3Favorite = useSelector(state => selectIsFavorite(state, eventIds.explore3));
-  const isExplore4Favorite = useSelector(state => selectIsFavorite(state, eventIds.explore4));
-
-  const handleFavoriteToggle = (eventId) => {
-    try {
-      triggerHaptic('impactMedium');
-      dispatch(toggleFavorite(eventId));
-      if (typeof jitterFavoriteTab === 'function') {
-        jitterFavoriteTab();
-      }
-    } catch (error) {
-      console.error('Error updating favorite:', error);
-    }
-  };
-
-  // Add state for events
-  const [events, setEvents] = useState([]);
-
-  // Fetch events from API
-  useEffect(() => {
-    const fetchEvents = async () => {
-      setIsLoadingEvents(true);
-      try {
-        const response = await api.get('/host/events/get-all-user-events');
-        console.log("mmmm",response.data.data);
-        if (response.data && response.data.data) {
-          setEvents(response.data.data);
-        }
-      } catch (err) {
-        // Optionally handle error
-      }
-      setIsLoadingEvents(false);
-    };
-    fetchEvents();
-  }, []);
-
-  // Split events for featured and latest
-  const featuredEvents = events.slice(0, 3);
-  const latestEvents = [
-    {
-      id: 'latest_1',
-      image: require('../assets/Images/ffff.jpg'),
-      dateMonth: 'May',
-      dateDay: '20',
-      title: 'Harmony Jam 2024',
-      price: '₹25.00 - ₹125.00',
-      location: 'Noida',
-      eventId: eventIds.upcoming3,
-      isFavorite: isUpcoming3Favorite,
-      hasGuestListButton: true,
-    },
-    {
-      id: 'latest_2',
-      image: require('../assets/Images/fff.jpg'),
-      dateMonth: 'Oct',
-      dateDay: '7',
-      title: 'Rhythm Rally 2024',
-      price: '₹9.55 - ₹15.99',
-      location: 'Noida',
-      eventId: eventIds.upcoming4,
-      isFavorite: isUpcoming4Favorite,
-      hasGuestListButton: false,
-    },
-    {
-      id: 'latest_3',
-      image: require('../assets/Images/ffff.jpg'),
-      dateMonth: 'Nov',
-      dateDay: '15',
-      title: 'Another Late Event',
-      price: '₹25.00 - ₹125.00',
-      location: 'Delhi',
-      eventId: eventIds.upcoming5,
-      isFavorite: isUpcoming5Favorite,
-      hasGuestListButton: true,
-    },
-    {
-      id: 'latest_4',
-      image: require('../assets/Images/fff.jpg'),
-      dateMonth: 'Dec',
-      dateDay: '1',
-      title: 'Fourth Event',
-      price: '₹25.00 - ₹125.00',
-      location: 'Gurgaon',
-      eventId: 'upcoming_event_6',
-      isFavorite: false,
-      hasGuestListButton: true,
-    },
-  ];
 
   const renderEventCard = ({ item, index }) => {
     const inputRange = [
@@ -504,11 +786,11 @@ const UserHomeScreen = ({ navigation, route }) => {
     };
 
     return (
-      <TouchableOpacity activeOpacity={0.85} onPress={() => handleFeatureNavigation('UserEvent')}>
-        <Animated.View 
+      <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('UserEvent', { eventId: item._id })}>
+        <Animated.View
           style={[
             styles.eventCardContainerHorizontalScroll,
-            { 
+            {
               transform: [{ scale }],
               opacity,
             }
@@ -522,20 +804,13 @@ const UserHomeScreen = ({ navigation, route }) => {
           />
           {renderMedia()}
           <View style={styles.imageOverlay} />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.heartIconPlaceholder}
-            onPress={() => {
-              if (isLoggedIn) {
-                handleFavoriteToggle(item._id);
-              } else {
-                triggerHaptic('impactMedium');
-                handleFeatureNavigation('UserSignup');
-              }
-            }}
+            onPress={() => handleFavoriteToggle(item._id)}
           >
-            <Ionicons 
-              name={item.isFavorite ? "heart" : "heart-outline"} 
-              size={dimensions.navIconSize * 1.25} 
+            <Ionicons
+              name={item.isFavorite ? "heart" : "heart-outline"}
+              size={dimensions.navIconSize * 1.25}
               color={item.isFavorite ? "#ff4444" : "#7A7A90"}
             />
           </TouchableOpacity>
@@ -568,17 +843,15 @@ const UserHomeScreen = ({ navigation, route }) => {
   const featuredEventsScrollRef = useRef(null);
 
   // Plan For Section Animation
-  const planTodayAnim = useRef(new Animated.Value(-200)).current; // from left
-  const planWeekendAnim = useRef(new Animated.Value(200)).current; // from right
+  const planTodayAnim = useRef(new Animated.Value(-200)).current;
+  const planWeekendAnim = useRef(new Animated.Value(200)).current;
   const [planSectionY, setPlanSectionY] = useState(0);
   const [planSectionHeight, setPlanSectionHeight] = useState(0);
   const [planAnimated, setPlanAnimated] = useState(false);
 
-  // Handler to trigger animation when section is in view
   const handleScroll = (event) => {
     const scrollY = event.nativeEvent.contentOffset.y;
     const windowHeight = Dimensions.get('window').height;
-    // Section is in view if any part is visible
     const inView = planSectionY < scrollY + windowHeight - 100 && (planSectionY + planSectionHeight) > scrollY + 100;
     if (inView && !planAnimated) {
       setPlanAnimated(true);
@@ -606,7 +879,6 @@ const UserHomeScreen = ({ navigation, route }) => {
   const latestAutoScrollTimeout = useRef(null);
   const latestAutoScrollPaused = useRef(false);
 
-  // Helper to start auto-scroll
   const startLatestAutoScroll = () => {
     if (latestAutoScrollPaused.current) return;
     const cardWidth = 267;
@@ -615,7 +887,7 @@ const UserHomeScreen = ({ navigation, route }) => {
       Animated.loop(
         Animated.timing(latestScrollAnim, {
           toValue: maxScroll,
-          duration: 20000, // 20 seconds for a full scroll, adjust as needed
+          duration: 20000,
           useNativeDriver: false,
           easing: Easing.linear,
         })
@@ -623,12 +895,10 @@ const UserHomeScreen = ({ navigation, route }) => {
     }
   };
 
-  // Helper to stop auto-scroll
   const stopLatestAutoScroll = () => {
     latestScrollAnim.stopAnimation();
   };
 
-  // Pause auto-scroll for 1 minute on user interaction
   const pauseLatestAutoScroll = () => {
     stopLatestAutoScroll();
     latestAutoScrollPaused.current = true;
@@ -636,7 +906,7 @@ const UserHomeScreen = ({ navigation, route }) => {
     latestAutoScrollTimeout.current = setTimeout(() => {
       latestAutoScrollPaused.current = false;
       startLatestAutoScroll();
-    }, 10000); // 1 minute
+    }, 10000);
   };
 
   useEffect(() => {
@@ -656,19 +926,19 @@ const UserHomeScreen = ({ navigation, route }) => {
     };
   }, [latestEvents.length, width, latestScrollAnim]);
 
-  // Filter modal logic (copied from HomeScreen)
+  // Filter modal logic
   const [showFilter, setShowFilter] = useState(false);
   const [selected, setSelected] = useState({
     filter: 'Today',
     price: 'Low - High',
     instrument: 'Acoustic Guitar',
-    genre: 'Soul Queen',
+    type: 'Musician',
   });
   const filterOptions = {
-    filter: ['Near - Far', 'Far - Near', 'Today', 'This Week' ,'This Weekend','Next Weekend','1km-3km','3km-5km','5km+'],
-    price: ['Low - High', 'High - Low', 'Tickets under ₹1000','₹1000-₹2000','₹2000-₹3000','₹3000+'],
-    instrument: ['Electric Guitar', 'Saxophone', 'Acoustic Guitar', 'Synthesizer','Drum Machine','Banjo','Trumpet','Turntables'],
-    type: ['Musician', 'Comedian', 'Magician', 'Anchor','Dancer','Poet','Dj','Other'],
+    filter: ['Near - Far', 'Far - Near', 'Today', 'This Week', 'This Weekend', 'Next Weekend', '1km-3km', '3km-5km', '5km+'],
+    price: ['Low - High', 'High - Low', 'Tickets under ₹1000', '₹1000-₹2000', '₹2000-₹3000', '₹3000+'],
+    instrument: ['Electric Guitar', 'Saxophone', 'Acoustic Guitar', 'Synthesizer', 'Drum Machine', 'Banjo', 'Trumpet', 'Turntables'],
+    type: ['Musician', 'Comedian', 'Magician', 'Anchor', 'Dancer', 'Poet', 'Dj', 'Other'],
   };
   const renderPills = (section) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -703,18 +973,14 @@ const UserHomeScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 0 }}
           style={styles.modalContainer}
         >
-          {/* Close Button */}
-          <TouchableOpacity 
-            style={styles.closeButton} 
+          <TouchableOpacity
+            style={styles.closeButton}
             onPress={() => setShowFilter(false)}
             activeOpacity={0.8}
           >
             <Ionicons name="close" size={24} color="#7952FC" />
           </TouchableOpacity>
-
-          {/* Scrollable Filter Content */}
-          <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 0}}>
-            {/* FILTER Section */}
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 0 }}>
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>FILTER</Text>
@@ -723,7 +989,6 @@ const UserHomeScreen = ({ navigation, route }) => {
                 {renderPills('filter')}
               </View>
             </View>
-            {/* PRICE Section */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>PRICE</Text>
@@ -732,7 +997,6 @@ const UserHomeScreen = ({ navigation, route }) => {
                 {renderPills('price')}
               </View>
             </View>
-            {/* INSTRUMENT Section */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>INSTRUMENT</Text>
@@ -741,7 +1005,6 @@ const UserHomeScreen = ({ navigation, route }) => {
                 {renderPills('instrument')}
               </View>
             </View>
-            {/* GENRE Section */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>GENRE</Text>
@@ -751,15 +1014,20 @@ const UserHomeScreen = ({ navigation, route }) => {
               </View>
             </View>
           </ScrollView>
-
-          {/* Fixed Continue Button */}
           <View style={styles.fixedButtonContainer}>
-            <TouchableOpacity 
-              style={styles.continueButton} 
-              onPress={() => setShowFilter(false)}
+            <TouchableOpacity
+              style={[styles.continueButton, { marginBottom: dimensions.spacing.sm }]}
+              onPress={handleFilter}
               activeOpacity={0.8}
             >
-              <Text style={styles.continueButtonText}>Continue</Text>
+              <Text style={styles.continueButtonText}>Apply Filters</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={clearFilters}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.clearButtonText}>Clear Filters</Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -767,46 +1035,27 @@ const UserHomeScreen = ({ navigation, route }) => {
     </Modal>
   );
 
-  // Update LatestEventCard to use the hardcoded fields (image, title, location, dateMonth, dateDay)
   const LatestEventCard = ({ item, navigation }) => {
-    const [isGuestListApplied, setIsGuestListApplied] = useState(false);
-    const dispatch = useDispatch();
-    const isFavorite = useSelector(state => selectIsFavorite(state, item.eventId));
-
-    const handleFavoriteToggle = (eventId) => {
-      try {
-        triggerHaptic('impactMedium');
-        dispatch(toggleFavorite(eventId));
-      } catch (error) {
-        console.error('Error updating favorite:', error);
-      }
-    };
-
-    const renderMedia = () => {
-      if (item.image) {
-        return (
-          <View style={{flex: 1}}>
-            <Image
-              source={item.image}
-              style={styles.latestEventImage}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={["rgba(0,0,0,0)", "#000"]}
-              locations={[0.5734, 1]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </View>
-        );
-      }
-      return null;
-    };
-
     return (
-      <TouchableOpacity style={styles.latestEventCardContainer} activeOpacity={0.85} onPress={() => navigation.navigate('UserEvent')}>
-        {renderMedia()}
+      <TouchableOpacity
+        style={styles.latestEventCardContainer}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('UserEvent', { eventId: item.id })}
+      >
+        <View style={{ flex: 1 }}>
+          <Image
+            source={item.image}
+            style={styles.latestEventImage}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={["rgba(0,0,0,0)", "#000"]}
+            locations={[0.5734, 1]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
         <View style={styles.latestEventDateOverlay}>
           <Text style={styles.latestEventDateMonth}>{item.dateMonth}</Text>
           <Text style={styles.latestEventDateDay}>{item.dateDay}</Text>
@@ -832,33 +1081,54 @@ const UserHomeScreen = ({ navigation, route }) => {
       paddingLeft: insets.left,
       paddingRight: insets.right,
     }]}>
-      {isLoadingEvents ? (
+      {/* Search Bar Overlay */}
+      {showSearchBar && (
+        <View style={styles.searchOverlay}>
+          <View style={styles.searchOverlayBackground} />
+          <View style={styles.searchInputBarAtTop}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search events..."
+              placeholderTextColor="#7A7A90"
+              value={searchKeyword}
+              onChangeText={setSearchKeyword}
+              autoFocus
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+            />
+            <TouchableOpacity onPress={() => { setShowSearchBar(false); Keyboard.dismiss(); }} style={styles.closeSearchButton}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      {isLoadingEvents || favoritesLoading ? (
         <View style={[styles.loadingContainer, { justifyContent: 'center', alignItems: 'center' }]}>
           <MusicBeatsLoader />
           <Text style={{ color: '#fff', marginTop: 10 }}>Loading events...</Text>
         </View>
+      ) : favoritesError ? (
+        <View style={[styles.loadingContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={{ color: '#ff4444', marginTop: 10 }}>Error: {favoritesError}</Text>
+        </View>
       ) : (
-        <ScrollView 
-          showsVerticalScrollIndicator={false} 
+        <ScrollView
+          showsVerticalScrollIndicator={false}
           style={styles.contentArea}
           stickyHeaderIndices={[3, 7]}
           contentContainerStyle={{ paddingBottom: 120 }}
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          {/* Featured Events Section (Horizontal Scroll) - Now includes header */}
           <LinearGradient
             colors={['#000000', '#1a1a1a', '#B15CDE']}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={[styles.gradientBackground, { marginBottom: 0 }]}
           >
-            {/* Scene Logo and Rabbit GIF */}
             <View style={styles.sceneLogoContainer}>
               <Scenezone />
             </View>
-
-            {/* Header content */}
             <View style={styles.headerContentBelowLogo}>
               <View>
                 <MaskedView
@@ -875,7 +1145,7 @@ const UserHomeScreen = ({ navigation, route }) => {
                         },
                       ]}
                     >
-                      Hello {userName}!
+                      Hello {profile.name}!
                     </Text>
                   }
                 >
@@ -897,18 +1167,18 @@ const UserHomeScreen = ({ navigation, route }) => {
                         },
                       ]}
                     >
-                      Hello {userName}!
+                      Hello {profile.name}!
                     </Text>
                   </LinearGradient>
                 </MaskedView>
                 <View style={styles.locationContainer}>
                   <MaterialIcons name="location-on" size={dimensions.iconSize} color="#a95eff" />
-                  <Text style={styles.locationText}>{userLocation}</Text>
+                  <Text style={styles.locationText}>{profile.location}</Text>
                 </View>
               </View>
               <View style={styles.iconContainer}>
-                <TouchableOpacity style={styles.headerIconButton}>
-                  <SearchIcon width={dimensions.navIconSize * 1.25} height={dimensions.navIconSize * 1.25} />
+                <TouchableOpacity onPress={() => setShowSearchBar(true)} style={styles.headerIconButton}>
+                  <SearchIcon width={dimensions.navIconSize} height={dimensions.navIconSize} />
                 </TouchableOpacity>
                 <Animated.View style={{
                   transform: [{ rotate: notificationAnim.interpolate({ inputRange: [-1, 1], outputRange: ['-15deg', '15deg'] }) }]
@@ -919,8 +1189,6 @@ const UserHomeScreen = ({ navigation, route }) => {
                 </Animated.View>
               </View>
             </View>
-
-            {/* Featured Events Section */}
             <View style={styles.sectionNoPadding}>
               <Animated.ScrollView
                 ref={featuredEventsScrollRef}
@@ -936,7 +1204,7 @@ const UserHomeScreen = ({ navigation, route }) => {
                 snapToInterval={dimensions.cardWidth + dimensions.spacing.lg}
                 snapToAlignment="center"
               >
-                {featuredEvents.map((item, index) => (
+                {events.map((item, index) => (
                   <View key={item._id}>
                     {renderEventCard({ item, index })}
                   </View>
@@ -944,186 +1212,163 @@ const UserHomeScreen = ({ navigation, route }) => {
               </Animated.ScrollView>
             </View>
           </LinearGradient>
-
-          {/* Booking Buttons */}
-          <View style={styles.bookingButtonsContainer}>
-            <LinearGradient
-              colors={['#B15CDE', '#7952FC']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.bookingButtonGradientBorder}
-            >
-              <TouchableOpacity 
-                style={styles.bookingButton}
-                onPress={() => handleFeatureNavigation('Signup')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.bookingButtonText} numberOfLines={1} ellipsizeMode="tail">Artist Booking</Text>
-                <Icon name="chevron-right" size={dimensions.iconSize} color="#a95eff" />
-              </TouchableOpacity>
-            </LinearGradient>
-            <LinearGradient
-              colors={['#B15CDE', '#7952FC']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.bookingButtonGradientBorder}
-            >
-              <TouchableOpacity 
-                style={styles.bookingButton}
-                onPress={() => handleFeatureNavigation('UserVenueBookingScreen')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.bookingButtonText} numberOfLines={1} ellipsizeMode="tail">Venue Booking</Text>
-                <Icon name="chevron-right" size={dimensions.iconSize} color="#a95eff" />
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-
-          {/* Get Your Vibe Section */}
+          <View style={{height: 80}} />
           <View style={[styles.section, { marginBottom: dimensions.spacing.xxxl }]}>
             <Text style={styles.sectionTitle}>Get Your Vibe</Text>
             <View>
-              {/* Spotlight Card */}
-              <TouchableOpacity 
-                style={styles.categoryCard} 
-                onPress={() => handleFeatureNavigation('SpotlightEvents')}
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => {
+                  handleCategoryFilter('Spotlight');
+                  handleFeatureNavigation('SpotlightEvents');
+                }}
               >
-                <Image 
-                  source={require('../assets/Images/Banner0.png')} 
+                <Image
+                  source={require('../assets/Images/Banner0.png')}
                   style={styles.categoryImage}
                   resizeMode="cover"
                 />
-                {/* <View style={styles.categoryOverlay} /> */}
               </TouchableOpacity>
-              {/* Sports Screening Card */}
-              <TouchableOpacity 
-                style={styles.categoryCard} 
-                onPress={() => handleFeatureNavigation('SportsScreening')}
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => {
+                  handleCategoryFilter('Sports');
+                  handleFeatureNavigation('SportsScreening');
+                }}
               >
-                <Image 
-                  source={require('../assets/Images/Banner1.png')} 
+                <Image
+                  source={require('../assets/Images/Banner1.png')}
                   style={styles.categoryImage}
                   resizeMode="cover"
                 />
-                {/* <View style={styles.categoryOverlay} /> */}
               </TouchableOpacity>
-              {/* Music & Party Card */}
-              <TouchableOpacity 
-                style={styles.categoryCard} 
-                onPress={() => handleFeatureNavigation('MusicParty')}
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => {
+                  handleCategoryFilter('Party');
+                  handleFeatureNavigation('MusicParty');
+                }}
               >
-                <Image 
-                  source={require('../assets/Images/Banner2.png')} 
+                <Image
+                  source={require('../assets/Images/Banner2.png')}
                   style={styles.categoryImage}
                   resizeMode="cover"
                 />
-                {/* <View style={styles.categoryOverlay} /> */}
               </TouchableOpacity>
-              {/* Trending Events Card */}
-              <TouchableOpacity 
-                style={styles.categoryCard} 
-                onPress={() => handleFeatureNavigation('TrendingEvents')}
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => {
+                  handleCategoryFilter('Events');
+                  handleFeatureNavigation('TrendingEvents');
+                }}
               >
-                <Image 
-                  source={require('../assets/Images/Banner3.png')} 
+                <Image
+                  source={require('../assets/Images/Banner3.png')}
                   style={styles.categoryImage}
                   resizeMode="cover"
                 />
-                {/* <View style={styles.categoryOverlay} /> */}
               </TouchableOpacity>
-              {/* Comedy Card */}
-              <TouchableOpacity 
-                style={styles.categoryCard} 
-                onPress={() => handleFeatureNavigation('Comedy')}
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => {
+                  handleCategoryFilter('Comedy');
+                  handleFeatureNavigation('Comedy');
+                }}
               >
-                <Image 
-                  source={require('../assets/Images/Banner4.png')} 
+                <Image
+                  source={require('../assets/Images/Banner4.png')}
                   style={styles.categoryImage}
                   resizeMode="cover"
                 />
-                {/* <View style={styles.categoryOverlay} /> */}
               </TouchableOpacity>
-              {/* workshop card*/}
-              <TouchableOpacity 
-                style={styles.categoryCard} 
-                onPress={() => handleFeatureNavigation('Workshop')}
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => {
+                  handleCategoryFilter('Workshop');
+                  handleFeatureNavigation('Workshop');
+                }}
               >
-                <Image 
-                  source={require('../assets/Images/Banner5.png')} 
+                <Image
+                  source={require('../assets/Images/Banner5.png')}
                   style={styles.categoryImage}
                   resizeMode="cover"
                 />
-                {/* <View style={styles.categoryOverlay} /> */}
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Category Navbar - sticky below Get Your Vibe */}
           <View style={styles.categoryNavbarContainer}>
             <View style={styles.categoryNavbarScroll}>
-              {/* Spotlight Button */}
-              <TouchableOpacity 
-                style={styles.categoryNavItem} 
-                onPress={() => handleFeatureNavigation('SpotlightEvents')}
+              <TouchableOpacity
+                style={styles.categoryNavItem}
+                onPress={() => {
+                  handleCategoryFilter('Spotlight');
+                  handleFeatureNavigation('SpotlightEvents');
+                }}
               >
-                <CategoryNavIcon type="spotlight" />
-                <Text style={styles.categoryNavText}>Spotlight</Text>
+                <CategoryNavIcon type="spotlight" isActive={activeCategory === 'Spotlight'} />
+                <Text style={[styles.categoryNavText, { color: activeCategory === 'Spotlight' ? '#B15CDE' : '#fff' }]}>Spotlight</Text>
               </TouchableOpacity>
-              {/* Sports Button */}
-              <TouchableOpacity 
-                style={styles.categoryNavItem} 
-                onPress={() => handleFeatureNavigation('Sports')}
+              <TouchableOpacity
+                style={styles.categoryNavItem}
+                onPress={() => {
+                  handleCategoryFilter('Sports');
+                  handleFeatureNavigation('Sports');
+                }}
               >
-                <CategoryNavIcon type="sports" />
-                <Text style={styles.categoryNavText}>Sports</Text>
+                <CategoryNavIcon type="sports" isActive={activeCategory === 'Sports'} />
+                <Text style={[styles.categoryNavText, { color: activeCategory === 'Sports' ? '#B15CDE' : '#fff' }]}>Sports</Text>
               </TouchableOpacity>
-              {/* Party Button */}
-              <TouchableOpacity 
-                style={styles.categoryNavItem} 
-                onPress={() => handleFeatureNavigation('Party')}
+              <TouchableOpacity
+                style={styles.categoryNavItem}
+                onPress={() => {
+                  handleCategoryFilter('Party');
+                  handleFeatureNavigation('Party');
+                }}
               >
-                <CategoryNavIcon type="party" />
-                <Text style={styles.categoryNavText}>Party</Text>
+                <CategoryNavIcon type="party" isActive={activeCategory === 'Party'} />
+                <Text style={[styles.categoryNavText, { color: activeCategory === 'Party' ? '#B15CDE' : '#fff' }]}>Party</Text>
               </TouchableOpacity>
-              {/* #Events Button */}
-              <TouchableOpacity 
-                style={styles.categoryNavItem} 
-                onPress={() => handleFeatureNavigation('Events')}
+              <TouchableOpacity
+                style={styles.categoryNavItem}
+                onPress={() => {
+                  handleCategoryFilter('Events');
+                  handleFeatureNavigation('Events');
+                }}
               >
-                <CategoryNavIcon type="events" />
-                <Text style={styles.categoryNavText}>#Events</Text>
+                <CategoryNavIcon type="events" isActive={activeCategory === 'Events'} />
+                <Text style={[styles.categoryNavText, { color: activeCategory === 'Events' ? '#B15CDE' : '#fff' }]}>#Events</Text>
               </TouchableOpacity>
-              {/* Comedy Button */}
-              <TouchableOpacity 
-                style={styles.categoryNavItem} 
-                onPress={() => handleFeatureNavigation('Comedy')}
+              <TouchableOpacity
+                style={styles.categoryNavItem}
+                onPress={() => {
+                  handleCategoryFilter('Comedy');
+                  handleFeatureNavigation('Comedy');
+                }}
               >
-                <CategoryNavIcon type="comedy" />
-                <Text style={styles.categoryNavText}>Comedy</Text>
+                <CategoryNavIcon type="comedy" isActive={activeCategory === 'Comedy'} />
+                <Text style={[styles.categoryNavText, { color: activeCategory === 'Comedy' ? '#B15CDE' : '#fff' }]}>Comedy</Text>
               </TouchableOpacity>
-              {/* Workshop Button */}
-              <TouchableOpacity 
-                style={styles.categoryNavItem} 
-                onPress={() => handleFeatureNavigation('Workshop')}
+              <TouchableOpacity
+                style={styles.categoryNavItem}
+                onPress={() => {
+                  handleCategoryFilter('Workshop');
+                  handleFeatureNavigation('Workshop');
+                }}
               >
-                <CategoryNavIcon type="workshop" />
-                <Text style={styles.categoryNavText}>Workshop</Text>
+                <CategoryNavIcon type="workshop" isActive={activeCategory === 'Workshop'} />
+                <Text style={[styles.categoryNavText, { color: activeCategory === 'Workshop' ? '#B15CDE' : '#fff' }]}>Workshop</Text>
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* White divider line below category navbar */}
           <View style={{
             height: 1,
             backgroundColor: '#fff',
             opacity: 0.12,
             width: '100%',
           }} />
-
-          {/* Latest Events Section */}
-          <View style={[styles.section, { marginBottom: 0, marginTop: dimensions.spacing.xxxl }]}> 
+          <View style={[styles.section, { marginBottom: 0, marginTop: dimensions.spacing.xxxl }]}>
             <Text style={[styles.sectionTitle, { marginBottom: dimensions.spacing.lg }]}>Latest Events</Text>
-            <ScrollView 
+            <ScrollView
               ref={latestEventsScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -1138,9 +1383,7 @@ const UserHomeScreen = ({ navigation, route }) => {
               ))}
             </ScrollView>
           </View>
-
-          {/* Plan for Section */}
-          <View 
+          <View
             style={[styles.section, { marginTop: dimensions.spacing.md, marginBottom: 0 }]}
             onLayout={e => {
               setPlanSectionY(e.nativeEvent.layout.y);
@@ -1150,22 +1393,20 @@ const UserHomeScreen = ({ navigation, route }) => {
             <Text style={styles.sectionTitle}>Plan for</Text>
             <View style={styles.planForButtonsContainer}>
               <Animated.View style={{ transform: [{ translateX: planTodayAnim }] }}>
-                <TouchableOpacity onPress={() => handleFeatureNavigation('TodayEvents')} style={{marginLeft: -16}}>
+                <TouchableOpacity onPress={() => handleFeatureNavigation('TodayEvents')} style={{ marginLeft: -16 }}>
                   <Plan1 width={140} height={139} />
                 </TouchableOpacity>
               </Animated.View>
-              <TouchableOpacity onPress={() => handleFeatureNavigation('WeeklyEvents')} style={{marginLeft: -56}}>
+              <TouchableOpacity onPress={() => handleFeatureNavigation('WeeklyEvents')} style={{ marginLeft: -56 }}>
                 <Plan2 width={140} height={139} />
               </TouchableOpacity>
               <Animated.View style={{ transform: [{ translateX: planWeekendAnim }] }}>
-                <TouchableOpacity onPress={() => handleFeatureNavigation('WeekendEvents')} style={{marginLeft: -56}}>
+                <TouchableOpacity onPress={() => handleFeatureNavigation('WeekendEvents')} style={{ marginLeft: -56 }}>
                   <Plan3 width={140} height={139} />
                 </TouchableOpacity>
               </Animated.View>
             </View>
           </View>
-
-          {/* Category Filter Buttons - Second Sticky Section */}
           <View style={[
             styles.categoryFilterContainer,
             {
@@ -1175,89 +1416,93 @@ const UserHomeScreen = ({ navigation, route }) => {
             }
           ]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilterScroll}>
-             {/* Filter Button */}
-              
-               <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilter(true)}>
+              <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilter(true)}>
                 <Text style={styles.filterButtonText}>Filter</Text>
-                <Ionicons name="options-outline" size={dimensions.iconSize} color="#fff" style={{marginLeft: dimensions.spacing.sm}} />
-              </TouchableOpacity> 
-              {/* Nearby Button */}
-              <TouchableOpacity style={styles.categoryFilterButton}>
-                <Text style={styles.categoryFilterButtonText}>Nearby</Text>
+                <Ionicons name="options-outline" size={dimensions.iconSize} color="#fff" style={{ marginLeft: dimensions.spacing.sm }} />
               </TouchableOpacity>
-              
-              {/* Today Button */}
-              <TouchableOpacity style={styles.categoryFilterButton}>
-                <Text style={styles.categoryFilterButtonText}>Today</Text>
+              <TouchableOpacity
+                style={[styles.categoryFilterButton, activeFilter === 'Nearby' && styles.categoryFilterButtonActive]}
+                onPress={() => handleTimeFilter('Nearby')}
+              >
+                <Text style={[styles.categoryFilterButtonText, activeFilter === 'Nearby' && styles.categoryFilterButtonTextActive]}>Nearby</Text>
               </TouchableOpacity>
-              {/* This Week Button */}
-              <TouchableOpacity style={styles.categoryFilterButton}>
-                <Text style={styles.categoryFilterButtonText}>This Week</Text>
+              <TouchableOpacity
+                style={[styles.categoryFilterButton, activeFilter === 'Today' && styles.categoryFilterButtonActive]}
+                onPress={() => handleTimeFilter('Today')}
+              >
+                <Text style={[styles.categoryFilterButtonText, activeFilter === 'Today' && styles.categoryFilterButtonTextActive]}>Today</Text>
               </TouchableOpacity>
-              {/* This Weekend Button */}
-              <TouchableOpacity style={styles.categoryFilterButton}>
-                <Text style={styles.categoryFilterButtonText}>This Weekend</Text>
+              <TouchableOpacity
+                style={[styles.categoryFilterButton, activeFilter === 'This Week' && styles.categoryFilterButtonActive]}
+                onPress={() => handleTimeFilter('This Week')}
+              >
+                <Text style={[styles.categoryFilterButtonText, activeFilter === 'This Week' && styles.categoryFilterButtonTextActive]}>This Week</Text>
               </TouchableOpacity>
-              {/* Next Weekend Button */}
-              <TouchableOpacity style={styles.categoryFilterButton}>
-                <Text style={styles.categoryFilterButtonText}>Next Weekend</Text>
+              <TouchableOpacity
+                style={[styles.categoryFilterButton, activeFilter === 'This Weekend' && styles.categoryFilterButtonActive]}
+                onPress={() => handleTimeFilter('This Weekend')}
+              >
+                <Text style={[styles.categoryFilterButtonText, activeFilter === 'This Weekend' && styles.categoryFilterButtonTextActive]}>This Weekend</Text>
               </TouchableOpacity>
-              {/* Tickets less than ₹1000 Button */}
-              <TouchableOpacity style={styles.categoryFilterButton}>
-                <Text style={styles.categoryFilterButtonText}>Tickets less than ₹1000</Text>
+              <TouchableOpacity
+                style={[styles.categoryFilterButton, activeFilter === 'Next Weekend' && styles.categoryFilterButtonActive]}
+                onPress={() => handleTimeFilter('Next Weekend')}
+              >
+                <Text style={[styles.categoryFilterButtonText, activeFilter === 'Next Weekend' && styles.categoryFilterButtonTextActive]}>Next Weekend</Text>
               </TouchableOpacity>
-              {/* ₹1000 - ₹5000 Button */}
-              <TouchableOpacity style={styles.categoryFilterButton}>
-                <Text style={styles.categoryFilterButtonText}>₹1000 - ₹5000</Text>
+              <TouchableOpacity
+                style={[styles.categoryFilterButton, activeFilter === 'Tickets less than ₹1000' && styles.categoryFilterButtonActive]}
+                onPress={() => handleTimeFilter('Tickets less than ₹1000')}
+              >
+                <Text style={[styles.categoryFilterButtonText, activeFilter === 'Tickets less than ₹1000' && styles.categoryFilterButtonTextActive]}>Tickets less than ₹1000</Text>
               </TouchableOpacity>
-              {/* ₹5000+ Button */}
-              <TouchableOpacity style={styles.categoryFilterButton}>
-                <Text style={styles.categoryFilterButtonText}>₹5000+</Text>
+              <TouchableOpacity
+                style={[styles.categoryFilterButton, activeFilter === '₹1000 - ₹5000' && styles.categoryFilterButtonActive]}
+                onPress={() => handleTimeFilter('₹1000 - ₹5000')}
+              >
+                <Text style={[styles.categoryFilterButtonText, activeFilter === '₹1000 - ₹5000' && styles.categoryFilterButtonTextActive]}>₹1000 - ₹5000</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.categoryFilterButton, activeFilter === '₹5000+' && styles.categoryFilterButtonActive]}
+                onPress={() => handleTimeFilter('₹5000+')}
+              >
+                <Text style={[styles.categoryFilterButtonText, activeFilter === '₹5000+' && styles.categoryFilterButtonTextActive]}>₹5000+</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
-
-          {/* Explore 74 events around you Section */}
           <View style={[styles.section, { marginTop: dimensions.spacing.xxxl }]}>
-            <Text style={[styles.sectionTitle, { marginBottom: dimensions.spacing.lg }]}>Explore 74 events around you</Text>
+            <Text style={[styles.sectionTitle, { marginBottom: dimensions.spacing.lg }]}>
+              Explore {exploreEvents.length} events around you
+            </Text>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.exploreEventsListContent}>
-              {[
-                { id: 1, eventId: eventIds.explore1, isFavorite: isExplore1Favorite },
-                { id: 2, eventId: eventIds.explore2, isFavorite: isExplore2Favorite },
-                { id: 3, eventId: eventIds.explore3, isFavorite: isExplore3Favorite },
-                { id: 4, eventId: eventIds.explore4, isFavorite: isExplore4Favorite }
-              ].map((item, idx) => (
-                <TouchableOpacity key={item.id} style={styles.exploreEventCardContainer} activeOpacity={0.85} onPress={() => navigation.navigate('UserEvent')}>
+              {exploreEvents.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.exploreEventCardContainer}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('UserEvent', { eventId: item.id })}
+                >
                   <Image
-                    source={require('../assets/Images/fff.jpg')}
+                    source={item.image}
                     style={styles.exploreEventImage}
                     resizeMode="cover"
                   />
-                  {/* Heart icon on all cards at top right */}
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.exploreEventHeartIcon}
-                    onPress={() => {
-                      if (isLoggedIn) {
-                        handleFavoriteToggle(item.eventId);
-                      } else {
-                        triggerHaptic('impactMedium');
-                        handleFeatureNavigation('UserSignup');
-                      }
-                    }}
+                    onPress={() => handleFavoriteToggle(item.eventId)}
                   >
-                    <Ionicons 
-                      name={item.isFavorite ? "heart" : "heart-outline"} 
-                      size={dimensions.navIconSize * 1.25} 
-                      color={item.isFavorite ? "#ff4444" : "#7A7A90"} 
+                    <Ionicons
+                      name={item.isFavorite ? "heart" : "heart-outline"}
+                      size={dimensions.navIconSize * 1.25}
+                      color={item.isFavorite ? "#ff4444" : "#7A7A90"}
                     />
                   </TouchableOpacity>
-                  {/* Event details overlay */}
                   <View style={styles.exploreEventDetailsOverlay}>
                     <View style={styles.exploreEventDetailsRow}>
-                      <View style={{flex: 1}}>
-                        <Text style={styles.exploreEventTitle}>Thrash and Bash Metal Festival 2024</Text>
-                        <Text style={styles.exploreEventAddress}>502, Palm Spring Apartments, Link Road</Text>
-                        <Text style={styles.exploreEventCity}>Noida, India</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.exploreEventTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
+                        <Text style={styles.exploreEventAddress} numberOfLines={1} ellipsizeMode="tail">{item.location}</Text>
+                        <Text style={styles.exploreEventCity} numberOfLines={1} ellipsizeMode="tail">{item.location}</Text>
                       </View>
                       <MaskedView
                         maskElement={
@@ -1282,14 +1527,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               ))}
             </ScrollView>
           </View>
-
         </ScrollView>
       )}
       {FilterModal()}
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1477,7 +1720,7 @@ const styles = StyleSheet.create({
     paddingTop: dimensions.spacing.xxxl,
     paddingHorizontal: dimensions.spacing.xl,
     marginBottom: 1,
-    
+
   },
   sectionNoPadding: {
     marginBottom: 0,
@@ -1491,7 +1734,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.2,
-    
+
   },
   placeholderText: {
     color: '#aaa',
@@ -1605,7 +1848,7 @@ const styles = StyleSheet.create({
     paddingTop: dimensions.spacing.md,
     paddingHorizontal: dimensions.spacing.md,
     paddingBottom: dimensions.spacing.md,
-    
+
   },
   calendarIndicators: {
     flexDirection: 'row',
@@ -2133,6 +2376,61 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
   },
+  searchOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 1000,
+  },
+  searchOverlayBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  searchInputBarAtTop: {
+    position: 'absolute',
+    top: 40, // Move a little below the very top
+    left: 0,
+    right: 0,
+    backgroundColor: '#18181C',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: dimensions.spacing.md,
+    paddingVertical: dimensions.spacing.md,
+    zIndex: 1001,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    backgroundColor: '#2D2D38',
+    borderRadius: 12,
+    paddingHorizontal: dimensions.spacing.sm,
+    color: '#fff',
+    fontSize: dimensions.fontSize.small,
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    lineHeight: 21,
+  },
+  closeSearchButton: {
+    padding: dimensions.spacing.sm,
+  },
+  absoluteFill: {
+    ...StyleSheet.absoluteFillObject,
+  },
 });
 
-export default UserHomeScreen; 
+
+export default UserHomeScreen;

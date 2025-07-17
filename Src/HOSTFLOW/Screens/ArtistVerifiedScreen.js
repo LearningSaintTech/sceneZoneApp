@@ -46,13 +46,19 @@ const VerificationSuccessIcon = (props) => (
   </Svg>
 );
 
-const ArtistVerifiedScreen = ({ navigation }) => {
+const ArtistVerifiedScreen = ({ navigation, route }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.navigate('ArtistHome');
-    }, 300);
+      if (route?.params?.isProfileComplete) {
+        console.log('[ArtistVerifiedScreen] isProfileComplete:', route?.params?.isProfileComplete);
+        navigation.navigate('ArtistHome', route?.params || {});
+      } else {
+        console.log('[ArtistVerifiedScreen] isProfileComplete:', route?.params?.isProfileComplete);
+        navigation.navigate('CreateProfile', route?.params || {});
+      }
+    }, 400);
     return () => clearTimeout(timer);
-  }, [navigation]);
+  }, [navigation, route]);
 
   return (
     <View style={styles.container}>

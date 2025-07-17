@@ -19,7 +19,7 @@ const HostChatList = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const token = useSelector(state => state.auth.token);
   const { eventId } = route.params; // Get eventId from navigation params
-  const BASE_URL = 'http://10.0.2.2:3000';
+  const BASE_URL = 'https://api.thescenezone.com';
 console.log("eventIdttttt",eventId)
   // Decode token to get user role and ID
   let userId = null;
@@ -157,13 +157,13 @@ console.log("eventIdttttt",eventId)
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.negotiationToggleContainer}>
+      {/* <View style={styles.negotiationToggleContainer}>
         <Text style={styles.negotiationToggleText}>Enable Negotiation</Text>
         <CustomToggle
           value={isNegotiationEnabled}
           onValueChange={setIsNegotiationEnabled}
         />
-      </View>
+      </View> */}
 
       <View style={styles.searchContainer}>
         <Icon name="search" size={20} color="#aaa" />
