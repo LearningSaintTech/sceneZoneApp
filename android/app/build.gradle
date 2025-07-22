@@ -27,9 +27,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.scene"
+    namespace "com.SceneZone"
     defaultConfig {
-        applicationId "com.scene"
+        applicationId "com.SceneZone"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -45,20 +45,22 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+       
         release {
-            storeFile file(project.MYAPP_UPLOAD_STORE_FILE)
-            storePassword project.MYAPP_UPLOAD_STORE_PASSWORD
-            keyAlias project.MYAPP_UPLOAD_KEY_ALIAS
-            keyPassword project.MYAPP_UPLOAD_KEY_PASSWORD
+            storeFile file('release-key.keystore')
+            storePassword 'qwertyzxcQ1@'
+            keyAlias 'my-key-alias'
+            keyPassword 'qwertyzxcQ1@'
         }
     }
-    buildTypes {
+   buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release // ✅ Use release signing config here only
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources false
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }

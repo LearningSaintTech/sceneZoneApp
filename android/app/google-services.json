@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:967002835299:android:995b425b77ecf7f1d2ab56",
         "android_client_info": {
-          "package_name": "com.scene"
+          "package_name": "com.SceneZone"
         }
       },
       "oauth_client": [],
@@ -26,4 +26,4 @@
     }
   ],
   "configuration_version": "1"
-}
+} 

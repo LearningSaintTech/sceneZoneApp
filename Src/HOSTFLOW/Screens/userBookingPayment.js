@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Platform,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -20,19 +21,58 @@ import VisaIcon from '../assets/icons/Visa';
  
 const UserBookingPaymentScreen = ({ navigation, route }) => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('googlepay');
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
+  const [payableAmount, setPayableAmount] = useState(null); // Amount in rupees
+  const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
   const token = useSelector((state) => state.auth.token);
   const { bookingDetails } = route.params || {};
   console.log('Booking details:', bookingDetails);
 
+  useEffect(() => {
+    // Fetch the payable amount from backend order creation endpoint
+    const fetchOrderAmount = async () => {
+      if (!token || !bookingDetails.eventId || !bookingDetails.numberOfTickets || !bookingDetails.guestType || !bookingDetails.selectedEventDate) {
+        setPayableAmount(null);
+        return;
+      }
+      setLoading(true);
+      try {
+        const response = await api.post(
+          'https://api.thescenezone.com/api/eventhost/tickets/create-order',
+          {
+            eventId: bookingDetails.eventId,
+            numberOfTickets: bookingDetails.numberOfTickets,
+            guestType: bookingDetails.guestType,
+            selectedEventDate: bookingDetails.selectedEventDate,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (response.data.success && response.data.data) {
+          const amountInRupees = (response.data.data.amount / 100).toFixed(2);
+          setPayableAmount(amountInRupees);
+        } else {
+          setPayableAmount(null);
+        }
+      } catch (error) {
+        setPayableAmount(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrderAmount();
+  }, [token, bookingDetails]);
+
   const handleConfirmPayment = async () => {
     if (!token) {
-      Alert.alert('Error', 'Authentication token is missing.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Authentication token is missing.' });
       return;
     }
 
     if (!bookingDetails.eventId || !bookingDetails.numberOfTickets || !bookingDetails.guestType || !bookingDetails.selectedEventDate) {
-      Alert.alert('Error', 'Missing required booking details.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Missing required booking details.' });
       return;
     }
 
@@ -56,11 +96,11 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
           ticketBooking: response.data.data.ticketBooking,
         });
       } else {
-        Alert.alert('Error', response.data.message || 'Failed to book ticket');
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to book ticket' });
       }
     } catch (error) {
       console.error('Error booking ticket:', error);
-      Alert.alert('Error', 'Failed to book ticket. Please try again.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Failed to book ticket. Please try again.' });
     }
   };
 
@@ -185,6 +225,19 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
  
       </ScrollView>
 
+      {/* Show the payable amount fetched from backend */}
+      <View style={{ alignItems: 'center', marginBottom: 10 }}>
+        {loading ? (
+          <Text style={{ color: '#a95eff', fontSize: 16 }}>Calculating total...</Text>
+        ) : (
+          payableAmount && (
+            <Text style={{ color: '#a95eff', fontSize: 18, fontWeight: 'bold' }}>
+              Payable Amount: ₹{payableAmount}
+            </Text>
+          )
+        )}
+      </View>
+
       <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom + 16, 16) }]}>
         <LinearGradient
           colors={['#B15CDE', '#7952FC']}
@@ -192,16 +245,45 @@ const UserBookingPaymentScreen = ({ navigation, route }) => {
           end={{ x: 1, y: 1 }}
           style={styles.confirmButtonGradient}
         >
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmPayment}>
+          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmPayment} disabled={loading}>
             <View style={styles.confirmButtonTextContainer}>
               <Text style={styles.confirmButtonText}>Confirm Payment</Text>
             </View>
           </TouchableOpacity>
         </LinearGradient>
       </View>
+      <CustomAlertModal />
     </SafeAreaView>
   );
 };
+
+const CustomAlertModal = () => (
+  <RNModal
+    visible={customAlert.visible}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+  >
+    <View style={styles.shortlistModalOverlay}>
+      <View style={styles.shortlistModalContent}>
+        <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+        <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+        <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+        <TouchableOpacity
+          style={styles.shortlistModalButton}
+          onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+        >
+          <LinearGradient
+            colors={["#B15CDE", "#7952FC"]}
+            style={styles.shortlistModalButtonGradient}
+          >
+            <Text style={styles.shortlistModalButtonText}>OK</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </RNModal>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -322,6 +404,47 @@ const styles = StyleSheet.create({
     fontStyle: 'normal',
     fontWeight: '500',
     lineHeight: 21,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    width: '80%',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  shortlistModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  shortlistModalMessage: {
+    fontSize: 16,
+    color: '#aaa',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    borderRadius: 8,
+  },
+  shortlistModalButtonGradient: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  shortlistModalButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

@@ -37,7 +37,7 @@ const ArtistUpload = ({ navigation }) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.label}>Venue Name</Text>
+        <Text style={styles.label}>Venue Nae</Text>
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}

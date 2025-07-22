@@ -13,6 +13,10 @@ import {
   Modal,
   TextInput,
   Keyboard,
+  RefreshControl,
+  findNodeHandle,
+  PermissionsAndroid,
+  Platform
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -45,6 +49,7 @@ import NotiIcon from '../assets/icons/Noti';
 import ArrowIcon from '../assets/icons/arrow';
 import HapticFeedback from 'react-native-haptic-feedback';
 import api from '../Config/api';
+import Geolocation from 'react-native-geolocation-service';
 
 const { width, height } = Dimensions.get('window');
 
@@ -90,6 +95,9 @@ const dimensions = {
   logoHeight: Math.max(height * 0.06, 40),
   bottomNavHeight: 48,
 };
+
+// Calculate side padding for horizontal scroll
+const sidePadding = (width - dimensions.cardWidth) / 2;
 
 // Haptic feedback options
 const hapticOptions = {
@@ -241,6 +249,9 @@ const UserHomeScreen = ({ navigation, route }) => {
   const snapToInterval = dimensions.cardWidth + dimensions.spacing.lg;
   const insets = useSafeAreaInsets();
 
+  // Refresh loader state
+  const [refreshing, setRefreshing] = useState(false);
+
   // State for loading and events
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [events, setEvents] = useState([]);
@@ -250,6 +261,8 @@ const UserHomeScreen = ({ navigation, route }) => {
   const [activeFilter, setActiveFilter] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
   const [showSearchBar, setShowSearchBar] = useState(false);
+  const [deviceLocation, setDeviceLocation] = useState('Fetching location...');
+  const [pendingScrollToExplore, setPendingScrollToExplore] = useState(false);
 
   // Get isLoggedIn, userData, and token from Redux store
   const isLoggedIn = useSelector(selectIsLoggedIn);
@@ -280,7 +293,7 @@ const UserHomeScreen = ({ navigation, route }) => {
             location: data.address || data.location || 'Noida',
           });
         } else {
-          console.error('Error fetching profile: Invalid response data', response.data);
+          // console.error('Error fetching profile: Invalid response data', response.data);
           setProfile({ name: 'Guest User', location: 'Noida' });
         }
       } catch (err) {
@@ -306,7 +319,9 @@ const UserHomeScreen = ({ navigation, route }) => {
         const response = await api.get('/user/get-favourite-events', config);
         if (response.data && response.data.success && response.data.data) {
           const favoriteEvents = response.data.data.reduce((acc, item) => {
-            acc[item.eventId] = true;
+            if (item.eventId && item.eventId._id) {
+              acc[item.eventId._id] = true;
+            }
             return acc;
           }, {});
           dispatch(setFavorites(favoriteEvents));
@@ -314,11 +329,6 @@ const UserHomeScreen = ({ navigation, route }) => {
           dispatch(setFavorites({})); // Set empty favorites if no data
         }
       } catch (err) {
-        // console.error('Error fetching favorite events:', {
-        //   status: err.response?.status,
-        //   data: err.response?.data,
-        //   message: err.message,
-        // });
         dispatch(setFavorites({})); // Set empty favorites on error
       } finally {
         dispatch(setLoading(false));
@@ -338,7 +348,7 @@ const UserHomeScreen = ({ navigation, route }) => {
             'Accept': 'application/json',
           },
         });
-        console.log('response.data.dataaaaaaaaa', response.data.data)
+        // console.log('response.data.dataaaaaaaaa', response.data.data)
         if (response.data && response.data.success && response.data.data) {
           const formattedEvents = response.data.data.map(event => ({
             ...event,
@@ -346,16 +356,16 @@ const UserHomeScreen = ({ navigation, route }) => {
           }));
           setEvents(formattedEvents);
         } else {
-          console.error('Error fetching events: Invalid response data', response.data);
+          // console.error('Error fetching events: Invalid response data', response.data);
           setEvents([]);
         }
       } catch (err) {
-        console.error('Error fetching events:', {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-          config: err.config,
-        });
+        // console.error('Error fetching events:', {
+        //   status: err.response?.status,
+        //   data: err.response?.data,
+        //   message: err.message,
+        //   config: err.config,
+        // });
         setEvents([]);
       }
       setIsLoadingEvents(false);
@@ -401,16 +411,16 @@ const UserHomeScreen = ({ navigation, route }) => {
           });
           setLatestEvents(formattedEvents);
         } else {
-          console.error('Error fetching latest events: Invalid response data', response.data);
+          // console.error('Error fetching latest events: Invalid response data', response.data);
           setLatestEvents([]);
         }
       } catch (err) {
-        console.error('Error fetching latest events:', {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-          config: err.config,
-        });
+        // console.error('Error fetching latest events:', {
+        //   status: err.response?.status,
+        //   data: err.response?.data,
+        //   message: err.message,
+        //   config: err.config,
+        // });
         setLatestEvents([]);
       }
       setIsLoadingEvents(false);
@@ -483,16 +493,16 @@ const UserHomeScreen = ({ navigation, route }) => {
           });
           setExploreEvents(formattedEvents);
         } else {
-          console.error('Error fetching explore events: Invalid response data', response.data);
+          // console.error('Error fetching explore events: Invalid response data', response.data);
           setExploreEvents([]);
         }
       } catch (err) {
-        console.error('Error fetching explore events:', {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-          config: err.config,
-        });
+        // console.error('Error fetching explore events:', {
+        //   status: err.response?.status,
+        //   data: err.response?.data,
+        //   message: err.message,
+        //   config: err.config,
+        // });
         setExploreEvents([]);
       }
       setIsLoadingEvents(false);
@@ -523,16 +533,16 @@ const UserHomeScreen = ({ navigation, route }) => {
         }));
         setEvents(formattedEvents);
       } else {
-        console.error('Error searching events: Invalid response data', response.data);
+        // console.error('Error searching events: Invalid response data', response.data);
         setEvents([]);
       }
     } catch (err) {
-      console.error('Error searching events:', {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-        config: err.config,
-      });
+      // console.error('Error searching events:', {
+      //   status: err.response?.status,
+      //   data: err.response?.data,
+      //   message: err.message,
+      //   config: err.config,
+      // });
       setEvents([]);
     }
     setIsLoadingEvents(false);
@@ -616,16 +626,16 @@ const UserHomeScreen = ({ navigation, route }) => {
         });
         setExploreEvents(formattedEvents);
       } else {
-        console.error('Error filtering events: Invalid response data', response.data);
+        // console.error('Error filtering events: Invalid response data', response.data);
         setExploreEvents([]);
       }
     } catch (err) {
-      console.error('Error filtering events:', {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message,
-        config: err.config,
-      });
+      // console.error('Error filtering events:', {
+      //   status: err.response?.status,
+      //   data: err.response?.data,
+      //   message: err.message,
+      //   config: err.config,
+      // });
       setExploreEvents([]);
     }
     setIsLoadingEvents(false);
@@ -696,50 +706,16 @@ const UserHomeScreen = ({ navigation, route }) => {
         jitterFavoriteTab();
       }
     } catch (error) {
-      console.error('Error updating favorite:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
+      // console.error('Error updating favorite:', {
+      //   status: error.response?.status,
+      //   data: error.response?.data,
+      //   message: error.message,
+      // });
       dispatch(setError(error.message));
     } finally {
       dispatch(setLoading(false));
     }
   };
-
-  // Notification animation state
-  const [hasNotification, setHasNotification] = useState(true);
-  const notificationAnim = useRef(new Animated.Value(0)).current;
-
-  // Jiggle animation effect for notification button
-  useEffect(() => {
-    if (hasNotification) {
-      const timer = setTimeout(() => {
-        const jitterAnimation = Animated.loop(
-          Animated.sequence([
-            Animated.timing(notificationAnim, { toValue: 1, duration: 50, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: -1, duration: 50, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: 0.8, duration: 40, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: -0.8, duration: 40, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: 0.6, duration: 30, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: -0.6, duration: 30, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: 0.4, duration: 25, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: -0.4, duration: 25, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: 0.2, duration: 20, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: -0.2, duration: 20, useNativeDriver: true }),
-            Animated.timing(notificationAnim, { toValue: 0, duration: 15, useNativeDriver: true }),
-            Animated.delay(2000),
-          ]),
-          { iterations: -1 }
-        );
-        jitterAnimation.start();
-      }, 5000);
-      return () => {
-        clearTimeout(timer);
-        notificationAnim.stopAnimation();
-      };
-    }
-  }, [hasNotification]);
 
   const handleFeatureNavigation = (screenName) => {
     if (isLoggedIn) {
@@ -753,25 +729,22 @@ const UserHomeScreen = ({ navigation, route }) => {
     }
   };
 
-  const renderEventCard = ({ item, index }) => {
+  const renderEventCard = ({ item, index, isLast }) => {
     const inputRange = [
       (index - 1) * snapToInterval,
       index * snapToInterval,
       (index + 1) * snapToInterval,
     ];
-
     const scale = scrollX.interpolate({
       inputRange,
       outputRange: [0.85, 1, 0.85],
       extrapolate: 'clamp',
     });
-
     const opacity = scrollX.interpolate({
       inputRange,
       outputRange: [0.5, 1, 0.5],
       extrapolate: 'clamp',
     });
-
     const renderMedia = () => {
       if (item.posterUrl) {
         return (
@@ -784,16 +757,13 @@ const UserHomeScreen = ({ navigation, route }) => {
       }
       return null;
     };
-
     return (
-      <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('UserEvent', { eventId: item._id })}>
+      <TouchableOpacity activeOpacity={0.85} onPress={() => handleRequireSignup(() => navigation.navigate('UserEvent', { eventId: item._id }))}>
         <Animated.View
           style={[
             styles.eventCardContainerHorizontalScroll,
-            {
-              transform: [{ scale }],
-              opacity,
-            }
+            isLast ? { marginRight: 0 } : null,
+            { transform: [{ scale }], opacity },
           ]}
         >
           <LinearGradient
@@ -806,7 +776,7 @@ const UserHomeScreen = ({ navigation, route }) => {
           <View style={styles.imageOverlay} />
           <TouchableOpacity
             style={styles.heartIconPlaceholder}
-            onPress={() => handleFavoriteToggle(item._id)}
+            onPress={() => handleRequireSignup(() => handleFavoriteToggle(item._id))}
           >
             <Ionicons
               name={item.isFavorite ? "heart" : "heart-outline"}
@@ -814,7 +784,6 @@ const UserHomeScreen = ({ navigation, route }) => {
               color={item.isFavorite ? "#ff4444" : "#7A7A90"}
             />
           </TouchableOpacity>
-
           <View style={styles.featuredEventDetailsBottomContainer}>
             <View style={styles.featuredEventTextContainer}>
               <Text style={styles.featuredEventTitle} numberOfLines={1} ellipsizeMode="tail">{item.eventName}</Text>
@@ -828,7 +797,7 @@ const UserHomeScreen = ({ navigation, route }) => {
             >
               <TouchableOpacity
                 style={styles.featuredEventArrowButton}
-                onPress={() => navigation.navigate('UserEvent', { eventId: item._id })}
+                onPress={() => handleRequireSignup(() => navigation.navigate('UserEvent', { eventId: item._id }))}
                 activeOpacity={0.8}
               >
                 <ArrowIcon width={16} height={26} />
@@ -876,6 +845,7 @@ const UserHomeScreen = ({ navigation, route }) => {
 
   const latestEventsScrollRef = useRef(null);
   const latestScrollAnim = useRef(new Animated.Value(0)).current;
+  const latestScrollAnimation = useRef(null); // NEW: store animation instance
   const latestAutoScrollTimeout = useRef(null);
   const latestAutoScrollPaused = useRef(false);
 
@@ -884,19 +854,27 @@ const UserHomeScreen = ({ navigation, route }) => {
     const cardWidth = 267;
     const maxScroll = (latestEvents.length * cardWidth) - width;
     if (maxScroll > 0) {
-      Animated.loop(
+      // Stop previous animation if running
+      if (latestScrollAnimation.current) {
+        latestScrollAnimation.current.stop();
+      }
+      latestScrollAnimation.current = Animated.loop(
         Animated.timing(latestScrollAnim, {
           toValue: maxScroll,
           duration: 20000,
           useNativeDriver: false,
           easing: Easing.linear,
         })
-      ).start();
+      );
+      latestScrollAnimation.current.start();
     }
   };
 
   const stopLatestAutoScroll = () => {
-    latestScrollAnim.stopAnimation();
+    if (latestScrollAnimation.current) {
+      latestScrollAnimation.current.stop();
+      latestScrollAnimation.current = null;
+    }
   };
 
   const pauseLatestAutoScroll = () => {
@@ -912,7 +890,7 @@ const UserHomeScreen = ({ navigation, route }) => {
   useEffect(() => {
     const id = latestScrollAnim.addListener(({ value }) => {
       if (latestEventsScrollRef.current) {
-        latestEventsScrollRef.current.scrollTo({ x: value, animated: false });
+        latestEventsScrollRef.current.scrollTo({ x: Math.max(0, value), animated: false }); // guard against negative
       }
     });
     return () => latestScrollAnim.removeListener(id);
@@ -1014,20 +992,42 @@ const UserHomeScreen = ({ navigation, route }) => {
               </View>
             </View>
           </ScrollView>
-          <View style={styles.fixedButtonContainer}>
+          <View style={[styles.fixedButtonContainer, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }]}> 
             <TouchableOpacity
-              style={[styles.continueButton, { marginBottom: dimensions.spacing.sm }]}
+              style={[
+                styles.continueButton,
+                {
+                  marginBottom: dimensions.spacing.xs,
+                  height: 26,
+                  maxWidth: 100,
+                  borderRadius: 8,
+                  paddingVertical: 0,
+                  paddingHorizontal: 10,
+                  alignSelf: 'flex-start',
+                },
+              ]}
               onPress={handleFilter}
               activeOpacity={0.8}
             >
-              <Text style={styles.continueButtonText}>Apply Filters</Text>
+              <Text style={[styles.continueButtonText, { fontSize: 13, fontWeight: '600' }]}>Apply Filters</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.clearButton}
+              style={[
+                styles.clearButton,
+                {
+                  height: 26,
+                  maxWidth: 100,
+                  borderRadius: 8,
+                  paddingVertical: 0,
+                  paddingHorizontal: 10,
+                  alignSelf: 'flex-end',
+                  marginTop: 4,
+                },
+              ]}
               onPress={clearFilters}
               activeOpacity={0.8}
             >
-              <Text style={styles.clearButtonText}>Clear Filters</Text>
+              <Text style={[styles.clearButtonText, { fontSize: 12 }]}>Clear Filters</Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -1074,6 +1074,267 @@ const UserHomeScreen = ({ navigation, route }) => {
     );
   };
 
+  useEffect(() => {
+    const requestLocationPermission = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            {
+              title: 'Location Permission',
+              message: 'This app needs access to your location to show your city.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            },
+          );
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            setDeviceLocation(profile.location || 'Location unavailable');
+            return;
+          }
+        }
+        Geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            try {
+              const apiKey = 'pk.bbae5b128a235f16723bac232aa283eb';
+              const response = await fetch(`https://us1.locationiq.com/v1/reverse.php?key=${apiKey}&lat=${latitude}&lon=${longitude}&format=json`);
+              const data = await response.json();
+              const city = data.address?.city || data.address?.town || data.address?.village;
+              const state = data.address?.state;
+              let locationText = '';
+              if (city && state) {
+                locationText = `${city}, ${state}`;
+              } else if (city) {
+                locationText = city;
+              } else if (state) {
+                locationText = state;
+              } else {
+                locationText = profile.location || 'Unknown location';
+              }
+              setDeviceLocation(locationText);
+            } catch (e) {
+              setDeviceLocation(profile.location || 'Unknown location');
+            }
+          },
+          (error) => {
+            setDeviceLocation(profile.location || 'Location unavailable');
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+        );
+      } catch (err) {
+        setDeviceLocation(profile.location || 'Location unavailable');
+      }
+    };
+    requestLocationPermission();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Helper to block action and prompt signup if not logged in
+  const handleRequireSignup = (action) => {
+    if (!isLoggedIn) {
+      navigation.navigate('UserSignup');
+      return;
+    }
+    action && action();
+  };
+
+  // Refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Re-fetch all event lists and favorites
+    try {
+      // You may want to call the same fetch functions as in useEffect
+      await Promise.all([
+        (async () => {
+          // Fetch favorites
+          try {
+            const config = isLoggedIn && token ? {
+              headers: { Authorization: `Bearer ${token}` },
+            } : {};
+            const response = await api.get('/user/get-favourite-events', config);
+            if (response.data && response.data.success && response.data.data) {
+              const favoriteEvents = response.data.data.reduce((acc, item) => {
+                acc[item.eventId._id] = true;
+                return acc;
+              }, {});
+              dispatch(setFavorites(favoriteEvents));
+            } else {
+              dispatch(setFavorites({}));
+            }
+          } catch {
+            dispatch(setFavorites({}));
+          }
+        })(),
+        (async () => {
+          // Fetch events (search)
+          try {
+            const response = await api.post('/user/event/search', { keyword: searchKeyword }, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+            });
+            if (response.data && response.data.success && response.data.data) {
+              const formattedEvents = response.data.data.map(event => ({
+                ...event,
+                isFavorite: !!favorites[event._id],
+              }));
+              setEvents(formattedEvents);
+            } else {
+              setEvents([]);
+            }
+          } catch {
+            setEvents([]);
+          }
+        })(),
+        (async () => {
+          // Fetch latest events
+          try {
+            const response = await api.post('/user/event/latest', { limit: 10 }, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+            });
+            if (response.data && response.data.success && response.data.data) {
+              const formattedEvents = response.data.data.map((event) => {
+                const earliestDate = event.eventDateTime && event.eventDateTime.length > 0
+                  ? new Date(event.eventDateTime.reduce((earliest, curr) =>
+                    new Date(curr) < new Date(earliest) ? curr : earliest
+                  ))
+                  : null;
+                const dateMonth = earliestDate ? earliestDate.toLocaleString('en-US', { month: 'short' }) : 'N/A';
+                const dateDay = earliestDate ? earliestDate.getDate().toString().padStart(2, '0') : 'N/A';
+                const price = event.ticketSetting.ticketType === 'free'
+                  ? 'Free'
+                  : `₹${event.ticketSetting.price || 0} - ₹${(event.ticketSetting.price || 0) + 100}`;
+                return {
+                  id: event._id,
+                  image: { uri: event.posterUrl },
+                  dateMonth,
+                  dateDay,
+                  title: event.eventName,
+                  price,
+                  location: event.location,
+                  eventId: event._id,
+                  isFavorite: !!favorites[event._id],
+                  hasGuestListButton: false,
+                };
+              });
+              setLatestEvents(formattedEvents);
+            } else {
+              setLatestEvents([]);
+            }
+          } catch {
+            setLatestEvents([]);
+          }
+        })(),
+        (async () => {
+          // Fetch explore events (filter)
+          try {
+            const payload = {};
+            if (activeFilter) {
+              const filterMap = {
+                'Nearby': 'nearby',
+                'Today': 'today',
+                'This Week': 'this week',
+                'This Weekend': 'this weekend',
+                'Next Weekend': 'next weekend',
+                'Tickets less than ₹1000': 'ticket less than 1000',
+                '₹1000 - ₹5000': '1000-5000',
+                '₹5000+': '5000+',
+              };
+              payload.dateFilter = filterMap[activeFilter] || activeFilter.toLowerCase();
+              if (activeFilter.includes('km') || activeFilter === 'Nearby') {
+                payload.location = profile.location;
+                const radiusMap = {
+                  '1km-3km': 3,
+                  '3km-5km': 5,
+                  '5km+': 10,
+                  'Nearby': 50,
+                };
+                payload.radius = radiusMap[activeFilter] || 50;
+              }
+            }
+            if (activeCategory) {
+              payload.genre = activeCategory.toLowerCase();
+            }
+            const response = await api.post('/user/event/filter', payload, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+            });
+            if (response.data && response.data.success && response.data.data) {
+              const formattedEvents = response.data.data.map((event) => {
+                const earliestDate = event.eventDateTime && event.eventDateTime.length > 0
+                  ? new Date(event.eventDateTime.reduce((earliest, curr) =>
+                    new Date(curr) < new Date(earliest) ? curr : earliest
+                  ))
+                  : null;
+                const dateMonth = earliestDate ? earliestDate.toLocaleString('en-US', { month: 'short' }) : 'N/A';
+                const dateDay = earliestDate ? earliestDate.getDate().toString().padStart(2, '0') : 'N/A';
+                const price = event.ticketSetting.ticketType === 'free'
+                  ? 'Free'
+                  : `₹${event.ticketSetting.price || 0} - ₹${(event.ticketSetting.price || 0) + 100}`;
+                return {
+                  id: event._id,
+                  image: { uri: event.posterUrl },
+                  dateMonth,
+                  dateDay,
+                  title: event.eventName,
+                  price,
+                  location: event.location,
+                  eventId: event._id,
+                  isFavorite: !!favorites[event._id],
+                  hasGuestListButton: false,
+                };
+              });
+              setExploreEvents(formattedEvents);
+            } else {
+              setExploreEvents([]);
+            }
+          } catch {
+            setExploreEvents([]);
+          }
+        })(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Ref for main ScrollView
+  const mainScrollViewRef = useRef(null);
+  // Ref for Explore Events section
+  const exploreEventsSectionRef = useRef(null);
+
+  // Helper to scroll to Explore Events section
+  const scrollToExploreEvents = () => {
+    if (mainScrollViewRef.current && exploreEventsSectionRef.current) {
+      const handle = findNodeHandle(mainScrollViewRef.current);
+      exploreEventsSectionRef.current.measureLayout(
+        handle,
+        (x, y) => {
+          mainScrollViewRef.current.scrollTo({ y: y - 40, animated: true });
+        },
+        () => {}
+      );
+    }
+  };
+
+  // Scroll after filter is applied and section is rendered
+  useEffect(() => {
+    if (pendingScrollToExplore) {
+      // Wait a tick to ensure layout is updated
+      setTimeout(() => {
+        scrollToExploreEvents();
+        setPendingScrollToExplore(false);
+      }, 100);
+    }
+  }, [exploreEvents, pendingScrollToExplore]);
+
   return (
     <SafeAreaView style={[styles.container, {
       paddingTop: insets.top,
@@ -1117,8 +1378,17 @@ const UserHomeScreen = ({ navigation, route }) => {
           style={styles.contentArea}
           stickyHeaderIndices={[3, 7]}
           contentContainerStyle={{ paddingBottom: 120 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#a95eff"
+              colors={["#a95eff"]}
+            />
+          }
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          ref={mainScrollViewRef}
         >
           <LinearGradient
             colors={['#000000', '#1a1a1a', '#B15CDE']}
@@ -1173,20 +1443,18 @@ const UserHomeScreen = ({ navigation, route }) => {
                 </MaskedView>
                 <View style={styles.locationContainer}>
                   <MaterialIcons name="location-on" size={dimensions.iconSize} color="#a95eff" />
-                  <Text style={styles.locationText}>{profile.location}</Text>
+                  <Text style={styles.locationText}>{deviceLocation || profile.location}</Text>
                 </View>
               </View>
               <View style={styles.iconContainer}>
-                <TouchableOpacity onPress={() => setShowSearchBar(true)} style={styles.headerIconButton}>
+                <TouchableOpacity onPress={() => handleRequireSignup(() => setShowSearchBar(true))} style={styles.headerIconButton}>
                   <SearchIcon width={dimensions.navIconSize} height={dimensions.navIconSize} />
                 </TouchableOpacity>
-                <Animated.View style={{
-                  transform: [{ rotate: notificationAnim.interpolate({ inputRange: [-1, 1], outputRange: ['-15deg', '15deg'] }) }]
-                }}>
-                  <TouchableOpacity style={styles.headerIconButton} onPress={() => navigation.navigate('UserNotificationScreen')}>
+                <View>
+                  <TouchableOpacity style={styles.headerIconButton} onPress={() => handleRequireSignup(() => navigation.navigate('UserNotificationScreen'))}>
                     <NotiIcon width={dimensions.navIconSize * 1.25} height={dimensions.navIconSize * 1.25} />
                   </TouchableOpacity>
-                </Animated.View>
+                </View>
               </View>
             </View>
             <View style={styles.sectionNoPadding}>
@@ -1194,7 +1462,11 @@ const UserHomeScreen = ({ navigation, route }) => {
                 ref={featuredEventsScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalEventList}
+                contentContainerStyle={{
+                  ...styles.horizontalEventList,
+                  paddingLeft: sidePadding,
+                  paddingRight: sidePadding,
+                }}
                 onScroll={Animated.event(
                   [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                   { useNativeDriver: true }
@@ -1206,21 +1478,26 @@ const UserHomeScreen = ({ navigation, route }) => {
               >
                 {events.map((item, index) => (
                   <View key={item._id}>
-                    {renderEventCard({ item, index })}
+                    {renderEventCard({ item, index, isLast: index === events.length - 1 })}
                   </View>
                 ))}
               </Animated.ScrollView>
             </View>
           </LinearGradient>
-          <View style={{height: 80}} />
-          <View style={[styles.section, { marginBottom: dimensions.spacing.xxxl }]}>
-            <Text style={styles.sectionTitle}>Get Your Vibe</Text>
+         <View style={{height: 80}} />
+          <View style={[styles.section, { marginBottom: dimensions.spacing.xxxl }]}> 
+            <Text style={styles.sectionTitle}>
+            Get your Vibe</Text>
             <View>
               <TouchableOpacity
                 style={styles.categoryCard}
                 onPress={() => {
-                  handleCategoryFilter('Spotlight');
-                  handleFeatureNavigation('SpotlightEvents');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Spotlight');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <Image
@@ -1232,8 +1509,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryCard}
                 onPress={() => {
-                  handleCategoryFilter('Sports');
-                  handleFeatureNavigation('SportsScreening');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Workshop');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <Image
@@ -1245,8 +1526,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryCard}
                 onPress={() => {
-                  handleCategoryFilter('Party');
-                  handleFeatureNavigation('MusicParty');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Sports');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <Image
@@ -1258,8 +1543,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryCard}
                 onPress={() => {
-                  handleCategoryFilter('Events');
-                  handleFeatureNavigation('TrendingEvents');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Comedy');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <Image
@@ -1271,8 +1560,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryCard}
                 onPress={() => {
-                  handleCategoryFilter('Comedy');
-                  handleFeatureNavigation('Comedy');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Trending');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <Image
@@ -1284,8 +1577,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryCard}
                 onPress={() => {
-                  handleCategoryFilter('Workshop');
-                  handleFeatureNavigation('Workshop');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Party');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <Image
@@ -1301,8 +1598,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryNavItem}
                 onPress={() => {
-                  handleCategoryFilter('Spotlight');
-                  handleFeatureNavigation('SpotlightEvents');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Spotlight');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <CategoryNavIcon type="spotlight" isActive={activeCategory === 'Spotlight'} />
@@ -1311,8 +1612,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryNavItem}
                 onPress={() => {
-                  handleCategoryFilter('Sports');
-                  handleFeatureNavigation('Sports');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Sports');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <CategoryNavIcon type="sports" isActive={activeCategory === 'Sports'} />
@@ -1321,8 +1626,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryNavItem}
                 onPress={() => {
-                  handleCategoryFilter('Party');
-                  handleFeatureNavigation('Party');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Party');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <CategoryNavIcon type="party" isActive={activeCategory === 'Party'} />
@@ -1331,8 +1640,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryNavItem}
                 onPress={() => {
-                  handleCategoryFilter('Events');
-                  handleFeatureNavigation('Events');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Events');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <CategoryNavIcon type="events" isActive={activeCategory === 'Events'} />
@@ -1341,8 +1654,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryNavItem}
                 onPress={() => {
-                  handleCategoryFilter('Comedy');
-                  handleFeatureNavigation('Comedy');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Comedy');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <CategoryNavIcon type="comedy" isActive={activeCategory === 'Comedy'} />
@@ -1351,8 +1668,12 @@ const UserHomeScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={styles.categoryNavItem}
                 onPress={() => {
-                  handleCategoryFilter('Workshop');
-                  handleFeatureNavigation('Workshop');
+                  setActiveCategory('');
+                  setTimeout(() => {
+                    setActiveCategory('Workshop');
+                    setActiveFilter('');
+                    setPendingScrollToExplore(true);
+                  }, 0);
                 }}
               >
                 <CategoryNavIcon type="workshop" isActive={activeCategory === 'Workshop'} />
@@ -1365,8 +1686,8 @@ const UserHomeScreen = ({ navigation, route }) => {
             backgroundColor: '#fff',
             opacity: 0.12,
             width: '100%',
-          }} />
-          <View style={[styles.section, { marginBottom: 0, marginTop: dimensions.spacing.xxxl }]}>
+          }}/> 
+          <View style={[styles.section, { marginBottom: 0, marginTop: dimensions.spacing.xxxl }]}> 
             <Text style={[styles.sectionTitle, { marginBottom: dimensions.spacing.lg }]}>Latest Events</Text>
             <ScrollView
               ref={latestEventsScrollRef}
@@ -1385,26 +1706,39 @@ const UserHomeScreen = ({ navigation, route }) => {
           </View>
           <View
             style={[styles.section, { marginTop: dimensions.spacing.md, marginBottom: 0 }]}
-            onLayout={e => {
-              setPlanSectionY(e.nativeEvent.layout.y);
-              setPlanSectionHeight(e.nativeEvent.layout.height);
-            }}
           >
             <Text style={styles.sectionTitle}>Plan for</Text>
             <View style={styles.planForButtonsContainer}>
-              <Animated.View style={{ transform: [{ translateX: planTodayAnim }] }}>
-                <TouchableOpacity onPress={() => handleFeatureNavigation('TodayEvents')} style={{ marginLeft: -16 }}>
-                  <Plan1 width={140} height={139} />
-                </TouchableOpacity>
-              </Animated.View>
-              <TouchableOpacity onPress={() => handleFeatureNavigation('WeeklyEvents')} style={{ marginLeft: -56 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setActiveFilter('Today');
+                  setActiveCategory('');
+                  setPendingScrollToExplore(true);
+                }}
+                style={{ marginLeft: -16 }}
+              >
+                <Plan1 width={140} height={139} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setActiveFilter('This Week');
+                  setActiveCategory('');
+                  setPendingScrollToExplore(true);
+                }}
+                style={{ marginLeft: -56 }}
+              >
                 <Plan2 width={140} height={139} />
               </TouchableOpacity>
-              <Animated.View style={{ transform: [{ translateX: planWeekendAnim }] }}>
-                <TouchableOpacity onPress={() => handleFeatureNavigation('WeekendEvents')} style={{ marginLeft: -56 }}>
-                  <Plan3 width={140} height={139} />
-                </TouchableOpacity>
-              </Animated.View>
+              <TouchableOpacity
+                onPress={() => {
+                  setActiveFilter('This Weekend');
+                  setActiveCategory('');
+                  setPendingScrollToExplore(true);
+                }}
+                style={{ marginLeft: -56 }}
+              >
+                <Plan3 width={140} height={139} />
+              </TouchableOpacity>
             </View>
           </View>
           <View style={[
@@ -1470,7 +1804,9 @@ const UserHomeScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </ScrollView>
           </View>
-          <View style={[styles.section, { marginTop: dimensions.spacing.xxxl }]}>
+          <View style={[styles.section, { marginTop: dimensions.spacing.xxxl }]}
+            ref={exploreEventsSectionRef}
+          >
             <Text style={[styles.sectionTitle, { marginBottom: dimensions.spacing.lg }]}>
               Explore {exploreEvents.length} events around you
             </Text>
@@ -1480,7 +1816,7 @@ const UserHomeScreen = ({ navigation, route }) => {
                   key={item.id}
                   style={styles.exploreEventCardContainer}
                   activeOpacity={0.85}
-                  onPress={() => navigation.navigate('UserEvent', { eventId: item.id })}
+                  onPress={() => handleRequireSignup(() => navigation.navigate('UserEvent', { eventId: item.id }))}
                 >
                   <Image
                     source={item.image}
@@ -1489,12 +1825,12 @@ const UserHomeScreen = ({ navigation, route }) => {
                   />
                   <TouchableOpacity
                     style={styles.exploreEventHeartIcon}
-                    onPress={() => handleFavoriteToggle(item.eventId)}
+                    onPress={() => handleRequireSignup(() => handleFavoriteToggle(item.eventId))}
                   >
                     <Ionicons
                       name={item.isFavorite ? "heart" : "heart-outline"}
                       size={dimensions.navIconSize * 1.25}
-                      color={item.isFavorite ? "#ff4444" : "#7A7A90"}
+                      color={item.isFavorite ? "#ff4444" : "#7A7Ayes90"}
                     />
                   </TouchableOpacity>
                   <View style={styles.exploreEventDetailsOverlay}>
@@ -1742,11 +2078,11 @@ const styles = StyleSheet.create({
   },
   eventCardContainerHorizontalScroll: {
     width: dimensions.cardWidth,
-    marginRight: 0,
     borderRadius: dimensions.borderRadius.lg,
     overflow: 'hidden',
     position: 'relative',
     marginBottom: dimensions.spacing.md,
+    marginRight: dimensions.spacing.lg, // default margin between cards
   },
   categoryCard: {
     width: '100%',

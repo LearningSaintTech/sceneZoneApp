@@ -39,6 +39,9 @@ import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import HapticFeedback from 'react-native-haptic-feedback';
 import api from '../Config/api';
 import ArtistExploreEvent from './ArtistExploreEvent';
+import Geolocation from 'react-native-geolocation-service';
+import { PermissionsAndroid } from 'react-native';
+// import Clipboard from '@react-native-clipboard/clipboard';
 
 const { width } = Dimensions.get('window');
 
@@ -552,7 +555,12 @@ const ArtistEventCard = ({ item, navigation, onEventApplied, onEventSaved, saved
               value={item.guestLink || "https://copy-guestlist-link-artist-"}
               editable={false}
             />
-            <TouchableOpacity onPress={() => console.log('Copy guest list link')}>
+            <TouchableOpacity onPress={() => {
+              if (item.guestLink) {
+                Clipboard.setString(item.guestLink);
+                Alert.alert('Copied', 'Guest list link copied to clipboard!');
+              }
+            }}>
               <Ionicons name="copy-outline" size={24} color="#ccc" />
             </TouchableOpacity>
           </View>
@@ -1735,6 +1743,26 @@ const ArtistHomeScreen = ({ navigation }) => {
   const notificationAnim = useRef(new Animated.Value(0)).current;
   const [showExitAlert, setShowExitAlert] = useState(false);
 
+  // Reset exit alert on mount
+  useEffect(() => {
+    setShowExitAlert(false);
+  }, []);
+
+  // Handle Android back button to show exit modal
+  useEffect(() => {
+    const backAction = () => {
+      // Only show exit alert if on ArtistHomeScreen
+      const currentRoute = navigation.getState()?.routes[navigation.getState()?.index]?.name;
+      if (currentRoute === 'ArtistHome') {
+        setShowExitAlert(true);
+        return true; // Prevent default back action
+      }
+      return false;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [navigation]);
+
   // Jiggle animation effect for notification button
   useEffect(() => {
     if (hasNotification) {
@@ -1915,12 +1943,66 @@ const ArtistHomeScreen = ({ navigation }) => {
     </>
   ), [searchText, handleSearchChange, handleSearchSubmit, handleSearchClear, selectedGenre, selectedBudget, selectedLocation, selectedDate, showGenreDropdown, showBudgetModal, showDatePicker, showLocationModal, locationInput, currentBudget, formatBudgetINR, formatDateForDisplay, handleDatePress, handleLocationButtonPress, handleAllPress, handleGenreButtonPress, handleGenreSelect, handleBudgetPress, handleLocationPress]);
 
+  const [deviceLocation, setDeviceLocation] = useState('Fetching location...');
+
+  useEffect(() => {
+    const requestLocationPermission = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            {
+              title: 'Location Permission',
+              message: 'This app needs access to your location to show your city.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            },
+          );
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            setDeviceLocation(artistLocation || 'Location unavailable');
+            return;
+          }
+        }
+        Geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            try {
+              const apiKey = 'pk.bbae5b128a235f16723bac232aa283eb';
+              const response = await fetch(`https://us1.locationiq.com/v1/reverse.php?key=${apiKey}&lat=${latitude}&lon=${longitude}&format=json`);
+              const data = await response.json();
+              const city = data.address?.city || data.address?.town || data.address?.village;
+              const state = data.address?.state;
+              let locationText = '';
+              if (city && state) {
+                locationText = `${city}, ${state}`;
+              } else if (city) {
+                locationText = city;
+              } else if (state) {
+                locationText = state;
+              } else {
+                locationText = artistLocation || 'Unknown location';
+              }
+              setDeviceLocation(locationText);
+            } catch (e) {
+              setDeviceLocation(artistLocation || 'Unknown location');
+            }
+          },
+          (error) => {
+            setDeviceLocation(artistLocation || 'Location unavailable');
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+        );
+      } catch (err) {
+        setDeviceLocation(artistLocation || 'Location unavailable');
+      }
+    };
+    requestLocationPermission();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <SignUpBackground
         style={{
           position: 'absolute',
@@ -1978,7 +2060,7 @@ const ArtistHomeScreen = ({ navigation }) => {
           </MaskedView>
           <View style={styles.locationContainer}>
             <MaterialIcons name="location-on" size={16} color="#a95eff" />
-            <Text style={styles.locationText}>{artistLocation}</Text>
+            <Text style={styles.locationText}>{deviceLocation || artistLocation}</Text>
           </View>
         </View>
         <Animated.View style={{
@@ -2199,40 +2281,42 @@ const ArtistHomeScreen = ({ navigation }) => {
         animationType="fade"
         onRequestClose={() => setShowExitAlert(false)}
       >
-        <View style={styles.exitAlertOverlay}>
-          <View style={styles.exitAlertContainer}>
-            <View style={styles.exitAlertIconContainer}>
+        <View style={{flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20}}>
+          <View style={{backgroundColor: '#1a1a1a', borderRadius: 20, padding: 24, width: '100%', maxWidth: 280, alignItems: 'center', borderWidth: 1, borderColor: '#333', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10}}>
+            <View style={{width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255, 107, 107, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 16}}>
               <Ionicons name="exit-outline" size={32} color="#FF6B6B" />
             </View>
-            <Text style={styles.exitAlertTitle}>Exit App</Text>
-            <Text style={styles.exitAlertMessage}>
+            <Text style={{fontSize: 16, fontWeight: '700', color: '#fff', marginBottom: 8, textAlign: 'center'}}>Exit App</Text>
+            <Text style={{fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22, marginBottom: 24}}>
               Are you sure you want to exit the application?
             </Text>
-            <View style={styles.exitAlertButtons}>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', width: '100%', gap: 12}}>
               <TouchableOpacity 
-                style={styles.exitAlertCancelButton}
+                style={{flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#333', borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center'}}
                 onPress={() => setShowExitAlert(false)}
               >
-                <Text style={styles.exitAlertCancelText}>Cancel</Text>
+                <Text style={{color: '#aaa', fontSize: 14, fontWeight: '600'}}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.exitAlertExitButton}
-                onPress={() => BackHandler.exitApp()}
+                style={{flex: 1, borderRadius: 12, overflow: 'hidden'}}
+                onPress={() => {
+                  setShowExitAlert(false);
+                  BackHandler.exitApp();
+                }}
               >
                 <LinearGradient
                   colors={['#FF6B6B', '#FF5252']}
                   start={{x: 0, y: 0}}
                   end={{x: 1, y: 0}}
-                  style={styles.exitAlertExitGradient}
-                >
-                  <Text style={styles.exitAlertExitText}>Exit</Text>
+                  style={{paddingVertical: 14, alignItems: 'center', justifyContent: 'center'}}>
+                  <Text style={{color: '#fff', fontSize: 14, fontWeight: '600'}}>Exit</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 

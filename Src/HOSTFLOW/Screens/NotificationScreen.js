@@ -9,18 +9,53 @@ import {
   SafeAreaView,
   RefreshControl,
   ActivityIndicator,
+  Dimensions,   
+  Platform,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../Redux/slices/notificationSlice';
+import LinearGradient from 'react-native-linear-gradient';
+
+const { width, height } = Dimensions.get('window');
+const isTablet = width >= 768;
+const isSmallPhone = width < 350;
+
+const dimensions = {
+  spacing: {
+    xs: Math.max(width * 0.01, 4),
+    sm: Math.max(width * 0.02, 8),
+    md: Math.max(width * 0.03, 12),
+    lg: Math.max(width * 0.04, 16),
+    xl: Math.max(width * 0.05, 20),
+    xxl: Math.max(width * 0.06, 24),
+  },
+  fontSize: {
+    small: Math.max(width * 0.03, 12),
+    body: Math.max(width * 0.035, 14),
+    title: Math.max(width * 0.04, 16),
+    header: Math.max(width * 0.045, 18),
+    large: Math.max(width * 0.05, 20),
+    xlarge: Math.max(width * 0.055, 22),
+  },
+  iconSize: Math.max(width * 0.06, 20),
+  cardRadius: Math.max(width * 0.04, 16),
+};
 
 const NotificationScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { notifications, loading, hasMore, currentPage } = useSelector(state => state.notifications);
+  const unreadDotAnim = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Fetch notifications on component mount
     dispatch(fetchNotifications({ page: 1, limit: 20 }));
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(unreadDotAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(unreadDotAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
   }, [dispatch]);
 
   const handleRefresh = () => {
@@ -41,12 +76,46 @@ const NotificationScreen = ({ navigation }) => {
     dispatch(markAllNotificationsAsRead());
   };
 
+  // Add this function to handle notification press and navigation
+  const handleNotificationPress = (notification) => {
+    // Mark as read first
+    if (!notification.isRead) {
+      handleMarkAsRead(notification._id);
+    }
+
+    // Handle different notification types
+    switch (notification.type) {
+      case 'chat_message':
+      case 'price_proposal':
+      case 'price_approved':
+        // Navigate to negotiation/chat screen
+        if (notification.data?.chatId) {
+          navigation.navigate('HostNegotiationAvailable', {
+            chatId: notification.data.chatId,
+            eventId: notification.data.eventId,
+          });
+        }
+        break;
+      case 'event_invitation':
+        // Optionally, navigate to event details if needed
+        if (notification.data?.eventId) {
+          navigation.navigate('Event', {
+            eventId: notification.data.eventId
+          });
+        }
+        break;
+      default:
+        // Default: just mark as read
+        break;
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      day: '2-digit', 
-      month: 'short', 
-      year: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
     });
   };
 
@@ -84,22 +153,45 @@ const NotificationScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={22} color="#fff" />
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={["#181828", "#23233a", "#B15CDE11"]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      {/* Sticky Header */}
+      <View style={[styles.header, {
+        paddingTop: Platform.OS === 'ios' ? dimensions.spacing.xl : dimensions.spacing.lg,
+        paddingBottom: dimensions.spacing.lg,
+        paddingHorizontal: dimensions.spacing.lg,
+        width: '100%',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        backgroundColor: 'rgba(18,18,18,0.98)',
+        borderBottomWidth: 1,
+        borderBottomColor: '#C6C5ED',
+      }]}
+      >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: dimensions.spacing.sm }}>
+          <Icon name="arrow-left" size={dimensions.iconSize} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={2} ellipsizeMode="tail">Notification</Text>
+        <Text style={[styles.headerTitle, { fontSize: dimensions.fontSize.header }]}
+          numberOfLines={2} ellipsizeMode="tail">Notification</Text>
         {notifications.length > 0 && (
-          <TouchableOpacity onPress={handleMarkAllAsRead}>
+          <TouchableOpacity onPress={handleMarkAllAsRead} style={{ padding: dimensions.spacing.sm }}>
             <Text style={styles.markAllReadText}>Mark all read</Text>
           </TouchableOpacity>
         )}
       </View>
-
       {/* Notifications List */}
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: Math.max(dimensions.spacing.lg, 16),
+          paddingBottom: dimensions.spacing.xl * 2,
+          paddingTop: 8,
+        }}
         refreshControl={
           <RefreshControl refreshing={loading && currentPage === 1} onRefresh={handleRefresh} />
         }
@@ -111,6 +203,7 @@ const NotificationScreen = ({ navigation }) => {
           }
         }}
         scrollEventThrottle={400}
+        showsVerticalScrollIndicator={false}
       >
         {loading && currentPage === 1 ? (
           <View style={styles.loadingContainer}>
@@ -119,34 +212,70 @@ const NotificationScreen = ({ navigation }) => {
           </View>
         ) : notifications.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Icon name="bell-off" size={48} color="#A6A6A6" />
-            <Text style={styles.emptyText}>No notifications yet</Text>
+            <Icon name="bell-off" size={dimensions.iconSize * 2.2} color="#A6A6A6" />
+            <Text style={[styles.emptyText, { fontSize: dimensions.fontSize.large }]}>No notifications yet</Text>
             <Text style={styles.emptySubtext}>You'll see notifications here when you receive them</Text>
           </View>
         ) : (
           notifications.map((notification, index) => (
             <TouchableOpacity
               key={notification._id || index}
+              activeOpacity={0.88}
               style={[
                 styles.notificationItem,
-                !notification.isRead && styles.unreadNotification
+                {
+                  borderRadius: dimensions.cardRadius,
+                  padding: Math.max(dimensions.spacing.lg, 16),
+                  marginBottom: Math.max(dimensions.spacing.md, 10),
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.13,
+                  shadowRadius: 12,
+                  elevation: 4,
+                  backgroundColor: notification.isRead ? 'rgba(252,252,253,0.04)' : 'rgba(177,92,222,0.08)',
+                  borderColor: notification.isRead ? '#34344A' : '#B15CDE',
+                },
               ]}
-              onPress={() => handleMarkAsRead(notification._id)}
+              onPress={() => handleNotificationPress(notification)}
             >
-              <View style={styles.notificationIconContainer}>
-                <Icon 
-                  name={getNotificationIcon(notification.type)} 
-                  size={20} 
-                  color={getNotificationColor(notification.type)} 
-                />
-              </View>
+              <LinearGradient
+                colors={notification.isRead ? ["#181828", "#23233a"] : ["#B15CDE33", "#7952FC33"]}
+                style={{
+                  borderRadius: 32,
+                  padding: 2,
+                  marginRight: Math.max(dimensions.spacing.md, 10),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: dimensions.iconSize * 2.1,
+                  height: dimensions.iconSize * 2.1,
+                  alignSelf: 'flex-start',
+                }}
+              >
+                <View style={styles.notificationIconContainer}>
+                  <Icon
+                    name={getNotificationIcon(notification.type)}
+                    size={dimensions.iconSize}
+                    color={getNotificationColor(notification.type)}
+                  />
+                </View>
+              </LinearGradient>
               <View style={styles.notificationContent}>
-                <Text style={styles.notificationTitle}>{notification.title}</Text>
-                <Text style={styles.notificationBody}>{notification.body}</Text>
-                <Text style={styles.notificationTime}>{formatDate(notification.createdAt)}</Text>
-            </View>
-              {!notification.isRead && <View style={styles.unreadDot} />}
-          </TouchableOpacity>
+                <Text style={[styles.notificationTitle, { fontSize: dimensions.fontSize.title, marginBottom: 2 }]} numberOfLines={2}>{notification.title}</Text>
+                <Text style={[styles.notificationBody, { fontSize: dimensions.fontSize.body, marginBottom: 2 }]} numberOfLines={3}>{notification.body}</Text>
+                <Text style={[styles.notificationTime, { fontSize: dimensions.fontSize.small }]}>{formatDate(notification.createdAt)}</Text>
+              </View>
+              {!notification.isRead && (
+                <Animated.View
+                  style={[
+                    styles.unreadDot,
+                    {
+                      opacity: unreadDotAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }),
+                      transform: [{ scale: unreadDotAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] }) }],
+                    },
+                  ]}
+                />
+              )}
+            </TouchableOpacity>
           ))
         )}
 
@@ -167,27 +296,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212',
   },
   header: {
-    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    width: 393,
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
+    width: '100%',
+    backgroundColor: 'rgba(18,18,18,0.98)',
     borderBottomWidth: 1,
     borderBottomColor: '#C6C5ED',
-    backgroundColor: '#121212',
     shadowColor: '#683BFC',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.05,
     shadowRadius: 12,
+    zIndex: 10,
   },
   headerTitle: {
     color: '#C6C5ED',
     fontFamily: 'Nunito Sans',
-    fontSize: 14,
-    fontStyle: 'normal',
     fontWeight: '700',
     lineHeight: 24,
     marginLeft: 16,
@@ -200,88 +323,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  scrollContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-  },
-  notificationCard: {
-    padding: 10,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    alignSelf: 'stretch',
-    borderRadius: 16,
-    backgroundColor: '#F6F8FA',
-    marginBottom: 16,
-    marginTop:10,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  image: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  info: {
-    flex: 1,
-  },
-  budget: {
-    color: '#A6A6A6',
-    fontFamily: 'Poppins',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  genre: {
-    color: '#A6A6A6',
-    fontFamily: 'Poppins',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  bold: {
-    fontWeight: '700',
-    color: '#000',
-    fontFamily: 'Poppins',
-    fontSize: 16,
-  },
-  stars: {
-    flexDirection: 'row',
-    marginTop: 6,
-  },
-  date: {
-    color: '#ccc',
-    fontSize: 11,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  acceptedButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    width: '100%',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#34C759',
-    backgroundColor: '#34C759',
-    marginTop: 10,
-    flexDirection: 'row',
-  },
-  acceptedText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '400',
-  },
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 12,
     backgroundColor: 'rgba(252,252,253,0.04)',
     borderWidth: 1,
     borderColor: '#34344A',
@@ -291,32 +335,29 @@ const styles = StyleSheet.create({
     borderColor: '#683BFC',
   },
   notificationIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
     backgroundColor: 'rgba(104, 59, 252, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   notificationContent: {
     flex: 1,
+    marginLeft: 8,
   },
   notificationTitle: {
     color: '#C6C5ED',
-    fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
   },
   notificationBody: {
     color: '#A6A6A6',
-    fontSize: 12,
     lineHeight: 16,
     marginBottom: 4,
   },
   notificationTime: {
     color: '#666',
-    fontSize: 10,
   },
   unreadDot: {
     width: 8,
@@ -345,7 +386,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: '#C6C5ED',
-    fontSize: 16,
     fontWeight: '600',
     marginTop: 16,
   },

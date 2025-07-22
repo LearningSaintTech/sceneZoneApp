@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, TextInput, Image, Animated, Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackHandler } from 'react-native';
@@ -10,8 +10,10 @@ import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import CustomToggle from '../Components/CustomToggle';
 import SignUpBackground from '../assets/Banners/SignUp';
 import debounce from 'lodash.debounce';
+import { setUnreadChatCount } from '../Redux/slices/notificationSlice';
+import { jwtDecode } from 'jwt-decode';
 
-const API_BASE_URL = 'https://api.thescenezone.com';
+const API_BASE_URL = 'http://192.168.31.117:3000/api';
 const { width } = Dimensions.get('window');
 
 // MusicBeatsLoader: Animated music bars loader
@@ -67,8 +69,10 @@ const ArtistInboxScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [toggleLoading, setToggleLoading] = useState(true);
   const insets = useSafeAreaInsets();
   const { token } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
 
   const logDebug = (message, data) => {
     console.log(`[${new Date().toISOString()}] ${message}`, JSON.stringify(data, null, 2));
@@ -86,7 +90,7 @@ const ArtistInboxScreen = ({ navigation }) => {
     try {
       setLoading(true);
       logDebug('Fetching events for artist', { token });
-      const response = await axios.get(`${API_BASE_URL}/api/chat/get-events`, {
+      const response = await axios.get(`${API_BASE_URL}/chat/get-events`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -96,6 +100,9 @@ const ArtistInboxScreen = ({ navigation }) => {
         setEvents(response.data);
         setFilteredEvents(response.data);
         setError(null);
+        // Calculate total unread chat messages
+        const totalUnread = response.data.reduce((sum, event) => sum + (event.unreadCount || 0), 0);
+        dispatch(setUnreadChatCount(totalUnread));
       } else {
         throw new Error('Unexpected response format: Expected an array of events');
       }
@@ -126,6 +133,26 @@ const ArtistInboxScreen = ({ navigation }) => {
     fetchEvents();
   }, [token]);
 
+  useEffect(() => {
+    const fetchNegotiationStatus = async () => {
+      if (!token) return;
+      try {
+        const decoded = jwtDecode(token);
+        const artistId = decoded.artistId;
+        const response = await axios.get(`${API_BASE_URL}/artist/get-profile/${artistId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const negotiationStatus = response.data?.data?.isNegotiaitonAvailable;
+        setIsNegotiationEnabled(negotiationStatus !== false); // default to true if undefined
+      } catch (err) {
+        // fallback: keep enabled
+      } finally {
+        setToggleLoading(false);
+      }
+    };
+    fetchNegotiationStatus();
+  }, [token]);
+
   // Debounced search filtering
   const handleSearch = useCallback(
     debounce((text) => {
@@ -141,10 +168,29 @@ const ArtistInboxScreen = ({ navigation }) => {
     handleSearch(searchText);
   }, [searchText, handleSearch]);
 
+  // Handle negotiation toggle
+  const handleNegotiationToggle = async (value) => {
+    setIsNegotiationEnabled(value);
+    if (!token) return;
+    try {
+      await axios.patch(
+        `${API_BASE_URL}/artist/set-negotiation-status`,
+        { isNegotiaitonAvailable: value },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      setIsNegotiationEnabled(!value); // revert toggle
+      alert('Failed to update negotiation status. Please try again.');
+    }
+  };
+
   // Handle Android back button
   useEffect(() => {
     const backAction = () => {
-      navigation.navigate('ArtistHome');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'ArtistHome' }],
+      });
       return true;
     };
 
@@ -161,17 +207,37 @@ const ArtistInboxScreen = ({ navigation }) => {
 
     try {
       logDebug('Fetching chat for event', { eventId });
-      const response = await axios.get(`${API_BASE_URL}/api/chat/get-chats/${eventId}`, {
+      const response = await axios.get(`${API_BASE_URL}/chat/get-chats/${eventId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       logDebug('Chat API response', { response: response.data });
       const chat = response.data._id;
-console.log("chat",chat)
       if (!chat ) {
         logDebug('No chat found for event', { eventId });
         alert('No chat found for this event');
         return;
+      }
+
+      // Mark messages as read for this chat (API call)
+      try {
+        await axios.put(`${API_BASE_URL}/chat/read/${chat}`, {}, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // Update local unread count for this event and recalculate total unread using updated state
+        setEvents(prevEvents => {
+          const updated = prevEvents.map(ev =>
+            ev._id === eventId ? { ...ev, unreadCount: 0 } : ev
+          );
+          const totalUnread = updated.reduce((sum, ev) => sum + (ev.unreadCount || 0), 0);
+          dispatch(setUnreadChatCount(totalUnread));
+          return updated;
+        });
+        setFilteredEvents(prevEvents => prevEvents.map(ev =>
+          ev._id === eventId ? { ...ev, unreadCount: 0 } : ev
+        ));
+      } catch (err) {
+        // Ignore error, still navigate
       }
 
       logDebug('Navigating to ChatScreen', { chatId: chat, eventId });
@@ -230,7 +296,7 @@ console.log("chat",chat)
       <View style={{ flex: 1 }}>
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('ArtistHome')}
+            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'ArtistHome' }] })}
             style={styles.backButton}
             accessibilityLabel="Go back to home"
             accessibilityRole="button"
@@ -243,12 +309,16 @@ console.log("chat",chat)
 
         <View style={styles.negotiationToggleContainer}>
           <Text style={styles.negotiationToggleText}>Enable Negotiation</Text>
-          <CustomToggle
-            value={isNegotiationEnabled}
-            onValueChange={setIsNegotiationEnabled}
-            accessibilityLabel="Toggle negotiation"
-            accessibilityRole="switch"
-          />
+          {toggleLoading ? (
+            <Text style={{ color: '#aaa', marginLeft: 10 }}>Loading...</Text>
+          ) : (
+            <CustomToggle
+              value={isNegotiationEnabled}
+              onValueChange={handleNegotiationToggle}
+              accessibilityLabel="Toggle negotiation"
+              accessibilityRole="switch"
+            />
+          )}
         </View>
 
         <View style={styles.searchContainer}>

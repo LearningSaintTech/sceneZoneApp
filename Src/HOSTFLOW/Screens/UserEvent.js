@@ -9,6 +9,7 @@ import {
   Alert,
   StyleSheet,
   Dimensions,
+  Modal as RNModal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -30,6 +31,8 @@ const UserEvent = ({ navigation }) => {
   const favorites = useSelector(selectFavorites);
   const isLoggedIn = useSelector(selectIsLoggedIn);
   const token = useSelector((state) => state.auth.token);
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
+  const [soundSystemSelection, setSoundSystemSelection] = useState(null);
 
   const route = useRoute();
   const { eventId } = route.params || {};
@@ -40,7 +43,7 @@ const UserEvent = ({ navigation }) => {
     const fetchEventDetails = async () => {
       if (!eventId || !token) {
         console.error('UserEvent: Missing eventId or token', { eventId, token });
-        Alert.alert('Error', 'Unable to fetch event details. Please try again.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Unable to fetch event details. Please try again.' });
         setIsLoading(false);
         return;
       }
@@ -63,10 +66,7 @@ const UserEvent = ({ navigation }) => {
           message: err.message,
           config: err.config,
         });
-        Alert.alert(
-          'Error',
-          err.response?.data?.message || 'Failed to fetch event details. Please try again.'
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: err.response?.data?.message || 'Failed to fetch event details. Please try again.' });
       } finally {
         console.log('UserEvent: Setting isLoading to false');
         setIsLoading(false);
@@ -84,7 +84,7 @@ const UserEvent = ({ navigation }) => {
     console.log('UserEvent: handleGuestListRequest called', { eventId, token });
     if (!eventId || !token) {
       console.error('UserEvent: Missing eventId or token for guest list request', { eventId, token });
-      Alert.alert('Error', 'Event ID or authentication token is missing.');
+     // setCustomAlert({ visible: true, title: 'Error', message: 'Event ID or authentication token is missing.' });
       return;
     }
 
@@ -100,10 +100,7 @@ const UserEvent = ({ navigation }) => {
         }
       );
       console.log('UserEvent: Guest list request response', { status: response.status, data: response.data });
-      Alert.alert(
-        'Success',
-        'Your guest list request has been submitted! The event artists will be notified and can approve your request.'
-      );
+      setCustomAlert({ visible: true, title: 'Success', message: 'Your guest list request has been submitted! The event artists will be notified and can approve your request.' });
     } catch (err) {
       console.error('UserEvent: Error submitting guest list request', {
         status: err.response?.status,
@@ -119,7 +116,7 @@ const UserEvent = ({ navigation }) => {
           errorMessage = err.response.data?.message || errorMessage;
         }
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     }
   };
 
@@ -127,7 +124,7 @@ const UserEvent = ({ navigation }) => {
     console.log('UserEvent: handleFavoriteToggle called', { eventId, isFavorite: !!favorites[eventId] });
     if (!isLoggedIn || !token) {
       console.log('UserEvent: User not logged in, navigating to UserSignup');
-      Alert.alert('Error', 'Please log in to add events to your favorites.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Please log in to add events to your favorites.' });
       navigation.navigate('UserSignup');
       return;
     }
@@ -150,7 +147,7 @@ const UserEvent = ({ navigation }) => {
         } else {
           console.error('UserEvent: Failed to remove favorite event', response.data);
           dispatch(setError(response.data.message || 'Failed to remove favorite event'));
-          Alert.alert('Error', response.data.message || 'Failed to remove favorite event.');
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to remove favorite event.' });
         }
       } else {
         console.log('UserEvent: Adding favorite event', eventId);
@@ -169,7 +166,7 @@ const UserEvent = ({ navigation }) => {
         } else {
           console.error('UserEvent: Failed to add favorite event', response.data);
           dispatch(setError(response.data.message || 'Failed to add favorite event'));
-          Alert.alert('Error', response.data.message || 'Failed to add favorite event.');
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to add favorite event.' });
         }
       }
     } catch (error) {
@@ -181,7 +178,7 @@ const UserEvent = ({ navigation }) => {
         config: error.config,
       });
       dispatch(setError(error.message || 'Failed to update favorite'));
-      Alert.alert('Error', error.message || 'Failed to update favorite.');
+      setCustomAlert({ visible: true, title: 'Error', message: error.message || 'Failed to update favorite.' });
     } finally {
       console.log('UserEvent: Setting loading to false after toggle');
       dispatch(setLoading(false));
@@ -211,7 +208,33 @@ const UserEvent = ({ navigation }) => {
     if (!budget) return 'N/A';
     return `₹${budget.toLocaleString('en-IN')}`;
   };
-
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -271,13 +294,6 @@ const UserEvent = ({ navigation }) => {
             }}
           >
             <Ionicons name="arrow-back-outline" size={24} color="#C6C5ED" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.fabRight}
-            onPress={() => console.log('UserEvent: Share button pressed')}
-          >
-            <Ionicons name="share-social-outline" size={20} color="#C6C5ED" />
           </TouchableOpacity>
 
           {eventDetails?.eventGuestEnabled && (
@@ -390,100 +406,97 @@ const UserEvent = ({ navigation }) => {
 
         <Text style={styles.sectionTitle}>Sound System Availability</Text>
         <View style={styles.soundSystemRow}>
-          <View
+          <TouchableOpacity
             style={[
               styles.checkboxPill,
-              eventDetails?.isSoundSystem && styles.checkboxPillActive
+              (soundSystemSelection === true || (soundSystemSelection === null && eventDetails?.isSoundSystem)) && styles.checkboxPillActive
             ]}
+            onPress={() => setSoundSystemSelection(true)}
+            activeOpacity={0.8}
           >
             <View
               style={[
                 styles.customCheckbox,
-                eventDetails?.isSoundSystem && styles.customCheckboxChecked
+                (soundSystemSelection === true || (soundSystemSelection === null && eventDetails?.isSoundSystem)) && styles.customCheckboxChecked
               ]}
             >
-              {eventDetails?.isSoundSystem && <Text style={styles.checkmark}>✓</Text>}
+              {(soundSystemSelection === true || (soundSystemSelection === null && eventDetails?.isSoundSystem)) && <Text style={styles.checkmark}>✓</Text>}
             </View>
             <Text
               style={[
                 styles.checkboxPillText,
-                eventDetails?.isSoundSystem && styles.checkboxPillTextActive
+                (soundSystemSelection === true || (soundSystemSelection === null && eventDetails?.isSoundSystem)) && styles.checkboxPillTextActive
               ]}
             >
               Yes
             </Text>
-          </View>
-          <View
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[
               styles.checkboxPill,
-              !eventDetails?.isSoundSystem && styles.checkboxPillActive
+              (soundSystemSelection === false || (soundSystemSelection === null && !eventDetails?.isSoundSystem)) && styles.checkboxPillActive
             ]}
+            onPress={() => setSoundSystemSelection(false)}
+            activeOpacity={0.8}
           >
             <View
               style={[
                 styles.customCheckbox,
-                !eventDetails?.isSoundSystem && styles.customCheckboxCheckedNo
+                (soundSystemSelection === false || (soundSystemSelection === null && !eventDetails?.isSoundSystem)) && styles.customCheckboxCheckedNo
               ]}
             >
-              {!eventDetails?.isSoundSystem && <Text style={styles.checkmarkNo}></Text>}
+              {(soundSystemSelection === false || (soundSystemSelection === null && !eventDetails?.isSoundSystem)) && <Text style={styles.checkmark}>✓</Text>}
             </View>
             <Text
               style={[
                 styles.checkboxPillText,
-                !eventDetails?.isSoundSystem && styles.checkboxPillTextActive
+                (soundSystemSelection === false || (soundSystemSelection === null && !eventDetails?.isSoundSystem)) && styles.checkboxPillTextActive
               ]}
             >
               No
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.fixedBottomButtonsContainer}>
           <TouchableOpacity
-            style={styles.heartButton}
+            style={{ flex: 1 }}
+            activeOpacity={0.85}
             onPress={() => {
-              console.log('UserEvent: Like button pressed', { eventId, isFavorite: !!favorites[eventId] });
-              handleFavoriteToggle();
+              console.log('UserEvent: Continue button pressed', { eventId });
+              navigation.navigate('UserFormBookingScreen', {
+                eventDetails: {
+                  id: eventId,
+                  title: eventDetails?.eventName || 'Event Name',
+                  price: eventDetails?.ticketSetting?.ticketType === 'free'
+                    ? 'Free'
+                    : formatBudget(eventDetails?.ticketSetting?.price || eventDetails?.budget),
+                  location: eventDetails?.venue || 'N/A',
+                  image: eventDetails?.posterUrl ? { uri: eventDetails.posterUrl } : require('../assets/Images/ffff.jpg'),
+                  eventDateTime: eventDetails?.eventDateTime,
+                },
+              });
             }}
           >
-            <Ionicons
-              name={favorites[eventId] ? 'heart' : 'heart-outline'}
-              size={24}
-              color="#a95eff"
-            />
-          </TouchableOpacity>
-          <LinearGradient
-            colors={['#B15CDE', '#7952FC']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.continueButton}
-          >
-            <TouchableOpacity
-              style={styles.continueButtonInner}
-              onPress={() => {
-                console.log('UserEvent: Continue button pressed', { eventId });
-                navigation.navigate('UserFormBookingScreen', {
-                  eventDetails: {
-                    id: eventId,
-                    title: eventDetails?.eventName || 'Event Name',
-                    price: eventDetails?.ticketSetting?.ticketType === 'free'
-                      ? 'Free'
-                      : formatBudget(eventDetails?.ticketSetting?.price || eventDetails?.budget),
-                    location: eventDetails?.venue || 'N/A',
-                    image: eventDetails?.posterUrl ? { uri: eventDetails.posterUrl } : require('../assets/Images/ffff.jpg'),
-                    eventDateTime: eventDetails?.eventDateTime,
-                  },
-                });
-              }}
+            <LinearGradient
+              colors={['#B15CDE', '#7952FC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.continueButton}
             >
-              <Text style={styles.continueButtonText}>Continue</Text>
-            </TouchableOpacity>
-          </LinearGradient>
+              <View style={styles.continueButtonInner}>
+                <Text style={styles.continueButtonText}>Continue</Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+      <CustomAlertModal />
     </SafeAreaView>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -844,6 +857,52 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#C6C5ED',
     fontSize: 16,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  shortlistModalContent: {
+    width: '80%',
+    backgroundColor: '#18151f',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#7952FC',
+  },
+  shortlistModalTitle: {
+    color: '#C6C5ED',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalMessage: {
+    color: '#b3b3cc',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
     fontFamily: 'Nunito Sans',
   },
 });

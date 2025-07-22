@@ -10,6 +10,7 @@ import {
   ScrollView,
   Dimensions,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -19,6 +20,7 @@ import EventDashIcon from '../assets/icons/evendash';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { API_BASE_URL } from '../Config/env';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +35,7 @@ const ExploreEventScreen = ({ navigation, route }) => {
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const token = useSelector(state => state.auth.token);
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   useEffect(() => {
     console.log('useEffect triggered, checking route.params');
@@ -43,7 +46,7 @@ const ExploreEventScreen = ({ navigation, route }) => {
 
       if (!eventId) {
         console.log('No eventId provided, exiting fetch');
-        Alert.alert('Error', 'No event ID provided.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'No event ID provided.' });
         return;
       }
 
@@ -68,11 +71,11 @@ const ExploreEventScreen = ({ navigation, route }) => {
           }
         } else {
           console.log('API success is false, message:', response.data.message);
-          Alert.alert('Error', response.data.message || 'Failed to fetch event details');
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to fetch event details' });
         }
       } catch (error) {
         console.error('Error fetching event details:', error.response?.data || error.message);
-        Alert.alert('Error', 'Failed to fetch event details.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Failed to fetch event details.' });
       }
     };
 
@@ -86,7 +89,33 @@ const ExploreEventScreen = ({ navigation, route }) => {
     console.log('Parsed date:', date);
     return date instanceof Date && !isNaN(date) ? `${date.toLocaleString('en-US', { month: 'short' })} ${date.getDate()}` : 'Invalid Date';
   };
-
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
   console.log('Rendering ExploreEventScreen with eventData:', eventData);
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -255,9 +284,12 @@ const ExploreEventScreen = ({ navigation, route }) => {
           {eventData ? eventData.about : 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur nec lorem a justo pulvinar suscipit.'}
         </Text>
       </ScrollView>
+      <CustomAlertModal />
     </View>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   iconCircle: {
@@ -506,6 +538,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  shortlistModalContent: {
+    width: '80%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  shortlistModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#C6C5ED',
+    marginBottom: 10,
+    textAlign: 'center',
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalMessage: {
+    fontSize: 14,
+    color: '#b3b3cc',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 44,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortlistModalButtonText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Nunito Sans',
   },
 });
 

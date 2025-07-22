@@ -9,6 +9,7 @@ import {
   Dimensions,
   ScrollView,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -41,18 +42,19 @@ const UserForgotPasswordScreen = ({ navigation }) => {
   const [mobileNumber, setMobileNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const insets = useSafeAreaInsets();
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   const handleConfirm = async () => {
     try {
       if (inputType === 'email') {
         if (!email.trim()) {
-          Alert.alert('Error', 'Please enter your email address');
+          setCustomAlert({ visible: true, title: 'Error', message: 'Please enter your email address' });
           console.log('[UserForgotPasswordScreen] Validation failed: Email is empty');
           return;
         }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email.trim())) {
-          Alert.alert('Error', 'Please enter a valid email address');
+          setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid email address' });
           console.log('[UserForgotPasswordScreen] Validation failed: Invalid email format', email);
           return;
         }
@@ -76,12 +78,12 @@ const UserForgotPasswordScreen = ({ navigation }) => {
           });
         } else {
           console.log('[UserForgotPasswordScreen] Email OTP request failed:', response.data.message);
-          Alert.alert('Error', response.data.message || 'Failed to send OTP');
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to send OTP' });
         }
       } else {
         const phoneRegex = /^\+\d{1,3}\d{9,15}$/;
         if (!phoneRegex.test(mobileNumber.trim())) {
-          Alert.alert('Error', 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)');
+          setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid mobile number with country code (e.g., +91XXXXXXXXXX)' });
           console.log('[UserForgotPasswordScreen] Validation failed: Invalid mobile number format', mobileNumber);
           return;
         }
@@ -100,21 +102,30 @@ const UserForgotPasswordScreen = ({ navigation }) => {
           const confirmationResult = await auth().signInWithPhoneNumber(mobileNumber.trim());
           console.log('[UserForgotPasswordScreen] Firebase OTP sent successfully:', confirmationResult);
 
-          Alert.alert('Success', 'OTP sent to your mobile number', [
-            {
-              text: 'OK',
-              onPress: () =>
-                navigation.navigate('CheckMailBox', {
-                  mobileNumber: mobileNumber.trim(),
-                  confirmation: confirmationResult,
-                  fullName: response.data.data.user?.fullName || '',
-                  isForgotPassword: true,
-                }),
-            },
-          ]);
+          setCustomAlert({
+            visible: true,
+            title: 'Success',
+            message: 'OTP sent to your mobile number',
+          });
+          Alert.alert(
+            'Success',
+            'OTP sent to your mobile number',
+            [
+              {
+                text: 'OK',
+                onPress: () =>
+                  navigation.navigate('CheckMailBox', {
+                    mobileNumber: mobileNumber.trim(),
+                    confirmation: confirmationResult,
+                    fullName: response.data.data.user?.fullName || '',
+                    isForgotPassword: true,
+                  }),
+              },
+            ],
+          );
         } else {
           console.log('[UserForgotPasswordScreen] Mobile OTP request failed:', response.data.message);
-          Alert.alert('Error', response.data.message || 'Failed to send OTP');
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to send OTP' });
         }
       }
     } catch (error) {
@@ -129,7 +140,7 @@ const UserForgotPasswordScreen = ({ navigation }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please try again later';
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -231,10 +242,39 @@ const UserForgotPasswordScreen = ({ navigation }) => {
             <Text style={styles.confirmButtonText}>{isLoading ? 'Sending...' : 'Confirm'}</Text>
           </LinearGradient>
         </TouchableOpacity>
+        <CustomAlertModal />
       </SafeAreaView>
     </View>
   );
 };
+
+const CustomAlertModal = () => (
+  <RNModal
+    visible={customAlert.visible}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+  >
+    <View style={styles.shortlistModalOverlay}>
+      <View style={styles.shortlistModalContent}>
+        <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+        <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+        <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+        <TouchableOpacity
+          style={styles.shortlistModalButton}
+          onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+        >
+          <LinearGradient
+            colors={["#B15CDE", "#7952FC"]}
+            style={styles.shortlistModalButtonGradient}
+          >
+            <Text style={styles.shortlistModalButtonText}>OK</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </RNModal>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -348,6 +388,58 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   confirmButtonText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    color: 'rgba(255, 255, 255, 1)',
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '80%',
+    maxWidth: 350,
+  },
+  shortlistModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  shortlistModalMessage: {
+    fontSize: 14,
+    color: '#aaa',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
+  },
+  shortlistModalButtonText: {
     fontFamily: 'Nunito Sans',
     fontWeight: '500',
     fontSize: 14,

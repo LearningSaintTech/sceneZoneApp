@@ -400,6 +400,23 @@ class NotificationService {
     }
   }
 
+  // Remove FCM token from backend (on logout)
+  async removeTokenFromBackend() {
+    try {
+      const fcmToken = this.fcmToken;
+      const deviceId = this.getDeviceId();
+      if (!fcmToken && !deviceId) {
+        console.warn('[NotificationService] No FCM token or deviceId available to remove');
+        return;
+      }
+      console.log('[NotificationService] Removing FCM token from backend:', { fcmToken, deviceId });
+      await api.post('/notifications/remove-fcm-token', { fcmToken, deviceId });
+      console.log('[NotificationService] FCM token removed from backend successfully');
+    } catch (error) {
+      console.error('[NotificationService] Error removing FCM token from backend:', error);
+    }
+  }
+
   // Cleanup
   cleanup() {
     if (this.unsubscribeForeground) {

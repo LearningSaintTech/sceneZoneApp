@@ -220,17 +220,17 @@ const ChatScreen = ({ navigation, route }) => {
     }
   };
 
-  // Mark messages as read
+  // Mark messages as read (use correct POST endpoint and refetch chat list)
   const markMessagesAsRead = async () => {
     if (!token || !chatId) {
       logDebug('No token or chatId for marking messages as read', { token, chatId });
       return;
     }
     try {
-      logDebug('Marking messages as read', { chatId });
+      logDebug('Marking messages as read (POST endpoint)', { chatId });
       await withRetry(() =>
-        axios.put(
-          `${API_BASE_URL}/chat/read/${chatId}`,
+        axios.post(
+          `${API_BASE_URL}/chat/mark-as-read/${chatId}`,
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -238,7 +238,9 @@ const ChatScreen = ({ navigation, route }) => {
           }
         )
       );
-      logDebug('Messages marked as read', {});
+      logDebug('Messages marked as read (POST endpoint)', {});
+      // Always refetch chat list after marking as read
+      await fetchChatHistory();
     } catch (err) {
       logDebug('Error marking messages as read', {
         message: err.message,

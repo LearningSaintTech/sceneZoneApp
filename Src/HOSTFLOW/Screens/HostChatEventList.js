@@ -5,7 +5,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SignUpBackground from '../assets/Banners/SignUp';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { setUnreadChatCount } from '../Redux/slices/notificationSlice';
 import { ErrorBoundary } from 'react-error-boundary';
 
 // Animated loader component
@@ -74,7 +75,8 @@ const HostChatEventList = ({ navigation }) => {
   const [error, setError] = useState('');
   const insets = useSafeAreaInsets();
   const token = useSelector(state => state.auth.token);
-  const BASE_URL = 'https://api.thescenezone.com';
+  const dispatch = useDispatch();
+  const BASE_URL = 'https://api.thescenezone.com/api';
 
   // Fetch events from API
   useEffect(() => {
@@ -88,7 +90,7 @@ const HostChatEventList = ({ navigation }) => {
 
       try {
         setLoading(true);
-        const response = await fetch(`${BASE_URL}/api/chat/get-events`, {
+        const response = await fetch(`${BASE_URL}/chat/get-events`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -125,7 +127,12 @@ const HostChatEventList = ({ navigation }) => {
             posterUrl: event.posterUrl || null,
             venue: event.venue || 'N/A',
             status: event.status || 'pending',
+            unreadCount: event.unreadCount || 0, // Add unreadCount if available
           }));
+
+        // Sum all unread counts for badge
+        const totalUnread = validEvents.reduce((sum, ev) => sum + (ev.unreadCount || 0), 0);
+        dispatch(setUnreadChatCount(totalUnread));
 
         if (validEvents.length === 0 && data.length > 0) {
           console.warn('No valid events found in response');
@@ -160,7 +167,7 @@ const HostChatEventList = ({ navigation }) => {
     */
 
     fetchEvents();
-  }, [token]);
+  }, [token, dispatch]);
 
   // Search filtering
   useEffect(() => {
@@ -210,11 +217,18 @@ const HostChatEventList = ({ navigation }) => {
         }
       }}
     >
-      <Image
-        source={item.posterUrl ? { uri: item.posterUrl } : require('../assets/Images/fff.jpg')}
-        style={styles.eventImage}
-        defaultSource={require('../assets/Images/fff.jpg')}
-      />
+      <View style={{ position: 'relative' }}>
+        <Image
+          source={item.posterUrl ? { uri: item.posterUrl } : require('../assets/Images/fff.jpg')}
+          style={styles.eventImage}
+          defaultSource={require('../assets/Images/fff.jpg')}
+        />
+        {item.unreadCount > 0 && (
+          <View style={styles.unreadBadgeAbsolute}>
+            <Text style={styles.unreadText}>{item.unreadCount}</Text>
+          </View>
+        )}
+      </View>
       <View style={styles.eventContent}>
         <Text style={styles.eventDate}>{formatDate(item.eventDateTime[0])}</Text>
         <Text style={styles.eventName}>{item.eventName}</Text>
@@ -429,6 +443,41 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito Sans',
     fontSize: 14,
     textAlign: 'center',
+  },
+  unreadBadge: {
+    backgroundColor: '#a95eff',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 6,
+  },
+  unreadBadgeAbsolute: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#a95eff',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    zIndex: 2,
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  unreadText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
 });
 

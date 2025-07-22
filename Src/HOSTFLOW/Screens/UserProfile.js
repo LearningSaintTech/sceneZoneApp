@@ -38,6 +38,7 @@ import GuestListIcon from '../assets/icons/GuestList';
 import PaymentIcon from '../assets/icons/Payment';
 import GeneralSettingIcon from '../assets/icons/Generalsetting';
 import HelpCentreIcon from '../assets/icons/HelpCentre';
+import notificationService from '../services/notificationService';
 
 const { width, height } = Dimensions.get("window");
 
@@ -86,9 +87,40 @@ const UserProfileScreen = ({ navigation }) => {
   fetchProfile();
 }, [token]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await notificationService.removeTokenFromBackend();
     dispatch(logout());
     navigation.navigate("Onboard1");
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await api.delete('/user/auth/deleteAccount', {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (response.data && response.data.success) {
+                await notificationService.removeTokenFromBackend();
+                dispatch(logout());
+                navigation.navigate('Onboard1');
+              } else {
+                Alert.alert('Error', response.data?.message || 'Failed to delete account');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to delete account');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -161,23 +193,7 @@ const UserProfileScreen = ({ navigation }) => {
             <MaterialIcons name="chevron-right" size={24} color="#555" />
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.menuItemArtistStyle}
-            onPress={() => navigation.navigate("UserAccountSecurityScreen")}
-          >
-            <GuestListIcon width={24} height={24} style={{marginLeft: 28, marginRight: 20, alignSelf: 'center'}} color="#A58AFF" />
-            <Text style={styles.menuItemTextArtistStyle}>Account Security</Text>
-            <MaterialIcons name="chevron-right" size={24} color="#555" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.menuItemArtistStyle}
-            onPress={() => navigation.navigate("UserPaymentSettingsScreen")}
-          >
-            <PaymentIcon width={24} height={24} style={{marginLeft: 28, marginRight: 20, alignSelf: 'center'}} color="#A58AFF" />
-            <Text style={styles.menuItemTextArtistStyle}>Payment Settings</Text>
-            <MaterialIcons name="chevron-right" size={24} color="#555" />
-          </TouchableOpacity>
+          {/* Removed Account Security and Payment Settings buttons */}
 
           <TouchableOpacity 
             style={styles.menuItemArtistStyle}
@@ -195,6 +211,16 @@ const UserProfileScreen = ({ navigation }) => {
             <HelpCentreIcon width={24} height={24} style={{marginLeft: 28, marginRight: 20, alignSelf: 'center'}} color="#A58AFF" />
             <Text style={styles.menuItemTextArtistStyle}>Help Centre</Text>
             <MaterialIcons name="chevron-right" size={24} color="#555" />
+          </TouchableOpacity>
+
+          {/* Delete Account Button styled as menu item */}
+          <TouchableOpacity 
+            style={[styles.menuItemArtistStyle, { borderColor: '#ff4d4f' }]}
+            onPress={handleDeleteAccount}
+          >
+            <MaterialIcons name="delete" size={24} color="#ff4d4f" style={{marginLeft: 28, marginRight: 20, alignSelf: 'center'}} />
+            <Text style={[styles.menuItemTextArtistStyle, { color: '#ff4d4f' }]}>Delete Account</Text>
+            <MaterialIcons name="chevron-right" size={24} color="#ff4d4f" />
           </TouchableOpacity>
         </View>
 

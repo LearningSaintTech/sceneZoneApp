@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useDispatch } from 'react-redux';
@@ -19,6 +20,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import api from '../Config/api';
 import auth from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -65,6 +67,7 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { mobileNumber: rawMobileNumber, confirmation, fullName } = route.params;
   const mobileNumber = rawMobileNumber && !rawMobileNumber.startsWith('+91') ? `+91${rawMobileNumber}` : rawMobileNumber;
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   const responsiveDimensions = {
     ...dimensions,
@@ -113,12 +116,12 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
   const handleVerify = async () => {
     try {
       if (!mobileNumber) {
-        Alert.alert('Error', 'Mobile number is missing. Please try signing up again.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Mobile number is missing. Please try signing up again.' });
         console.log('[UserLoginOtpVerificationScreen] Validation failed: mobileNumber is undefined');
         return;
       }
       if (otp.some(digit => !digit)) {
-        Alert.alert('Error', 'Please enter the complete 6-digit OTP');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter the complete 6-digit OTP' });
         console.log('[UserLoginOtpVerificationScreen] Validation failed: Incomplete OTP');
         return;
       }
@@ -182,7 +185,7 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please try again later.';
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -191,7 +194,7 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
   const handleResendOtp = async () => {
     try {
       if (!mobileNumber) {
-        Alert.alert('Error', 'Mobile number is missing. Please try signing up again.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Mobile number is missing. Please try signing up again.' });
         console.log('[UserLoginOtpVerificationScreen] Resend failed: mobileNumber is undefined');
         return;
       }
@@ -202,7 +205,7 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
       console.log('[UserLoginOtpVerificationScreen] Resending Firebase OTP for:', resendMobile);
       const confirmationResult = await auth().signInWithPhoneNumber(resendMobile);
       console.log('[UserLoginOtpVerificationScreen] Firebase OTP resent successfully:', confirmationResult);
-      Alert.alert('Success', 'OTP has been resent successfully!');
+      setCustomAlert({ visible: true, title: 'Success', message: 'OTP has been resent successfully!' });
       setOtp(['', '', '', '', '', '']);
       inputs.current[0]?.focus();
 
@@ -221,7 +224,7 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
       } else if (error.code === 'auth/invalid-phone-number') {
         errorMessage = 'Invalid phone number format';
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setIsResending(false);
     }
@@ -277,9 +280,38 @@ const UserLoginOtpVerificationScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       </View>
+      <CustomAlertModal />
     </View>
   );
 };
+
+const CustomAlertModal = () => (
+  <RNModal
+    visible={customAlert.visible}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+  >
+    <View style={styles.shortlistModalOverlay}>
+      <View style={styles.shortlistModalContent}>
+        <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+        <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+        <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+        <TouchableOpacity
+          style={styles.shortlistModalButton}
+          onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+        >
+          <LinearGradient
+            colors={["#B15CDE", "#7952FC"]}
+            style={styles.shortlistModalButtonGradient}
+          >
+            <Text style={styles.shortlistModalButtonText}>OK</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </RNModal>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -420,6 +452,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     color: 'rgba(198, 197, 237, 1)',
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '80%',
+    maxWidth: 350,
+  },
+  shortlistModalTitle: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 28,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  shortlistModalMessage: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalButtonGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalButtonText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    fontSize: 13,
+    lineHeight: 21,
+    letterSpacing: 0,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    color: 'rgba(255, 255, 255, 1)',
   },
 });
 

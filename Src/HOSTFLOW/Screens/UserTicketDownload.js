@@ -14,7 +14,7 @@ const UserTicketDownload = ({ route, navigation }) => {
             <Ionicons name="arrow-back" size={24} color="#C6C5ED" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Detail Ticket</Text>
-          <Ionicons name="information-circle-outline" size={24} color="#C6C5ED" />
+          {/* Removed right-side info icon */}
         </View>
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>No ticket data available</Text>
@@ -39,7 +39,7 @@ const UserTicketDownload = ({ route, navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#C6C5ED" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Detail Ticket</Text>
-        <Ionicons name="information-circle-outline" size={24} color="#C6C5ED" />
+        {/* Removed right-side info icon */}
       </View>
 
       <ScrollView
@@ -132,15 +132,6 @@ const UserTicketDownload = ({ route, navigation }) => {
             </View>
           </View>
         </View>
-        <View style={styles.paymentMethodCard}>
-          <View style={styles.paymentMethodRow}>
-            <Text style={styles.paymentMethodLabel}>Payment Method</Text>
-            <View style={styles.paymentMethodValue}>
-              <Ionicons name="logo-apple" size={24} color="#fff" />
-              <Text style={styles.paymentMethodText}>Apple Pay</Text>
-            </View>
-          </View>
-        </View>
         <LinearGradient
           colors={['#7952FC', '#B15CDE']}
           start={{ x: 0, y: 0 }}
@@ -175,14 +166,14 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   header: {
-    marginTop: 40,
+    marginTop: 30,
     flexDirection: 'row',
     width: 393,
     paddingVertical: 20,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#121212',
+    //backgroundColor: '#121212',
     shadowColor: 'rgba(104, 59, 252, 0.05)',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,

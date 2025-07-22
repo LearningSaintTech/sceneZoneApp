@@ -6,7 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Dimensions
+  Dimensions,
+  RefreshControl
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectFavorites, toggleFavorite, setFavorites, setLoading, setError } from '../Redux/slices/favoritesSlice';
@@ -121,70 +122,58 @@ const UserFavoriteScreen = ({ navigation }) => {
 
   // State for fetched favorite events
   const [favoriteEvents, setFavoriteEvents] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   console.log('UserFavoriteScreen: Initial state', { favoriteEvents, favorites, isLoggedIn, token: !!token });
 
   // Fetch favorite events from API
+  const fetchFavorites = async () => {
+    if (!isLoggedIn || !token) {
+      setFavoriteEvents([]);
+      dispatch(setFavorites({}));
+      return;
+    }
+    dispatch(setLoading(true));
+    try {
+      const response = await api.get('/user/get-favourite-events', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data && response?.data?.success && response?.data.data) {
+        const events = response?.data?.data?.map(item => ({
+          id: item.eventId._id,
+          title: item.eventId.eventName || 'Untitled Event',
+          location: item.eventId.location || 'Unknown Location',
+          image: item.eventId.posterUrl ? { uri: item.eventId.posterUrl } : require('../assets/Images/fff.jpg'),
+          price: item.eventId.ticketSetting?.ticketType === 'free'
+            ? 'Free'
+            : item.eventId.ticketSetting?.price
+              ? `₹${item.eventId.ticketSetting.price} - ₹${item.eventId.ticketSetting.price + 100}`
+              : 'Price TBD',
+        }));
+        setFavoriteEvents(events);
+        const favoriteMap = response.data.data.reduce((acc, item) => {
+          acc[item.eventId._id] = true;
+          return acc;
+        }, {});
+        dispatch(setFavorites(favoriteMap));
+      } else {
+        dispatch(setError('Invalid response data from favorites API'));
+      }
+    } catch (err) {
+      dispatch(setError(err.message || 'Failed to fetch favorite events'));
+    } finally {
+      dispatch(setLoading(false));
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    console.log('UserFavoriteScreen: useEffect for fetching favorites triggered', { isLoggedIn, token });
-    const fetchFavorites = async () => {
-      if (!isLoggedIn || !token) {
-        console.log('UserFavoriteScreen: User not logged in or no token, clearing favorites');
-        setFavoriteEvents([]);
-        dispatch(setFavorites({}));
-        return;
-      }
-
-      console.log('UserFavoriteScreen: Fetching favorite events from API');
-      dispatch(setLoading(true));
-      try {
-        const response = await api.get('/user/get-favourite-events', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        console.log('UserFavoriteScreen: Fetch favorites response', {
-          status: response.status,
-          data: response.data,
-        });
-
-        if (response.data && response.data.success && response.data.data) {
-          const events = response.data.data.map(item => ({
-            id: item.eventId._id, // Adjusted to use _id from nested eventId object
-            title: item.eventId.eventName || 'Untitled Event',
-            location: item.eventId.location || 'Unknown Location',
-            image: item.eventId.posterUrl ? { uri: item.eventId.posterUrl } : require('../assets/Images/fff.jpg'),
-            price: item.eventId.ticketSetting?.ticketType === 'free'
-              ? 'Free'
-              : item.eventId.ticketSetting?.price
-                ? `₹${item.eventId.ticketSetting.price} - ₹${item.eventId.ticketSetting.price + 100}`
-                : 'Price TBD',
-          }));
-          console.log('UserFavoriteScreen: Mapped favorite events', events);
-          setFavoriteEvents(events);
-
-          const favoriteMap = response.data.data.reduce((acc, item) => {
-            acc[item.eventId._id] = true;
-            return acc;
-          }, {});
-          console.log('UserFavoriteScreen: Updating Redux favorites', favoriteMap);
-          dispatch(setFavorites(favoriteMap));
-        } else {
-          console.error('UserFavoriteScreen: Invalid response data from favorites API', response.data);
-          dispatch(setError('Invalid response data from favorites API'));
-        }
-      } catch (err) {
-        console.error('UserFavoriteScreen: Error fetching favorite events', {
-          status: err.response?.status,
-          data: err.response?.data,
-          message: err.message,
-          config: err.config,
-        });
-        dispatch(setError(err.message || 'Failed to fetch favorite events'));
-      } finally {
-        console.log('UserFavoriteScreen: Setting loading to false');
-        dispatch(setLoading(false));
-      }
-    };
     fetchFavorites();
   }, [isLoggedIn, token, dispatch]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchFavorites();
+  };
 
   // Handle favorite toggle with API
   const handleFavoriteToggle = async (eventId) => {
@@ -296,12 +285,28 @@ const UserFavoriteScreen = ({ navigation }) => {
   }, [favoritesError]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: '#000' }}
+      contentContainerStyle={{
+        paddingTop: insets.top,
+        paddingBottom: Math.max(insets.bottom + 110, 130),
+        minHeight: height,
+        flexGrow: 1,
+      }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#a95eff"
+          colors={["#a95eff"]}
+        />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
-            console.log('UserFavoriteScreen: Back button pressed');
             navigation.goBack();
           }}
           style={styles.backButton}
@@ -313,6 +318,7 @@ const UserFavoriteScreen = ({ navigation }) => {
         </View>
         <View style={{ width: dimensions.navIconSize }} />
       </View>
+      <View style={{ height: 16 }} />
 
       {favoritesLoading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -338,60 +344,52 @@ const UserFavoriteScreen = ({ navigation }) => {
           </View>
         </View>
       ) : (
-        <ScrollView 
-          style={styles.content}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}
-          showsVerticalScrollIndicator={false}
-        >
-          {favoriteEvents.map((event) => (
-            <View key={event.id} style={styles.eventCard}>
-              <LinearGradient
-                colors={['#B15CDE', '#7952FC']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.eventCardGradient}
+        favoriteEvents.map((event) => (
+          <View key={event.id} style={styles.eventCard}>
+            <LinearGradient
+              colors={['#B15CDE', '#7952FC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.eventCardGradient}
+            />
+            <View style={styles.eventCardContent}>
+              <Image
+                source={event.image}
+                style={styles.eventImage}
+                resizeMode="cover"
+                onLoad={() => console.log('UserFavoriteScreen: Image loaded for event', event.id)}
+                onError={(e) => console.error('UserFavoriteScreen: Image load error', { eventId: event.id, error: e.nativeEvent.error })}
               />
-              <View style={styles.eventCardContent}>
-                <Image
-                  source={event.image}
-                  style={styles.eventImage}
-                  resizeMode="cover"
-                  onLoad={() => console.log('UserFavoriteScreen: Image loaded for event', event.id)}
-                  onError={(e) => console.error('UserFavoriteScreen: Image load error', { eventId: event.id, error: e.nativeEvent.error })}
-                />
-                <View style={styles.imageOverlay} />
-                <View style={styles.heartIconContainer}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      console.log('UserFavoriteScreen: Heart icon pressed for event', event.id);
-                      handleFavoriteToggle(event.id);
-                    }}
-                    style={styles.heartIconButton}
-                  >
-                    <Ionicons name="heart" size={dimensions.navIconSize} color="#ff4444" />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.eventDetails}>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      console.log('UserFavoriteScreen: Navigating to UserFormBookingScreen with event', event);
-                      navigation.navigate('UserFormBookingScreen', { eventDetails: event });
-                    }}
-                    style={styles.eventDetailsTouchable}
-                  >
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                    {event.price && (
-                      <Text style={styles.eventPrice}>{event.price}</Text>
-                    )}
-                    <Text style={styles.eventLocation}>{event.location}</Text>
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.imageOverlay} />
+              <View style={styles.heartIconContainer}>
+                <TouchableOpacity
+                  onPress={() => {
+                    handleFavoriteToggle(event.id);
+                  }}
+                  style={styles.heartIconButton}
+                >
+                  <Ionicons name="heart" size={dimensions.navIconSize} color="#ff4444" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.eventDetails}>
+                <TouchableOpacity 
+                  onPress={() => {
+                    navigation.navigate('UserFormBookingScreen', { eventDetails: event });
+                  }}
+                  style={styles.eventDetailsTouchable}
+                >
+                  <Text style={styles.eventTitle}>{event.title}</Text>
+                  {event.price && (
+                    <Text style={styles.eventPrice}>{event.price}</Text>
+                  )}
+                  <Text style={styles.eventLocation}>{event.location}</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          ))}
-        </ScrollView>
+          </View>
+        ))
       )}
-    </View>
+    </ScrollView>
   );
 };
 

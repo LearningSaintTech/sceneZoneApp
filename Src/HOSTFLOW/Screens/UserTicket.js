@@ -10,6 +10,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -36,33 +37,36 @@ const triggerHaptic = (type) => {
 };
 
 const UserTicketScreen = ({ navigation }) => {
+  console.log('UserTicketScreen: Component mounted');
   const [activeTab, setActiveTab] = useState('active');
   const [activeTickets, setActiveTickets] = useState([]);
   const [pastTickets, setPastTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
   const insets = useSafeAreaInsets();
 
-  const baseUrl = 'https://api.thescenezone.com';
+  const baseUrl = 'https://api.thescenezone.com/api';
   const token = useSelector((state) => state.auth.token);
 
   useEffect(() => {
+    console.log('UserTicketScreen: useEffect triggered');
     const fetchTickets = async () => {
       if (!token) {
-        console.log('No auth token found');
-        Alert.alert('Error', 'Please log in to view tickets');
+      //  console.log('UserTicketScreen: No auth token found');
+       // setCustomAlert({ visible: true, title: 'Error', message: 'Please log in to view tickets' });
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
-        console.log('Fetching tickets from:', `${baseUrl}/api/eventhost/tickets/user-tickets`);
-        const response = await axios.get(`${baseUrl}/api/eventhost/tickets/user-tickets`, {
+        console.log('UserTicketScreen: Fetching tickets from:', `${baseUrl}/eventhost/tickets/user-tickets`);
+        const response = await axios.get(`${baseUrl}/eventhost/tickets/user-tickets`, {
           headers: { Authorization: `Bearer ${token}` },
           params: { page: 1, limit: 10 },
         });
 
-        console.log('API response:', JSON.stringify(response.data, null, 2));
+        console.log('UserTicketScreen: API response:', JSON.stringify(response.data, null, 2));
         const { tickets } = response.data.data || { tickets: [] };
 
         const currentDate = new Date();
@@ -89,7 +93,7 @@ const UserTicketScreen = ({ navigation }) => {
                   day: 'numeric',
                 }).replace(' ', '\n')
               : 'N/A';
-            console.log(`Processing active ticket: ${ticket.ticketId}, date: ${eventDate}`);
+            console.log(`UserTicketScreen: Processing active ticket: ${ticket.ticketId}, date: ${eventDate}`);
             return {
               id: ticket._id || `temp-${Math.random()}`,
               image: ticket.eventId?.posterUrl
@@ -111,7 +115,7 @@ const UserTicketScreen = ({ navigation }) => {
                   day: 'numeric',
                 }).replace(' ', '\n')
               : 'N/A';
-            console.log(`Processing past ticket: ${ticket.ticketId}, date: ${eventDate}`);
+            console.log(`UserTicketScreen: Processing past ticket: ${ticket.ticketId}, date: ${eventDate}`);
             return {
               id: ticket._id || `temp-${Math.random()}`,
               image: ticket.eventId?.posterUrl
@@ -125,15 +129,64 @@ const UserTicketScreen = ({ navigation }) => {
           })
         );
       } catch (error) {
-        console.error('Error fetching tickets:', error.message);
-        Alert.alert('Error', 'Failed to fetch tickets');
+        console.error('UserTicketScreen: Error fetching tickets:', error.message);
+        setCustomAlert({ visible: true, title: 'Error', message: 'Failed to fetch tickets' });
       } finally {
         setLoading(false);
+        console.log('UserTicketScreen: Loading set to false');
       }
     };
 
     fetchTickets();
   }, [token]);
+
+  useEffect(() => {
+    console.log('UserTicketScreen: activeTab changed:', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    console.log('UserTicketScreen: activeTickets updated:', activeTickets);
+  }, [activeTickets]);
+
+  useEffect(() => {
+    console.log('UserTicketScreen: pastTickets updated:', pastTickets);
+  }, [pastTickets]);
+
+  useEffect(() => {
+    console.log('UserTicketScreen: loading state changed:', loading);
+  }, [loading]);
+
+  useEffect(() => {
+    console.log('UserTicketScreen: customAlert state changed:', customAlert);
+  }, [customAlert]);
+
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
 
   return (
     <SafeAreaView
@@ -152,7 +205,7 @@ const UserTicketScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => { console.log('UserTicketScreen: Back button pressed'); navigation.goBack(); }}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Ticket</Text>
@@ -165,6 +218,7 @@ const UserTicketScreen = ({ navigation }) => {
           onPress={() => {
             triggerHaptic('impactLight');
             setActiveTab('active');
+            console.log('UserTicketScreen: Switched to active tab');
           }}
         >
           {activeTab === 'active' ? (
@@ -188,6 +242,7 @@ const UserTicketScreen = ({ navigation }) => {
           onPress={() => {
             triggerHaptic('impactLight');
             setActiveTab('past');
+            console.log('UserTicketScreen: Switched to past tab');
           }}
         >
           {activeTab === 'past' ? (
@@ -212,7 +267,13 @@ const UserTicketScreen = ({ navigation }) => {
           <ActivityIndicator size="large" color="#B15CDE" />
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollViewContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollViewContent,
+            { paddingBottom: Math.max(insets.bottom + 110, 130) }
+          ]}
+        >
           {(activeTab === 'active' ? activeTickets : pastTickets).length > 0 ? (
             (activeTab === 'active' ? activeTickets : pastTickets).map((ticket) => (
               <TouchableOpacity
@@ -220,7 +281,7 @@ const UserTicketScreen = ({ navigation }) => {
                 style={styles.ticketCard}
                 onPress={() => {
                   triggerHaptic('impactMedium');
-                  console.log('Navigating to UserTicketDownload with ticket:', JSON.stringify(ticket.rawTicket, null, 2));
+                  console.log('UserTicketScreen: Navigating to UserTicketDownload with ticket:', JSON.stringify(ticket.rawTicket, null, 2));
                   navigation.navigate('UserTicketDownload', { ticket: ticket.rawTicket });
                 }}
                 activeOpacity={0.85}
@@ -229,25 +290,23 @@ const UserTicketScreen = ({ navigation }) => {
                   source={ticket.image}
                   style={styles.ticketImage}
                   resizeMode="cover"
-                  onError={() => console.log(`Failed to load image for ticket: ${ticket.ticketId}`)}
+                  onError={() => console.log(`UserTicketScreen: Failed to load image for ticket: ${ticket.ticketId}`)}
                 />
                 <View style={styles.dateContainer}>
                   <Text style={styles.dateText}>{ticket.date || 'N/A'}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.heartIconPlaceholder}
-                  onPress={() => {
-                    triggerHaptic('impactMedium');
-                    console.log('Heart icon pressed for ticket:', ticket.ticketId);
-                  }}
-                >
-                  <Ionicons name="heart-outline" size={20} color="#fff" />
-                </TouchableOpacity>
                 <View style={styles.ticketInfo}>
                   <Text style={styles.ticketTitle}>{ticket.title || 'Unknown Event'}</Text>
                   <Text style={styles.ticketIdText}>Ticket ID: {ticket.ticketId || 'N/A'}</Text>
                 </View>
-                <TouchableOpacity style={styles.ticketArrowButton}>
+                <TouchableOpacity
+                  style={styles.ticketArrowButton}
+                  onPress={() => {
+                    triggerHaptic('impactMedium');
+                    console.log('UserTicketScreen: Chevron pressed for ticket:', ticket.ticketId);
+                    navigation.navigate('UserTicketDownload', { ticket: ticket.rawTicket });
+                  }}
+                >
                   <MaterialIcons name="chevron-right" size={24} color="#fff" />
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -259,9 +318,12 @@ const UserTicketScreen = ({ navigation }) => {
           )}
         </ScrollView>
       )}
+      <CustomAlertModal />
     </SafeAreaView>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -435,6 +497,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  shortlistModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  shortlistModalMessage: {
+    fontSize: 14,
+    color: '#aaa',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalButtonGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: 'Nunito Sans',
   },
 });
 

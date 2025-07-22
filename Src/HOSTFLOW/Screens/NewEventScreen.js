@@ -23,6 +23,8 @@ import { API_BASE_URL } from '../Config/env.js';
 import { useSelector } from 'react-redux';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 const { width, height } = Dimensions.get('window');
+import { Modal as RNModal } from "react-native";
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // Enhanced responsive dimensions system for all Android devices
 const isTablet = width >= 768;
@@ -90,6 +92,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
   const [budget, setBudget] = useState('');
   const [location, setLocation] = useState('');
   const [about, setAbout] = useState('');
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '' });
 
   const token = useSelector(state => state.auth.token);
 
@@ -102,6 +105,24 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
   };
 
   const handleCameraPress = async () => {
+    setCustomAlert({ visible: false, title: '', message: '' });
+    setTimeout(() => {
+      setCustomAlert({ visible: false, title: '', message: '' });
+      AlertBox();
+    }, 0);
+    function AlertBox() {
+      setCustomAlert({ visible: false, title: '', message: '' });
+      setTimeout(() => {
+        setCustomAlert({ visible: false, title: '', message: '' });
+        // Use custom alert modal instead of Alert.alert
+        setCustomAlert({
+          visible: true,
+          title: 'Select Image Source',
+          message: 'Choose how you want to add an image',
+        });
+      }, 0);
+    }
+    // Fallback to native Alert for options, but ideally you would implement a custom modal for options as well
     Alert.alert(
       'Select Image Source',
       'Choose how you want to add an image',
@@ -126,9 +147,10 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     const options = {
       mediaType: 'photo',
       includeBase64: false,
-      maxHeight: 232,
-      maxWidth: 317,
-      quality: 0.8,
+      maxHeight:232,
+      maxWidth:317,
+      quality: 10,
+     
       saveToPhotos: false,
     };
   
@@ -151,7 +173,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
       const requestCamera = await request(cameraPermission);
       const requestStorage = await request(storagePermission);
       if (requestCamera !== RESULTS.GRANTED || requestStorage !== RESULTS.GRANTED) {
-        Alert.alert('Permission Error', 'Camera and storage permissions are required');
+        setCustomAlert({ visible: true, title: 'Permission Error', message: 'Camera and storage permissions are required' });
         return;
       }
     }
@@ -160,7 +182,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
       const result = await launchCamera(options);
       if (result.didCancel) return;
       if (result.errorCode) {
-        Alert.alert('Camera Error', result.errorMessage || 'Unknown error');
+        setCustomAlert({ visible: true, title: 'Camera Error', message: result.errorMessage || 'Unknown error' });
         return;
       }
   
@@ -174,7 +196,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
       }
     } catch (error) {
       console.log("Camera error:", error);
-      Alert.alert('Error', 'Failed to open camera');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Failed to open camera' });
     }
   };
   
@@ -182,9 +204,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     const options = {
       mediaType: 'photo',
       includeBase64: false,
-      maxHeight: 232,
-      maxWidth: 317,
-      quality: 0.8,
+      quality: 10,
       saveToPhotos: false,
     };
   
@@ -200,7 +220,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     if (checkPermission !== RESULTS.GRANTED) {
       const requestPermission = await request(storagePermission);
       if (requestPermission !== RESULTS.GRANTED) {
-        Alert.alert('Permission Error', 'Photo library access is required');
+        setCustomAlert({ visible: true, title: 'Permission Error', message: 'Photo library access is required' });
         return;
       }
     }
@@ -209,7 +229,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
       const result = await launchImageLibrary(options);
       if (result.didCancel) return;
       if (result.errorCode) {
-        Alert.alert('Image Library Error', result.errorMessage || 'Unknown error');
+        setCustomAlert({ visible: true, title: 'Image Library Error', message: result.errorMessage || 'Unknown error' });
         return;
       }
   
@@ -223,7 +243,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
       }
     } catch (error) {
       console.log("Image library error:", error);
-      Alert.alert('Error', 'Failed to access image library');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Failed to access image library' });
     }
   };
   
@@ -245,14 +265,12 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
     try {
       console.log('Starting handleContinue...');
       if (!token) {
-        console.log('No token found');
-        Alert.alert('Error', 'Authentication token not found');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Authentication token not found' });
         return;
       }
       console.log('Token found:', token);
       if (!date) {
-        console.log('No date selected');
-        Alert.alert('Error', 'Please select a date');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please select a date' });
         return;
       }
       console.log('Date selected:', date);
@@ -324,18 +342,95 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
       console.log('Response received:', response.status);
   
       if (response.status === 200 || response.status === 201) {
-        console.log('Event created successfully');
-        Alert.alert('Success', 'Event created successfully');
-        navigation.goBack();
+        setCustomAlert({ visible: true, title: 'Success', message: 'Event created successfully' });
+        setTimeout(() => navigation.goBack(), 1200);
       } else {
-        console.log('Unexpected response status:', response.status);
-        Alert.alert('Error', 'Failed to create event');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Failed to create event' });
       }
     } catch (error) {
-      console.log('Event creation error:', error?.response?.data || error.message);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create event');
+      setCustomAlert({ visible: true, title: 'Error', message: error?.response?.data?.message || 'Failed to create event' });
     }
   };
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+      }}>
+        <View style={{
+          backgroundColor: '#1a1a1a',
+          borderRadius: 20,
+          padding: 28,
+          width: '85%',
+          maxWidth: 320,
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: '#333',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
+          elevation: 10,
+        }}>
+          <Ionicons
+            name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'}
+            size={48}
+            color="#a95eff"
+            style={{ marginBottom: 16 }}
+          />
+          <Text style={{
+            fontSize: 18,
+            fontWeight: '700',
+            color: '#a95eff',
+            marginBottom: 8,
+            textAlign: 'center',
+            fontFamily: 'Nunito Sans',
+          }}>{customAlert.title}</Text>
+          <Text style={{
+            fontSize: 15,
+            color: '#fff',
+            textAlign: 'center',
+            lineHeight: 22,
+            marginBottom: 24,
+            fontFamily: 'Nunito Sans',
+          }}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={{
+                paddingVertical: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: '600',
+                fontFamily: 'Nunito Sans',
+              }}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
   return (
     <LinearGradient
       colors={["#B15CDE", "#7952FC"]}
@@ -643,6 +738,7 @@ const ShortlistCreateNewEventContent = ({ navigation }) => {
           />
         )}
       </ScrollView>
+      <CustomAlertModal />
     </LinearGradient>
   );
 };
@@ -857,6 +953,60 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 28,
+    width: '85%',
+    maxWidth: 320,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  shortlistModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#a95eff',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalMessage: {
+    fontSize: 15,
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalButton: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Nunito Sans',
   },
 });
 

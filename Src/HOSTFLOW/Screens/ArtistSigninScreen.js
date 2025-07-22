@@ -10,6 +10,7 @@ import {
   Dimensions,
   ScrollView,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useDispatch } from 'react-redux';
@@ -24,6 +25,7 @@ import LockIcon from '../assets/icons/lock';
 import api from '../Config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -70,6 +72,7 @@ const ArtistSigninScreen = ({ navigation }) => {
   const isDark = true; // Force dark mode
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   // Input refs for focus control
   const mobileInputRef = useRef(null);
@@ -150,12 +153,12 @@ const ArtistSigninScreen = ({ navigation }) => {
     try {
       // Input validation
       if (!mobileNumber.trim() || mobileNumber.length !== 10) {
-        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid 10-digit mobile number' });
         return;
       }
 
       if (!password.trim()) {
-        Alert.alert('Error', 'Please enter your password');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter your password' });
         return;
       }
 
@@ -186,7 +189,7 @@ const ArtistSigninScreen = ({ navigation }) => {
 
         if (!token) {
           console.warn('No token found in response headers');
-          Alert.alert('Error', 'Authentication failed: No token received.');
+          setCustomAlert({ visible: true, title: 'Error', message: 'Authentication failed: No token received.' });
           return;
         }
 
@@ -211,10 +214,11 @@ const ArtistSigninScreen = ({ navigation }) => {
       console.error('Artist Login Error:', error.message);
       console.error('Error Response:', error.response?.data);
 
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to sign in. Please check your credentials and try again.'
-      );
+      setCustomAlert({
+        visible: true,
+        title: 'Error',
+        message: error.response?.data?.message || 'Failed to sign in. Please check your credentials and try again.'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -224,7 +228,7 @@ const ArtistSigninScreen = ({ navigation }) => {
     try {
       // Input validation
       if (!mobileNumber.trim() || mobileNumber.length !== 10) {
-        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid 10-digit mobile number' });
         return;
       }
 
@@ -243,18 +247,18 @@ const ArtistSigninScreen = ({ navigation }) => {
         const confirmationResult = await auth().signInWithPhoneNumber(fullMobileNumber);
         console.log('Firebase OTP sent successfully:', confirmationResult);
 
-        Alert.alert('Success', 'OTP sent to your mobile number', [
-          {
-            text: 'OK',
-            onPress: () =>
-              navigation.navigate('ArtistOtpVerificationScreen', {
-                mobileNumber: fullMobileNumber,
-                confirmation: confirmationResult,
-                isFirebase: true,
-                fullName: response.data.data.user?.fullName || '',
-              }),
-          },
-        ]);
+        setCustomAlert({
+          visible: true,
+          title: 'Success',
+          message: 'OTP sent to your mobile number',
+          onPress: () =>
+            navigation.navigate('ArtistOtpVerificationScreen', {
+              mobileNumber: fullMobileNumber,
+              confirmation: confirmationResult,
+              isFirebase: true,
+              fullName: response.data.data.user?.fullName || '',
+            }),
+        });
       }
     } catch (error) {
       console.error('Artist OTP Login Error:', error.message);
@@ -265,7 +269,7 @@ const ArtistSigninScreen = ({ navigation }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please try again later';
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -275,7 +279,39 @@ const ArtistSigninScreen = ({ navigation }) => {
     setIsOtpLogin(!isOtpLogin);
     setPassword(''); // Clear password when switching modes
   };
-
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => {
+              if (typeof customAlert.onPress === 'function') {
+                customAlert.onPress();
+              } else {
+                setCustomAlert({ ...customAlert, visible: false });
+              }
+            }}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
   return (
     <View style={styles.container}>
       <SignUpBackground style={styles.backgroundSvg} width={width} height={height} />
@@ -397,9 +433,12 @@ const ArtistSigninScreen = ({ navigation }) => {
           </TouchableOpacity> */}
         </ScrollView>
       </SafeAreaView>
+      <CustomAlertModal />
     </View>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -595,6 +634,59 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     marginRight: 8,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#121212',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    width: '80%',
+    maxWidth: 350,
+  },
+  shortlistModalTitle: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 28,
+    letterSpacing: 0,
+    color: '#fff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  shortlistModalMessage: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    color: '#C6C5ED',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 44,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalButtonText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    color: 'rgba(255, 255, 255, 1)',
   },
 });
 

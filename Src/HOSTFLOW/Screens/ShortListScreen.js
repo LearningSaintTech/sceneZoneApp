@@ -21,6 +21,7 @@ import { useSelector } from "react-redux";
 import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import { API_BASE_URL } from "../../../Src/HOSTFLOW/Config/env";
+import Ionicons from "react-native-vector-icons/Ionicons";
 
 const { width, height } = Dimensions.get("window");
 
@@ -75,6 +76,7 @@ const ShortlistScreen = ({ navigation }) => {
   const [existingEvents, setExistingEvents] = useState([]);
   const [existingEventsLoading, setExistingEventsLoading] = useState(false);
   const [selectedArtist, setSelectedArtist] = useState(null);
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '' });
 
   const token = useSelector((state) => state.auth.token);
   const insets = useSafeAreaInsets();
@@ -267,7 +269,7 @@ const ShortlistScreen = ({ navigation }) => {
     console.log("Found item", item);
     if (!item) {
       console.log("Item not found for ID:", id);
-      Alert.alert("Error", "Artist not found");
+      setCustomAlert({ visible: true, title: 'Error', message: 'Artist not found' });
       return;
     }
 
@@ -293,16 +295,10 @@ const ShortlistScreen = ({ navigation }) => {
         "Updated apiData",
         apiData.filter((i) => i.artistProfile._id !== id)
       );
-      Alert.alert(
-        "Success",
-        `Artist with ID ${item.artistProfile.artistId} removed from shortlist`
-      );
+      setCustomAlert({ visible: true, title: 'Success', message: `Artist  removed from shortlist` });
     } catch (error) {
       console.error("Error response:", error.response?.data || error.message);
-      Alert.alert(
-        "Error",
-        `Failed to remove artist with ID ${item.artistProfile.artistId}`
-      );
+      setCustomAlert({ visible: true, title: 'Error', message: `Failed to remove artist with ID ${item.artistProfile.artistId}` });
     }
     console.log(
       "Removal process completed for artist ID:",
@@ -364,7 +360,7 @@ const ShortlistScreen = ({ navigation }) => {
             <View style={styles.overlayButton}>
               <Text
                 style={styles.overlayButtonText}
-              >{`$${item?.artistProfile?.budget || null}`}</Text>
+              >{`${item?.artistProfile?.budget || null}`}</Text>
             </View>
             <TouchableOpacity
               style={styles.overlayPlus}
@@ -472,13 +468,13 @@ const ShortlistScreen = ({ navigation }) => {
                 setManageEvents((prev) =>
                   prev.filter((e) => e._id !== item._id)
                 );
-                Alert.alert("Success", "Event deleted successfully");
+                setCustomAlert({ visible: true, title: 'Success', message: 'Event deleted successfully' });
               } catch (error) {
                 console.error(
                   "Error deleting event:",
                   error.response?.data || error.message
                 );
-                Alert.alert("Error", "Failed to delete event");
+                setCustomAlert({ visible: true, title: 'Error', message: 'Failed to delete event' });
               } finally {
                 console.log(
                   "Delete event completed, manageEventsLoading:",
@@ -539,6 +535,35 @@ const ShortlistScreen = ({ navigation }) => {
       setExistingEventsLoading(false);
     }
   };
+
+  // Custom Modal for Alerts
+  const CustomAlertModal = () => (
+    <Modal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <View
@@ -950,66 +975,68 @@ const ShortlistScreen = ({ navigation }) => {
                 style={{ marginTop: 20 }}
               />
             ) : existingEvents.length > 0 ? (
-              existingEvents.map((item) => {
-                console.log("Rendering existing event card", { item });
-                return (
-                  <TouchableOpacity
-                    key={item._id}
-                    style={styles.existingEventCard}
-                    onPress={() => {
-                      console.log("Navigating to HostDetailBookingScreen", {
-                        timestamp: new Date().toISOString(),
-                        eventId: item._id,
-                        artist: selectedArtist,
-                      });
-                      navigation.navigate("HostDetailBooking", {
-                        eventId: item._id,
-                        artist: selectedArtist,
-                      });
-                      setAddToExistingEventsModalVisible(false);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Image
-                      source={
-                        item.posterUrl
-                          ? { uri: item.posterUrl }
-                          : require("../assets/Images/fff.jpg")
-                      }
-                      style={styles.existingEventImage}
-                      onLoad={() =>
-                        console.log(
-                          `Existing event image loaded for event ${item._id}`
-                        )
-                      }
-                      onError={(e) =>
-                        console.error(
-                          `Failed to load existing event image for event ${item._id}. URI: ${item.posterUrl}`,
-                          e.nativeEvent.error
-                        )
-                      }
-                    />
-                    <View style={styles.existingEventDetails}>
-                      <Text style={styles.existingEventTitle}>
-                        {item.eventName}
-                      </Text>
-                      <Text style={styles.existingEventDescription}>
-                        Join us for an unforgettable evening filled with live
-                        music! Feel the beat and excitement!
-                      </Text>
-                      <Text style={{ color: "#a95eff", fontSize: 10 }}>
-                        {item.eventDate && item.eventDate[0]
-                          ? new Date(item.eventDate[0]).toLocaleString(
-                              "en-US",
-                              { month: "short", day: "2-digit" }
-                            )
-                          : ""}{" "}
-                        | {item.eventTime}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
+              <ScrollView style={{ maxHeight: 500 }}>
+                {existingEvents.map((item, idx) => {
+                  console.log("Rendering existing event card", { item });
+                  return (
+                    <TouchableOpacity
+                      key={item._id}
+                      style={[styles.existingEventCard, { marginBottom: 18 }]}
+                      onPress={() => {
+                        console.log("Navigating to HostDetailBookingScreen", {
+                          timestamp: new Date().toISOString(),
+                          eventId: item._id,
+                          artist: selectedArtist,
+                        });
+                        navigation.navigate("HostDetailBooking", {
+                          eventId: item._id,
+                          artist: selectedArtist,
+                        });
+                        setAddToExistingEventsModalVisible(false);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Image
+                        source={
+                          item.posterUrl
+                            ? { uri: item.posterUrl }
+                            : require("../assets/Images/fff.jpg")
+                        }
+                        style={styles.existingEventImage}
+                        onLoad={() =>
+                          console.log(
+                            `Existing event image loaded for event ${item._id}`
+                          )
+                        }
+                        onError={(e) =>
+                          console.error(
+                            `Failed to load existing event image for event ${item._id}. URI: ${item.posterUrl}`,
+                            e.nativeEvent.error
+                          )
+                        }
+                      />
+                      <View style={styles.existingEventDetails}>
+                        <Text style={styles.existingEventTitle}>
+                          {item.eventName}
+                        </Text>
+                        <Text style={styles.existingEventDescription}>
+                          Join us for an unforgettable evening filled with live
+                          music! Feel the beat and excitement!
+                        </Text>
+                        <Text style={{ color: "#a95eff", fontSize: 10 }}>
+                          {item.eventDate && item.eventDate[0]
+                            ? new Date(item.eventDate[0]).toLocaleString(
+                                "en-US",
+                                { month: "short", day: "2-digit" }
+                              )
+                            : ""} {" "}
+                          | {item.eventTime}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             ) : (
               <Text
                 style={{ color: "#fff", textAlign: "center", marginTop: 40 }}
@@ -1020,6 +1047,7 @@ const ShortlistScreen = ({ navigation }) => {
           </LinearGradient>
         </View>
       </Modal>
+      <CustomAlertModal />
     </View>
   );
 };
@@ -1484,6 +1512,61 @@ const styles = StyleSheet.create({
     elevation: 4,
     backgroundColor: "#121212",
     marginBottom: 0,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 28,
+    width: '85%',
+    maxWidth: 320,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  shortlistModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#a95eff',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalMessage: {
+    fontSize: 15,
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalButton: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Nunito Sans',
   },
 });
 

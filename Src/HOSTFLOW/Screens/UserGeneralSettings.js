@@ -1,58 +1,36 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-const UserGeneralSettingsScreen = ({ navigation }) => {
+const ArtistGeneralSettingsScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>General Settings</Text>
-        <View style={{ width: 24 }} />{/* Spacer to center the title */}
       </View>
-
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        {/* Language Setting */}
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Language Setting</Text>
-          <Text style={styles.menuItemValue}>English</Text>
-          <MaterialIcons name="chevron-right" size={24} color="#555" />
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollViewContent}>
+        {/* Placeholder Settings Options */}
+        <TouchableOpacity style={styles.optionItem} onPress={() => navigation.navigate('ArtistPrivacy')}>
+          <Ionicons name="shield-checkmark-outline" size={24} color="#a95eff" style={styles.optionIcon} />
+          <Text style={styles.optionText}>Privacy Policy</Text>
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
-        {/* Notification Setting */}
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Notification Setting</Text>
-          <MaterialIcons name="chevron-right" size={24} color="#555" />
+        <TouchableOpacity style={styles.optionItem} onPress={() => navigation.navigate('ArtistTerms')}>
+          <Ionicons name="document-text-outline" size={24} color="#a95eff" style={styles.optionIcon} />
+          <Text style={styles.optionText}>Terms of Service</Text>
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
-        {/* About EVNC */}
-         <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>About EVNC</Text>
-          <Text style={styles.menuItemValue}>Version 1.0.0.1</Text>
-          <MaterialIcons name="chevron-right" size={24} color="#555" />
-        </TouchableOpacity>
-
-        {/* Term of Use */}
-         <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Term of Use</Text>
-          <MaterialIcons name="chevron-right" size={24} color="#555" />
-        </TouchableOpacity>
-
-         {/* Privacy Policy */}
-         <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuItemText}>Privacy Policy</Text>
-          <MaterialIcons name="chevron-right" size={24} color="#555" />
+        <TouchableOpacity style={styles.optionItem} onPress={() => navigation.navigate('ArtistAbout')}>
+          <Ionicons name="information-circle-outline" size={24} color="#a95eff" style={styles.optionIcon} />
+          <Text style={styles.optionText}>About Us</Text>
+          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
       </ScrollView>
@@ -63,62 +41,62 @@ const UserGeneralSettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: '#000',
   },
   header: {
-    display: 'flex',
-    width: 393,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    alignItems: 'center',
+    paddingTop: 40,
     flexDirection: 'row',
-    gap: 16,
-    backgroundColor: '#121212',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#C6C5ED',
-    // Shadow for iOS
-    shadowColor: 'rgba(104, 59, 252, 0.05)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    // Elevation for Android
-    elevation: 8,
-    paddingTop:40,
+    borderBottomColor: '#333',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+    marginLeft: 16,
   },
-   scrollViewContent: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 20,
+  scrollViewContent: {
+    paddingVertical: 10,
   },
-  menuItem: {
-    display: 'flex',
+  optionItem: {
     flexDirection: 'row',
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    justifyContent: 'space-between',
     alignItems: 'center',
-    alignSelf: 'stretch',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#34344A',
-    backgroundColor: '#1A1A1F',
-    marginBottom: 10,
+    backgroundColor: '#18171D',
+    borderRadius: 20,
+    marginVertical: 6,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    height: 72,
+    borderWidth: 1.5,
+    borderColor: '#39355B',
+    width: '92%',
+    alignSelf: 'center',
+    shadowColor: 'transparent',
   },
-  menuItemText: {
-    flex: 1, // Take up available space
-    fontSize: 16,
+  optionIcon: {
+    marginLeft: 28,
+    marginRight: 20,
+    alignSelf: 'center',
+  },
+  optionText: {
+    flex: 1,
+    fontSize: 14,
     color: '#fff',
+    fontFamily: 'Nunito Sans',
+    fontWeight: '600',
+    lineHeight: 22,
+    textAlignVertical: 'center',
   },
-  menuItemValue: {
-      fontSize: 16,
-      color: '#a95eff', // Purple color for values
-      marginRight: 10,
+  chevronIcon: {
+    marginRight: 28,
+    alignSelf: 'center',
   },
 });
 
-export default UserGeneralSettingsScreen; 
+export default ArtistGeneralSettingsScreen; 
+
+
+

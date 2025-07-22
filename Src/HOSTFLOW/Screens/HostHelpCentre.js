@@ -1,29 +1,31 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Linking } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-const HostHelpCentreScreen = ({ navigation }) => {
+const ArtistHelpCentreScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Icon name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help Centre</Text>
-        <View style={{ width: 24 }} />{/* Spacer to center the title */}
       </View>
-
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        {/* No menu items as requested */}
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollViewContent}>
+        <View style={styles.contentContainer}>
+          <Text style={styles.text}>
+            For any query kindly contact -{' '}
+            <Text style={styles.link} onPress={() => {
+              const email = 'thescenezoneofficial@gmail.com';
+              const subject = encodeURIComponent('SceneZone App Query');
+              const mailtoUrl = `mailto:${email}?subject=${subject}`;
+              Linking.openURL(mailtoUrl);
+            }} accessibilityRole="link">
+              thescenezoneofficial@gmail.com
+            </Text>
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -35,49 +37,54 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    display: 'flex',
-    width: 393,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 16,
-    backgroundColor: '#121212',
-    borderBottomWidth: 1,
-    borderBottomColor: '#C6C5ED',
-    // Shadow for iOS
-    shadowColor: 'rgba(104, 59, 252, 0.05)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    // Elevation for Android
-    elevation: 8,
     paddingTop:40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+    marginLeft: 16,
   },
-   scrollViewContent: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 20,
+  scrollViewContent: {
+    paddingVertical: 10,
   },
-  menuItem: {
+  optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a', // Dark background
-    paddingVertical: 15,
-    paddingHorizontal: 15,
+    backgroundColor: '#1a1a1a',
     borderRadius: 10,
+    marginHorizontal: 16,
     marginBottom: 10,
-    justifyContent: 'space-between', // To push the arrow to the right
+    padding: 16,
   },
-  menuItemText: {
+  optionText: {
+    flex: 1,
     fontSize: 16,
     color: '#fff',
   },
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  text: {
+    fontSize: 16,
+    color: '#808080',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  link: {
+    color: '#a95eff',
+    textDecorationLine: 'underline',
+    fontWeight: '500',
+  },
 });
 
-export default HostHelpCentreScreen; 
+export default ArtistHelpCentreScreen; 

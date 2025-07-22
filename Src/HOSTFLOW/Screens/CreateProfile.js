@@ -321,7 +321,7 @@ const CreateProfile = ({ navigation }) => {
     if (artistSubTypeForApi !== null) {
       formData.append('artistSubType', artistSubTypeForApi);
     }
-    formData.append('instrument', instrument);
+    formData.append('instrument', genre === 'Music' ? instrument : null);
     formData.append('budget', budget ? Number(budget) : 0);
     formData.append('isCrowdGuarantee', crowdGuarantee);
     formData.append('status', 'pending');
@@ -383,6 +383,27 @@ const CreateProfile = ({ navigation }) => {
   };
 
   const handleVideoCameraPress = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera Permission',
+            message: 'App needs access to your camera to record video.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert('Permission Denied', 'Camera permission is required to record video.');
+          return;
+        }
+      } catch (err) {
+        Alert.alert('Error', 'Failed to request camera permission.');
+        return;
+      }
+    }
     launchCamera({ mediaType: 'video', videoQuality: 'medium', durationLimit: 60 }, (response) => {
       if (response.didCancel) return;
       if (response.errorCode) {
@@ -895,24 +916,28 @@ const CreateProfile = ({ navigation }) => {
           </>
         )}
 
-        <Text style={styles.label}>Instrument</Text>
-        <View style={[
-          styles.inputContainer,
-          { 
-            borderColor: focusedField === 'instrument' ? '#8D6BFC' : '#24242D',
-            backgroundColor: '#121212'
-          }
-        ]}>
-          <TextInput
-            style={styles.input}
-            value={instrument}
-            onChangeText={setInstrument}
-            onFocus={() => handleInputFocus('instrument')}
-            onBlur={handleInputBlur}
-            placeholder="Guitar"
-            placeholderTextColor="#aaa"
-          />
-        </View>
+        {genre === 'Music' && (
+          <>
+            <Text style={styles.label}>Instrument</Text>
+            <View style={[
+              styles.inputContainer,
+              { 
+                borderColor: focusedField === 'instrument' ? '#8D6BFC' : '#24242D',
+                backgroundColor: '#121212'
+              }
+            ]}>
+              <TextInput
+                style={styles.input}
+                value={instrument}
+                onChangeText={setInstrument}
+                onFocus={() => handleInputFocus('instrument')}
+                onBlur={handleInputBlur}
+                placeholder="Guitar"
+                placeholderTextColor="#aaa"
+              />
+            </View>
+          </>
+        )}
 
         <Text style={styles.label}>Budget</Text>
          <View style={[

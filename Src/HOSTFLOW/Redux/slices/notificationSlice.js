@@ -120,6 +120,7 @@ export const saveFCMToken = createAsyncThunk(
 const initialState = {
   notifications: [],
   unreadCount: 0,
+  unreadChatCount: 0, // NEW: total unread chat messages
   loading: false,
   error: null,
   hasMore: true,
@@ -143,6 +144,9 @@ const notificationSlice = createSlice({
     },
     setUnreadCount: (state, action) => {
       state.unreadCount = action.payload;
+    },
+    setUnreadChatCount: (state, action) => {
+      state.unreadChatCount = action.payload;
     },
     setFCMToken: (state, action) => {
       state.fcmToken = action.payload;
@@ -180,10 +184,11 @@ const notificationSlice = createSlice({
         const { notificationId, notification } = action.payload;
         const index = state.notifications.findIndex(n => n._id === notificationId);
         if (index !== -1) {
+          // Only decrement if it was previously unread and is now read
+          if (!state.notifications[index].isRead && notification.isRead) {
+            state.unreadCount = Math.max(0, state.unreadCount - 1);
+          }
           state.notifications[index] = notification;
-        }
-        if (!notification.isRead) {
-          state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
       })
       // Mark all as read
@@ -210,6 +215,7 @@ export const {
   clearNotifications,
   addNotification,
   setUnreadCount,
+  setUnreadChatCount,
   setFCMToken,
   setDeviceId,
   clearError,

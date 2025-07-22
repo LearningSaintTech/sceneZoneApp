@@ -5,6 +5,7 @@ import AppliedIcon from '../assets/icons/Applied';
 import InboxIcon from '../assets/icons/inbox';
 import HomeIcon from '../assets/icons/home';
 import ProfileIcon from './profile';
+import { useSelector } from 'react-redux';
 
 const { width, height } = Dimensions.get('window');
 
@@ -36,6 +37,9 @@ const ArtistBottomNavBar = ({ navigation, insets = { bottom: 20 } }) => {
   const inboxAnim = React.useRef(new Animated.Value(0)).current;
   const profileAnim = React.useRef(new Animated.Value(0)).current;
   const [loaded, setLoaded] = React.useState(false);
+
+  // Get unread chat count from Redux
+  const unreadChatCount = useSelector(state => state.notifications.unreadChatCount);
 
   React.useEffect(() => {
     // Animate all icons on mount
@@ -94,7 +98,27 @@ const ArtistBottomNavBar = ({ navigation, insets = { bottom: 20 } }) => {
         onPress={() => handleTabPress('inbox', 'ArtistInbox')}
       >
         <Animated.View style={activeTab === 'inbox' ? { transform: [{ rotate: inboxAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] } : {}}>
-          <InboxIcon width={iconSize} height={iconSize} stroke={activeTab === 'inbox' ? '#a95eff' : '#aaa'} />
+          <View style={{ position: 'relative' }}>
+            <InboxIcon width={iconSize} height={iconSize} stroke={activeTab === 'inbox' ? '#a95eff' : '#aaa'} />
+            {unreadChatCount > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: -6,
+                right: -10,
+                backgroundColor: '#FF3B30',
+                borderRadius: 10,
+                minWidth: 18,
+                height: 18,
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingHorizontal: 4,
+              }}>
+                <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>
+                  {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                </Text>
+              </View>
+            )}
+          </View>
         </Animated.View>
         <Text style={[styles.navButtonText, activeTab === 'inbox' && styles.navButtonTextActive]}>Inbox</Text>
       </TouchableOpacity>

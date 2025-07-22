@@ -9,7 +9,7 @@ import notificationReducer from './slices/notificationSlice';
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['auth'], // Persist only the auth slice
+  whitelist: ['auth', 'favorites'], // Persist both auth and favorites
 };
 
 const rootReducer = combineReducers({

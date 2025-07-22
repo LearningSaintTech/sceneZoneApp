@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Alert, ActivityIndicator, Animated, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Alert, ActivityIndicator, Animated, BackHandler, Modal as RNModal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectToken, removeAppliedEvent } from '../Redux/slices/authSlice';
@@ -122,6 +122,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
   const [locallyAppliedFromSaved, setLocallyAppliedFromSaved] = useState(new Set());
   const [likedEventIds, setLikedEventIds] = useState(new Set());
   const [likingEventId, setLikingEventId] = useState(null);
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const token = useSelector(selectToken);
@@ -694,7 +695,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
   const handleRemoveAppliedEvent = async (eventId) => {
     console.log("inside handleRemoveAppliedEvent",eventId)
     if (!token) {
-      Alert.alert('Error', 'Authentication required to remove application.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Authentication required to remove application.' });
       return;
     }
 
@@ -706,7 +707,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
         length: eventId ? eventId.length : 0,
         valid: false
       });
-      Alert.alert('Error', 'Invalid Event ID. Please try again.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Invalid Event ID. Please try again.' });
       return;
     }
 
@@ -716,7 +717,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
       // Test API connectivity first
       const isAPIReachable = await testAPIConnectivity();
       if (!isAPIReachable) {
-        Alert.alert('Error', 'Cannot connect to server. Please check your internet connection.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Cannot connect to server. Please check your internet connection.' });
         return;
       }
       
@@ -766,7 +767,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
         }, 1000);
       } else {
         console.error('❌ API returned unsuccessful response:', response.data);
-        Alert.alert('Failed', response.data?.message || 'Failed to remove application.');
+        setCustomAlert({ visible: true, title: 'Failed', message: response.data?.message || 'Failed to remove application.' });
       }
     } catch (error) {
       console.error('❌ Error removing applied event:', error);
@@ -793,7 +794,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
         errorMessage = 'Server error. Please try again later.';
       }
       
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -805,7 +806,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
     console.log('   - Event ID:', eventId);
     
     if (!token) {
-      Alert.alert('Not Authenticated', 'Please login to like/unlike events.');
+      setCustomAlert({ visible: true, title: 'Not Authenticated', message: 'Please login to like/unlike events.' });
       return;
     }
     
@@ -885,7 +886,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
         // Add haptic feedback for failure
         triggerHaptic('impactHeavy');
         const action = isCurrentlyLiked ? 'unlike' : 'like';
-        Alert.alert('Failed', response.data?.message || `Failed to ${action} event.`);
+        setCustomAlert({ visible: true, title: 'Failed', message: response.data?.message || `Failed to ${action} event.` });
       }
     } catch (error) {
       console.error('🚨 API ERROR:', error);
@@ -895,7 +896,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
       triggerHaptic('impactHeavy');
       const action = isCurrentlyLiked ? 'unlike' : 'like';
       const errorMessage = error.response?.data?.message || `Failed to ${action} event.`;
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setLikingEventId(null);
     }
@@ -904,7 +905,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
   // Handle apply for event from saved events
   const handleApplyForEvent = async (eventId) => {
     if (!token) {
-      Alert.alert('Not Authenticated', 'Please login to apply for events.');
+      setCustomAlert({ visible: true, title: 'Not Authenticated', message: 'Please login to apply for events.' });
       return;
     }
 
@@ -945,7 +946,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
         await fetchSavedEvents();
       } else {
         console.log('❌ API returned unsuccessful response:', response.data);
-        Alert.alert('Failed', response.data?.message || 'Failed to apply for event.');
+        setCustomAlert({ visible: true, title: 'Failed', message: response.data?.message || 'Failed to apply for event.' });
       }
     } catch (error) {
       console.error('❌ Error applying for event:', error);
@@ -957,10 +958,10 @@ const ArtistAppliedScreen = ({ navigation }) => {
           errorMessage.toLowerCase().includes('duplicate')) {
         console.log('✅ Event was already applied');
         triggerHaptic('impactLight');
-        Alert.alert('Already Applied', 'You have already applied for this event.');
+        setCustomAlert({ visible: true, title: 'Already Applied', message: 'You have already applied for this event.' });
       } else {
         console.log('🚨 Showing error alert to user:', errorMessage);
-        Alert.alert('Error', errorMessage);
+        setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
       }
     } finally {
       setLoading(false);
@@ -970,7 +971,7 @@ const ArtistAppliedScreen = ({ navigation }) => {
   // Handle unsave event from backend using API - same as ArtistHomeScreen
   const handleUnsaveEvent = async (eventId) => {
     if (!token) {
-      Alert.alert('Not Authenticated', 'Please login to unsave events.');
+      setCustomAlert({ visible: true, title: 'Not Authenticated', message: 'Please login to unsave events.' });
       return;
     }
 
@@ -1021,17 +1022,43 @@ const ArtistAppliedScreen = ({ navigation }) => {
         console.log('🔄 Refreshing saved events after successful unsave...');
         await fetchSavedEvents();
       } else {
-        Alert.alert('Failed', response.data?.message || 'Failed to unsave event.');
+        setCustomAlert({ visible: true, title: 'Failed', message: response.data?.message || 'Failed to unsave event.' });
       }
     } catch (error) {
       console.error('❌ Error unsaving event:', error);
       const errorMessage = error.response?.data?.message || 'Failed to unsave event.';
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setLoading(false);
     }
   };
-
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Background */}
@@ -1162,9 +1189,12 @@ const ArtistAppliedScreen = ({ navigation }) => {
         insets={insets}
         isLoading={loading}
       />
+      <CustomAlertModal />
     </View>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -1661,6 +1691,54 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     marginBottom: dimensions.spacing.md,
     textAlign: 'center',
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '80%',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  shortlistModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  shortlistModalMessage: {
+    fontSize: 14,
+    color: '#aaa',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 52,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalButtonGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    fontFeatureSettings: "'salt' on",
   },
 });
 

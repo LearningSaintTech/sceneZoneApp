@@ -5,7 +5,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import ArtistBottomNavBar from '../Components/ArtistBottomNavBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomToggle from '../Components/CustomToggle';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { setUnreadChatCount } from '../Redux/slices/notificationSlice';
 import {jwtDecode} from 'jwt-decode'; // Ensure this is installed (e.g., npm install jwt-decode)
 import { API_BASE_URL } from '../Config/env';
 
@@ -19,8 +20,9 @@ const HostChatList = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const token = useSelector(state => state.auth.token);
   const { eventId } = route.params; // Get eventId from navigation params
-  const BASE_URL = 'https://api.thescenezone.com';
+  const BASE_URL = 'https://api.thescenezone.com/api';
 console.log("eventIdttttt",eventId)
+  const dispatch = useDispatch();
   // Decode token to get user role and ID
   let userId = null;
   let role = null;
@@ -36,68 +38,71 @@ console.log("eventIdttttt",eventId)
   }
 
   // Fetch chats from API
+  const fetchChats = async () => {
+    if (!token || !eventId) {
+      setError('Missing token or event ID');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/chat/get-chats/${eventId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('API Response Status:', response.status);
+      const data = await response.json();
+      console.log('API Response Data:', JSON.stringify(data, null, 2));
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP error! Status: ${response.status}`);
+      }
+
+      if (!Array.isArray(data)) {
+        throw new Error('Unexpected response format: Expected an array of chats');
+      }
+
+      const validChats = data
+        .filter(chat => 
+          chat && 
+          typeof chat === 'object' && 
+          chat._id && 
+          chat.hostId && 
+          chat.artistId
+        )
+        .map(chat => ({
+          id: chat._id,
+          hostId: chat.hostId._id,
+          hostName: chat.hostId.fullName,
+          hostImage: chat.hostId.profileImageUrl || null,
+          artistId: chat.artistId._id,
+          artistName: chat.artistId.fullName,
+          artistImage: chat.artistId.profileImageUrl || null,
+          lastMessage: chat.latestProposedPrice ? `$${chat.latestProposedPrice}` : '',
+          unreadCount: chat.unreadCount || 0, // Add unreadCount if available
+          lastMessageAt: chat.lastMessageAt || null,
+        }));
+
+      // Sum all unread counts for badge
+      const totalUnread = validChats.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0);
+      dispatch(setUnreadChatCount(totalUnread));
+
+      setChats(validChats);
+      setFilteredChats(validChats);
+      setLoading(false);
+    } catch (err) {
+      console.error('Fetch Error:', err.message);
+      setError(typeof err.message === 'string' ? err.message : 'Failed to fetch chats');
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchChats = async () => {
-      if (!token || !eventId) {
-        setError('Missing token or event ID');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/chat/get-chats/${eventId}`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        console.log('API Response Status:', response.status);
-        const data = await response.json();
-        console.log('API Response Data:', JSON.stringify(data, null, 2));
-
-        if (!response.ok) {
-          throw new Error(data.message || `HTTP error! Status: ${response.status}`);
-        }
-
-        if (!Array.isArray(data)) {
-          throw new Error('Unexpected response format: Expected an array of chats');
-        }
-
-        const validChats = data
-          .filter(chat => 
-            chat && 
-            typeof chat === 'object' && 
-            chat._id && 
-            chat.hostId && 
-            chat.artistId
-          )
-          .map(chat => ({
-            id: chat._id,
-            hostId: chat.hostId._id,
-            hostName: chat.hostId.fullName,
-            hostImage: chat.hostId.profileImageUrl || null,
-            artistId: chat.artistId._id,
-            artistName: chat.artistId.fullName,
-            artistImage: chat.artistId.profileImageUrl || null,
-            lastMessage: chat.latestProposedPrice ? `$${chat.latestProposedPrice}` : '',
-            unreadCount: 0, // Adjust based on API if available
-            lastMessageAt: chat.lastMessageAt || null,
-          }));
-
-        console.log('Valid Chats:', JSON.stringify(validChats, null, 2));
-        setChats(validChats);
-        setFilteredChats(validChats);
-        setLoading(false);
-      } catch (err) {
-        console.error('Fetch Error:', err.message);
-        setError(typeof err.message === 'string' ? err.message : 'Failed to fetch chats');
-        setLoading(false);
-      }
-    };
-
     fetchChats();
   }, [token, eventId]);
 
@@ -114,6 +119,26 @@ console.log("eventIdttttt",eventId)
     }
   }, [searchText, chats, role]);
 
+  // Mark chat as read and navigate
+  const handleChatPress = async (chatId) => {
+    try {
+      await fetch(`${API_BASE_URL}/chat/mark-as-read/${chatId}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      // Refetch chats and update unread counts
+      await fetchChats();
+      // Navigate to negotiation/chat screen
+      navigation.navigate('HostNegotiationAvailable', { chatId });
+    } catch (err) {
+      console.error('Error marking chat as read:', err.message);
+      navigation.navigate('HostNegotiationAvailable', { chatId });
+    }
+  };
+
   // Render message item
   const renderMessageItem = ({ item }) => {
     const displayName = role === 'host' ? item.artistName : item.hostName;
@@ -122,7 +147,7 @@ console.log("eventIdttttt",eventId)
     return (
       <TouchableOpacity
         style={styles.messageCard}
-        onPress={() => navigation.navigate('HostNegotiationAvailable', { chatId: item.id })}
+        onPress={() => handleChatPress(item.id)}
       >
         <View style={styles.profileImagePlaceholder}>
           <Image
@@ -331,14 +356,17 @@ const styles = StyleSheet.create({
   unreadBadge: {
     backgroundColor: '#a95eff',
     borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginLeft: 8,
+    paddingHorizontal: 6,
   },
   unreadText: {
-    fontSize: 12,
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 12,
   },
   loadingContainer: {
     flex: 1,

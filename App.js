@@ -48,6 +48,7 @@ import ArtistExploreEvent from "./Src/HOSTFLOW/Screens/ArtistExploreEvent";
 import ArtistPrivacyScreen from './Src/HOSTFLOW/Screens/ArtistPrivacy';
 import ArtistTermsScreen from './Src/HOSTFLOW/Screens/ArtistTerm';
 import ArtistAboutScreen from './Src/HOSTFLOW/Screens/ArtistAbout.js';
+import ArtistGuestEventList from './Src/HOSTFLOW/Screens/ArtistGuestEventList';
 
 // Host Screens
 import SignUpScreen from "./Src/HOSTFLOW/Screens/SignupScreen";
@@ -81,6 +82,9 @@ import HostDetailUpdateBookingScreen from "./Src/HOSTFLOW/Screens/HostDetailUpda
 import HostChatEventList from "./Src/HOSTFLOW/Screens/HostChatEventList";
 import HostChatList from "./Src/HOSTFLOW/Screens/HostChatList";
 import NegotiationScreen from "./Src/HOSTFLOW/Screens/HostNegotiationAvailable";
+import HostGuestEventList from "./Src/HOSTFLOW/Screens/HostGuestEventList";
+import HostGuestList from "./Src/HOSTFLOW/Screens/HostEnableGuestList";
+import HostDiscount from "./Src/HOSTFLOW/Screens/HostDiscountPage.js";
 
 // User Screens
 import UserSignupScreen from "./Src/HOSTFLOW/Screens/UserSignup";
@@ -112,6 +116,7 @@ import UserCreateNewPassword from "./Src/HOSTFLOW/Screens/UserCreateNewPassword"
 import UserCheckMailbox from "./Src/HOSTFLOW/Screens/UserCheckMailBox";
 import UserTicketDownload from "./Src/HOSTFLOW/Screens/UserTicketDownload";
 import NotificationDebugScreen from "./Src/HOSTFLOW/Screens/NotificationDebugScreen";
+import AssignGuestDiscountScreen from "./Src/HOSTFLOW/Screens/AssignGuestDiscountScreen";
 
 // Socket.IO Context
 const SocketContext = React.createContext(null);
@@ -284,6 +289,7 @@ function AuthenticatedNavigator({ socket }) {
             <Stack.Screen name="ArtistProfile" component={ArtistProfileScreen} />
             <Stack.Screen name="ArtistEditProfile" component={ArtistEditProfileScreen} />
             <Stack.Screen name="ArtistGuestList" component={ArtistGuestListScreen} />
+            <Stack.Screen name="ArtistGuestEventList" component={ArtistGuestEventList} />
             <Stack.Screen name="ArtistPaymentSettings" component={ArtistPaymentSettingsScreen} />
             <Stack.Screen name="ArtistGeneralSettings" component={ArtistGeneralSettingsScreen} />
             <Stack.Screen name="ArtistHelpCentre" component={ArtistHelpCentreScreen} />
@@ -329,6 +335,9 @@ function AuthenticatedNavigator({ socket }) {
             <Stack.Screen name="HostChatEventList" component={HostChatEventList} />
             <Stack.Screen name="HostChatList" component={HostChatList} />
             <Stack.Screen name="NegotiationScreen" component={NegotiationScreen} />
+            <Stack.Screen name="HostGuestEventList" component={HostGuestEventList} />
+            <Stack.Screen name="HostGuestList" component={HostGuestList} />
+            <Stack.Screen name="HostDiscount" component={HostDiscount} />
 
             {/* User Screens */}
             <Stack.Screen name="UserSignup" component={UserSignupScreen} />
@@ -360,6 +369,7 @@ function AuthenticatedNavigator({ socket }) {
             <Stack.Screen name="UserCreateNewPassword" component={UserCreateNewPassword} />
             <Stack.Screen name="UserTicketDownload" component={UserTicketDownload} />
             <Stack.Screen name="NotificationDebug" component={NotificationDebugScreen} />
+            <Stack.Screen name="AssignGuestDiscount" component={AssignGuestDiscountScreen} />
           </Stack.Navigator>
         </>
       ) : (

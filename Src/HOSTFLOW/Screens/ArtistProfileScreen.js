@@ -18,6 +18,7 @@ import GuestListIcon from '../assets/icons/GuestList';
 import PaymentIcon from '../assets/icons/Payment';
 import GeneralSettingIcon from '../assets/icons/Generalsetting';
 import HelpCentreIcon from '../assets/icons/HelpCentre';
+import notificationService from '../services/notificationService';
 
 const { width } = Dimensions.get('window');
 
@@ -148,16 +149,43 @@ const ArtistProfileScreen = ({ navigation }) => {
     }
   };
 
-  const handleLogout = () => {
-    // Dispatch logout action to clear auth state
+  const handleLogout = async () => {
+    await notificationService.removeTokenFromBackend();
     dispatch(logout());
-    // Completely reset navigation stack - no previous login history
     navigation.reset({
       index: 0,
       routes: [{ name: 'Onboard1' }],
     });
-    // Additional cleanup: ensure no cached navigation state
-    // This prevents users from using back button to return to authenticated screens
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await api.delete('/artist/auth/deleteAccount', {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (response.data && response.data.success) {
+                await notificationService.removeTokenFromBackend();
+                dispatch(logout());
+                navigation.reset({ index: 0, routes: [{ name: 'Onboard1' }] });
+              } else {
+                Alert.alert('Error', response.data?.message || 'Failed to delete account');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to delete account');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -232,18 +260,10 @@ const ArtistProfileScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.optionItem}
-          onPress={() => navigation.navigate('ArtistGuestList')}
+          onPress={() => navigation.navigate('ArtistGuestEventList')}
         >
           <GuestListIcon width={24} height={24} style={styles.optionIcon} color="#A58AFF" />
           <Text style={styles.optionText}>Guest List</Text>
-          <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.optionItem}
-          onPress={() => navigation.navigate('ArtistPaymentSettings')}
-        >
-          <PaymentIcon width={24} height={24} style={styles.optionIcon} color="#A58AFF" />
-          <Text style={styles.optionText}>Payment Settings</Text>
           <Icon name="chevron-right" size={24} color="#A58AFF" style={styles.chevronIcon} />
         </TouchableOpacity>
 
@@ -322,6 +342,10 @@ const ArtistProfileScreen = ({ navigation }) => {
             </MaskedView>
           </TouchableOpacity>
         </LinearGradient>
+        {/* Delete Account Button */}
+        <TouchableOpacity style={[styles.logoutButtonArtistStyle, { borderColor: '#ff4d4f', borderWidth: 1, marginTop: 10 }]} onPress={handleDeleteAccount}>
+          <Text style={[styles.logoutButtonTextArtistStyle, { color: '#ff4d4f' }]}>Delete Account</Text>
+        </TouchableOpacity>
       </ScrollView>
       <ArtistBottomNavBar
         navigation={navigation}
@@ -470,6 +494,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  logoutButtonGradientArtistStyle: {
+    borderRadius: 20,
+    padding: 1,
+    width: '100%',
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  logoutButtonArtistStyle: {
+    backgroundColor: '#18171D',
+    borderRadius: 20,
+    height: 54,
+    width: '100%',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutButtonTextArtistStyle: {
+    fontFamily: 'Nunito Sans',
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
   },
 });
 

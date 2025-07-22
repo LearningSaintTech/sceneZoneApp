@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../Redux/slices/notificationSlice';
+import axios from 'axios';
+import { API_BASE_URL } from '../Config/env';
 
 const notificationsData = [
   {
@@ -38,6 +40,8 @@ const AVATAR = require('../assets/Images/frame1.png'); // Adjust path as needed
 const ArtistNotificationScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { notifications, loading, hasMore, currentPage } = useSelector(state => state.notifications);
+  const token = useSelector(state => state.auth.token);
+  const [actionLoading, setActionLoading] = useState({}); // { notificationId: true/false }
 
   useEffect(() => {
     // Fetch notifications on component mount
@@ -127,13 +131,9 @@ const ArtistNotificationScreen = ({ navigation }) => {
     // Handle different notification types
     switch (notification.type) {
       case 'guest_list_request':
-        // Navigate to guest list management screen
+        // Navigate directly to ArtistGuestList for the event
         if (notification.data?.eventId) {
-          navigation.navigate('ArtistGuestList', {
-            eventId: notification.data.eventId,
-            eventName: notification.data.eventName,
-            userId: notification.data.userId
-          });
+          navigation.navigate('ArtistGuestList', { eventId: notification.data.eventId });
         }
         break;
       case 'chat_message':
@@ -161,30 +161,65 @@ const ArtistNotificationScreen = ({ navigation }) => {
     }
   };
 
+  const handleAcceptGuestList = async (notification) => {
+    // Navigate to AssignGuestDiscountScreen with eventId and userId
+    navigation.navigate('AssignGuestDiscount', {
+      eventId: notification.data?.eventId,
+      userId: notification.data?.userId,
+      eventName: notification.data?.eventName,
+      notificationId: notification._id,
+    });
+  };
+
+  const handleRejectGuestList = async (notification) => {
+    if (!token) return;
+    setActionLoading(prev => ({ ...prev, [notification._id]: true }));
+    try {
+      await axios.post(
+        `${API_BASE_URL}/guest-list/events/${notification.data?.eventId}/reject`,
+        { userId: notification.data?.userId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Optionally show a toast/snackbar
+      dispatch(fetchNotifications({ page: 1, limit: 20 })); // Refresh notifications
+    } catch (err) {
+      // Optionally show error
+    } finally {
+      setActionLoading(prev => ({ ...prev, [notification._id]: false }));
+    }
+  };
+
   const renderNotificationItem = ({ item }) => {
-      return (
-      <TouchableOpacity
+    const isGuestListRequest = item.type === 'guest_list_request';
+    return (
+      <View
         style={[
           styles.notificationItem,
           !item.isRead && styles.unreadNotification
         ]}
-        onPress={() => handleNotificationPress(item)}
       >
-        <View style={styles.notificationIconContainer}>
-                  <Icon
-            name={getNotificationIcon(item.type)} 
-            size={20} 
-            color={getNotificationColor(item.type)} 
-          />
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          <View style={styles.notificationIconContainer}>
+            <Icon
+              name={getNotificationIcon(item.type)}
+              size={20}
+              color={getNotificationColor(item.type)}
+            />
+          </View>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => handleNotificationPress(item)}
+          >
+            <View style={styles.notificationContent}>
+              <Text style={styles.notificationTitle}>{item.title}</Text>
+              <Text style={styles.notificationBody}>{item.body}</Text>
+              <Text style={styles.notificationTime}>{formatDate(item.createdAt)}</Text>
+            </View>
+            {!item.isRead && <View style={styles.unreadDot} />}
+          </TouchableOpacity>
         </View>
-        <View style={styles.notificationContent}>
-          <Text style={styles.notificationTitle}>{item.title}</Text>
-          <Text style={styles.notificationBody}>{item.body}</Text>
-          <Text style={styles.notificationTime}>{formatDate(item.createdAt)}</Text>
-        </View>
-        {!item.isRead && <View style={styles.unreadDot} />}
-      </TouchableOpacity>
-      );
+      </View>
+    );
   };
 
   return (
@@ -441,14 +476,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   notificationItem: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'flex-start',
-    padding: 16,
-    marginBottom: 12,
+    padding: 10,
     borderRadius: 12,
     backgroundColor: '#18171D',
     borderWidth: 1,
     borderColor: '#34344A',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 4,
+    elevation: 2,
   },
   unreadNotification: {
     backgroundColor: 'rgba(169, 94, 255, 0.1)',
@@ -530,6 +570,53 @@ const styles = StyleSheet.create({
     color: '#A6A6A6',
     fontSize: 12,
     marginLeft: 8,
+  },
+  buttonRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    gap: 6,
+    marginBottom: 0,
+  },
+  acceptButtonCompact: {
+    flex: 1,
+    height: 28,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginRight: 6,
+  },
+  rejectButtonCompact: {
+    flex: 1,
+    height: 28,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#dc3545',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  buttonGradientCompact: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+    borderRadius: 6,
+  },
+  buttonTextCompact: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+  },
+  rejectButtonTextCompact: {
+    color: '#dc3545',
+    fontWeight: '600',
+    fontSize: 13,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
 });
 

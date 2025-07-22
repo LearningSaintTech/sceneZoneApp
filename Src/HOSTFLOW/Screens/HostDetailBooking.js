@@ -7,11 +7,14 @@ import {
   Image,
   Dimensions,
   ScrollView,
+  Modal as RNModal,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from 'react-native-vector-icons/Feather';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
+import LinearGradient from 'react-native-linear-gradient';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 const { width, height } = Dimensions.get('window');
 
 const isTablet = width >= 768;
@@ -60,6 +63,7 @@ const HostDetailBookingContent = ({ navigation, route }) => {
   });
   const [loading, setLoading] = useState(true);
   const [isNegotiationAvailable, setIsNegotiationAvailable] = useState(false);
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', onPress: null });
 
   console.log('HostDetailBookingContent initialized', {
     timestamp: new Date().toISOString(),
@@ -406,12 +410,24 @@ const HostDetailBookingContent = ({ navigation, route }) => {
                    participantId: artist.artistId,
                    participantRole: 'artist',
                  });
+               } else if (response.data && response.data.message && response.data.message.toLowerCase().includes('already exists')) {
+                 setCustomAlert({
+                   visible: true,
+                   title: 'Negotiation Ongoing',
+                   message: 'Negotiation is already going on for this event.',
+                   onPress: null,
+                 });
                } else {
                  console.error('Failed to create chat: Invalid response data', {
                    timestamp: new Date().toISOString(),
                    response: response.data,
                  });
-                 alert('Failed to create chat. Please try again.');
+                 setCustomAlert({
+                   visible: true,
+                   title: 'Error',
+                   message: 'Failed to create chat. Please try again.',
+                   onPress: null,
+                 });
                }
              } catch (error) {
                console.error('Error creating chat', {
@@ -419,7 +435,22 @@ const HostDetailBookingContent = ({ navigation, route }) => {
                  error: error.response?.data?.message || error.message,
                  status: error.response?.status,
                });
-               alert('Failed to initiate negotiation. Please try again.');
+               const errMsg = error.response?.data?.message || error.message || '';
+               if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('already exists')) {
+                 setCustomAlert({
+                   visible: true,
+                   title: 'Negotiation Ongoing',
+                   message: 'Negotiation is already going on for this event.',
+                   onPress: null,
+                 });
+               } else {
+                 setCustomAlert({
+                   visible: true,
+                   title: 'Error',
+                   message: 'Failed to initiate negotiation. Please try again.',
+                   onPress: null,
+                 });
+               }
              }
            }}
            style={[
@@ -451,7 +482,11 @@ const HostDetailBookingContent = ({ navigation, route }) => {
                   bookingDetails,
                   eventId,
                 });
-                navigation.navigate('HostShortBookPaymentMethod');
+                navigation.navigate('HostShortBookPaymentMethod', {
+                  bookingDetails,
+                  eventId,
+                  artistId: artist?.artistId,
+                });
               }}
               style={{
                 marginHorizontal: dimensions.cardMargin,
@@ -476,6 +511,38 @@ const HostDetailBookingContent = ({ navigation, route }) => {
           </>
         )}
       </ScrollView>
+      {/* Custom Alert Modal */}
+      <RNModal
+        visible={customAlert.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{ backgroundColor: '#1a1a1a', borderRadius: 20, padding: 28, width: '85%', maxWidth: 320, alignItems: 'center', borderWidth: 1, borderColor: '#333' }}>
+            <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Negotiation Ongoing' ? 'alert-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#a95eff', marginBottom: 8, textAlign: 'center' }}>{customAlert.title}</Text>
+            <Text style={{ fontSize: 15, color: '#fff', textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>{customAlert.message}</Text>
+            <TouchableOpacity
+              style={{ width: '100%', borderRadius: 12, overflow: 'hidden' }}
+              onPress={() => {
+                if (typeof customAlert.onPress === 'function') {
+                  customAlert.onPress();
+                } else {
+                  setCustomAlert({ ...customAlert, visible: false });
+                }
+              }}
+            >
+              <LinearGradient
+                colors={["#B15CDE", "#7952FC"]}
+                style={{ paddingVertical: 14, alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}
+              >
+                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>OK</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </RNModal>
     </View>
   );
 };

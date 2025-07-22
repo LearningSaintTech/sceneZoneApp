@@ -580,6 +580,7 @@ import {
   Dimensions,
   ScrollView,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useDispatch } from 'react-redux';
@@ -594,6 +595,7 @@ import LockIcon from '../assets/icons/lock';
 import api from '../Config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -638,6 +640,7 @@ const SignInScreen = ({ navigation }) => {
   const [isOtpLogin, setIsOtpLogin] = useState(false);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', onPress: null });
 
   // Input refs for focus control
   const mobileInputRef = useRef(null);
@@ -703,12 +706,12 @@ const SignInScreen = ({ navigation }) => {
     try {
       // Input validation
       if (!mobileNumber.trim() || isNaN(mobileNumber) || mobileNumber.length !== 10) {
-        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid 10-digit mobile number' });
         return;
       }
 
       if (!password.trim()) {
-        Alert.alert('Error', 'Please enter your password');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter your password' });
         return;
       }
 
@@ -738,7 +741,7 @@ const SignInScreen = ({ navigation }) => {
 
         if (!token) {
           console.warn('No token found in response headers');
-          Alert.alert('Error', 'Authentication failed: No token received.');
+          setCustomAlert({ visible: true, title: 'Error', message: 'Authentication failed: No token received.' });
           return;
         }
 
@@ -762,11 +765,7 @@ const SignInScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Host Login Error:', error.message);
       console.error('Error Response:', error.response?.data);
-
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to sign in. Please check your credentials and try again.'
-      );
+      setCustomAlert({ visible: true, title: 'Error', message: error.response?.data?.message || 'Failed to sign in. Please check your credentials and try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -776,7 +775,7 @@ const SignInScreen = ({ navigation }) => {
     try {
       // Input validation
       if (!mobileNumber.trim() || isNaN(mobileNumber) || mobileNumber.length !== 10) {
-        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid 10-digit mobile number' });
         return;
       }
 
@@ -793,19 +792,20 @@ const SignInScreen = ({ navigation }) => {
         console.log('Initiating Firebase phone auth for:', mobileNumber);
         const confirmationResult = await auth().signInWithPhoneNumber('+91' + mobileNumber);
         console.log('Firebase OTP sent successfully:', confirmationResult);
-
-        Alert.alert('Success', 'OTP sent to your mobile number', [
-          {
-            text: 'OK',
-            onPress: () =>
-              navigation.navigate('OtpVerify', {
-                mobileNumber: '+91' + mobileNumber,
-                confirmation: confirmationResult,
-                userId: response.data.data.user?._id || '',
-                fullName: response.data.data.user?.fullName || '',
-              }),
+        setCustomAlert({
+          visible: true,
+          title: 'Success',
+          message: 'OTP sent to your mobile number',
+          onPress: () => {
+            setCustomAlert(a => ({ ...a, visible: false }));
+            navigation.navigate('OtpVerify', {
+              mobileNumber: '+91' + mobileNumber,
+              confirmation: confirmationResult,
+              userId: response.data.data.user?._id || '',
+              fullName: response.data.data.user?.fullName || '',
+            });
           },
-        ]);
+        });
       }
     } catch (error) {
       console.error('Host OTP Login Error:', error.message);
@@ -816,7 +816,7 @@ const SignInScreen = ({ navigation }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please try again later';
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -826,6 +826,41 @@ const SignInScreen = ({ navigation }) => {
     setIsOtpLogin(!isOtpLogin);
     setPassword(''); // Clear password when switching modes
   };
+
+  // Custom Alert Modal
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }}>
+        <View style={{ backgroundColor: '#1a1a1a', borderRadius: 20, padding: 28, width: '85%', maxWidth: 320, alignItems: 'center', borderWidth: 1, borderColor: '#333' }}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#a95eff', marginBottom: 8, textAlign: 'center' }}>{customAlert.title}</Text>
+          <Text style={{ fontSize: 15, color: '#fff', textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={{ width: '100%', borderRadius: 12, overflow: 'hidden' }}
+            onPress={() => {
+              if (typeof customAlert.onPress === 'function') {
+                customAlert.onPress();
+              } else {
+                setCustomAlert({ ...customAlert, visible: false });
+              }
+            }}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={{ paddingVertical: 14, alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
 
   return (
     <View style={styles.container}>
@@ -951,6 +986,7 @@ const SignInScreen = ({ navigation }) => {
           </TouchableOpacity> */}
         </ScrollView>
       </SafeAreaView>
+      <CustomAlertModal />
     </View>
   );
 };

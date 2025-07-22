@@ -107,9 +107,7 @@ const ArtistExploreEvent = ({ navigation }) => {
             <Ionicons name="arrow-back-outline" size={24} color="#C6C5ED" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.fabRight}>
-            <Ionicons name="share-social-outline" size={20} color="#C6C5ED" />
-          </TouchableOpacity>
+          {/* Removed share button */}
         </View>
 
         {/* Organizer Section */}
@@ -237,11 +235,11 @@ const ArtistExploreEvent = ({ navigation }) => {
             <View
               style={[
                 styles.customCheckbox,
-                !soundSystemAvailable && styles.customCheckboxCheckedNo,
+                !soundSystemAvailable && styles.customCheckboxChecked,
               ]}
             >
               {!soundSystemAvailable && (
-                <Text style={styles.checkmarkNo}></Text>
+                <Text style={styles.checkmark}>✓</Text>
               )}
             </View>
             <Text
@@ -256,18 +254,7 @@ const ArtistExploreEvent = ({ navigation }) => {
         </View>
 
         {/* Apply Button (scrolls with content) */}
-        <View style={styles.applyButtonContainer}>
-          <TouchableOpacity style={styles.applyButton} activeOpacity={0.92} onPress={() => { /* TODO: handle apply */ }}>
-            <LinearGradient
-              colors={["#B15CDE", "#7952FC"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.applyButtonGradient}
-            >
-              <Text style={styles.applyButtonText}>Apply</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+        
       </ScrollView>
     </SafeAreaView>
   );

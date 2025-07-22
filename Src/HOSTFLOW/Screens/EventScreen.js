@@ -10,10 +10,12 @@ import {
   Dimensions,
   Alert,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DeleteIcon from '../assets/icons/delete';
 import Calender from '../assets/icons/Calender';
@@ -63,6 +65,7 @@ const EventScreen = ({ navigation }) => {
   console.log('EventScreen component loaded');
   const isDark = useColorScheme() === 'dark';
   const [events, setEvents] = useState([]);
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '' });
   const insets = useSafeAreaInsets();
   const token = useSelector(state => state.auth.token);
 
@@ -108,7 +111,7 @@ const EventScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error fetching events:', error.response?.data || error.message);
-      Alert.alert('Error', 'Failed to fetch events. Check network or API URL.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Failed to fetch events. Check network or API URL.' });
     }
   }, [token]);
 
@@ -131,16 +134,45 @@ const EventScreen = ({ navigation }) => {
         },
       });
       if (response.data.success) {
-        Alert.alert('Success', 'Event deleted successfully');
+        setCustomAlert({ visible: true, title: 'Success', message: 'Event deleted successfully' });
         fetchEvents();
       } else {
-        Alert.alert('Error', response.data.message || 'Failed to delete event');
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to delete event' });
       }
     } catch (error) {
       console.error('Error deleting event:', error.response?.data || error.message);
-      Alert.alert('Error', 'Failed to delete event.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Failed to delete event.' });
     }
   };
+
+  // Custom Alert Modal
+  const CustomAlertModal = () => (
+    <Modal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
@@ -235,6 +267,7 @@ const EventScreen = ({ navigation }) => {
           <Feather name="plus" size={32} color="#fff" style={styles.floatingPlusIcon} />
         </View>
       </TouchableOpacity>
+      <CustomAlertModal />
     </SafeAreaView>
   );
 };
@@ -463,6 +496,61 @@ const styles = StyleSheet.create({
     marginBottom: dimensions.spacing.xxl,
     paddingHorizontal: 0,
     paddingVertical: 0,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 28,
+    width: '85%',
+    maxWidth: 320,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  shortlistModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#a95eff',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalMessage: {
+    fontSize: 15,
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalButton: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Nunito Sans',
   },
 });
 

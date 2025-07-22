@@ -9,6 +9,7 @@ import {
   Dimensions,
   ScrollView,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { useDispatch } from 'react-redux';
@@ -23,6 +24,7 @@ import LockIcon from '../assets/icons/lock';
 import api from '../Config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -67,6 +69,7 @@ const UserSigninScreen = ({ navigation }) => {
   const [isOtpLogin, setIsOtpLogin] = useState(false);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '', onPress: null });
 
   // Input refs for focus control
   const mobileInputRef = useRef(null);
@@ -131,12 +134,12 @@ const UserSigninScreen = ({ navigation }) => {
   const handleSignIn = async () => {
     try {
       if (!mobileNumber || mobileNumber.length !== 10) {
-        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid 10-digit mobile number' });
         return;
       }
 
       if (!password.trim()) {
-        Alert.alert('Error', 'Please enter your password');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter your password' });
         console.log('[UserSigninScreen] Validation failed: Password is empty');
         return;
       }
@@ -157,7 +160,7 @@ const UserSigninScreen = ({ navigation }) => {
         const token = response.headers['authorization']?.replace('Bearer ', '');
         if (!token) {
           console.warn('[UserSigninScreen] No token found in response headers');
-          Alert.alert('Error', 'Authentication failed: No token received.');
+          setCustomAlert({ visible: true, title: 'Error', message: 'Authentication failed: No token received.' });
           return;
         }
 
@@ -182,7 +185,7 @@ const UserSigninScreen = ({ navigation }) => {
         message: error.message,
         response: error.response?.data,
       });
-      Alert.alert('Error', error.response?.data?.message || 'Failed to sign in. Please check your credentials and try again.');
+      setCustomAlert({ visible: true, title: 'Error', message: error.response?.data?.message || 'Failed to sign in. Please check your credentials and try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -191,34 +194,32 @@ const UserSigninScreen = ({ navigation }) => {
   const handleOtpLogin = async () => {
     try {
       if (!mobileNumber || mobileNumber.length !== 10) {
-        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid 10-digit mobile number', onPress: null });
         return;
       }
-
       setIsLoading(true);
-
       const loginData = { mobileNumber: '+91' + mobileNumber.trim() };
       console.log('[UserSigninScreen] OTP Login Data:', loginData);
-
       const response = await api.post('/user/firebase-auth/firebase-login', loginData);
       console.log('[UserSigninScreen] OTP Login Response:', response.data);
-
       if (response.data.success) {
         console.log('[UserSigninScreen] Initiating Firebase phone auth for:', loginData.mobileNumber);
         const confirmationResult = await auth().signInWithPhoneNumber(loginData.mobileNumber);
         console.log('[UserSigninScreen] Firebase OTP sent successfully:', confirmationResult);
-
-        Alert.alert('Success', 'OTP sent to your mobile number', [
-          {
-            text: 'OK',
-            onPress: () =>
-              navigation.navigate('UserOtpVerification', {
-                mobileNumber: mobileNumber,
-                confirmation: confirmationResult,
-                fullName: response.data.data.user?.fullName || '',
-              }),
-          },
-        ]);
+        setCustomAlert({
+          visible: true,
+          title: 'Success',
+          message: 'OTP sent to your mobile number',
+          onPress: () => {
+            setCustomAlert(a => ({ ...a, visible: false }));
+            navigation.navigate('UserOtpVerification', {
+              mobileNumber: mobileNumber,
+              confirmation: confirmationResult,
+              fullName: response.data.data.user?.fullName || '',
+            });
+          }
+        });
+        return;
       }
     } catch (error) {
       console.error('[UserSigninScreen] OTP Login Error:', {
@@ -231,7 +232,7 @@ const UserSigninScreen = ({ navigation }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please try again later';
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage, onPress: null });
     } finally {
       setIsLoading(false);
     }
@@ -242,6 +243,41 @@ const UserSigninScreen = ({ navigation }) => {
     setPassword('');
     console.log('[UserSigninScreen] Toggled login mode to:', isOtpLogin ? 'Password' : 'OTP');
   };
+
+  // Move CustomAlertModal here so it can access customAlert/setCustomAlert
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => {
+              if (typeof customAlert.onPress === 'function') {
+                customAlert.onPress();
+              } else {
+                setCustomAlert({ ...customAlert, visible: false });
+              }
+            }}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
 
   return (
     <View style={styles.container}>
@@ -371,6 +407,7 @@ const UserSigninScreen = ({ navigation }) => {
           */}
         </ScrollView>
       </SafeAreaView>
+      <CustomAlertModal />
     </View>
   );
 };
@@ -569,6 +606,59 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     marginRight: 8,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#121212',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    width: '80%',
+    maxWidth: 350,
+  },
+  shortlistModalTitle: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 28,
+    letterSpacing: 0,
+    color: '#fff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  shortlistModalMessage: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    color: '#C6C5ED',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 44,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalButtonText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    color: 'rgba(255, 255, 255, 1)',
   },
 });
 

@@ -10,6 +10,7 @@ import {
   Share,
   SafeAreaView,
   Alert,
+  Modal as RNModal,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -20,6 +21,7 @@ import ViewedIcon from '../assets/icons/viewed';
 import LikedIcon from '../assets/icons/liked';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +35,7 @@ const EventDashboardScreen = ({ navigation, route }) => {
   const [isEventActive, setIsEventActive] = useState(
     route.params?.eventData?.status === 'pending' || route.params?.eventData?.status === 'active'
   );
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '' });
   const insets = useSafeAreaInsets();
   const eventData = route.params?.eventData; // Extract eventData from route.params
   const token = useSelector(state => state.auth.token); // Get token from Redux
@@ -77,7 +80,7 @@ const EventDashboardScreen = ({ navigation, route }) => {
   const toggleGuestList = async () => {
     const eventId = eventData?._id;
     if (!eventId) {
-      Alert.alert('Error', 'No event ID provided.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'No event ID provided.' });
       return;
     }
 
@@ -97,14 +100,14 @@ const EventDashboardScreen = ({ navigation, route }) => {
 
       if (response.data.success) {
         setIsGuestListEnabled(!isGuestListEnabled);
-        Alert.alert('Success', `Guest list ${!isGuestListEnabled ? 'enabled' : 'disabled'} successfully.`);
+        setCustomAlert({ visible: true, title: 'Success', message: `Guest list ${!isGuestListEnabled ? 'enabled' : 'disabled'} successfully.` });
       } else {
         console.log('API success is false, message:', response.data.message);
-        Alert.alert('Error', response.data.message || 'Failed to toggle guest list.');
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to toggle guest list.' });
       }
     } catch (error) {
       console.error('Error toggling guest list:', error.response?.data || error.message);
-      Alert.alert('Error', 'Failed to toggle guest list.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Failed to toggle guest list.' });
     }
   };
 
@@ -136,6 +139,87 @@ const EventDashboardScreen = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+      }}>
+        <View style={{
+          backgroundColor: '#1a1a1a',
+          borderRadius: 20,
+          padding: 28,
+          width: '85%',
+          maxWidth: 320,
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: '#333',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
+          elevation: 10,
+        }}>
+          <Ionicons
+            name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'}
+            size={48}
+            color="#a95eff"
+            style={{ marginBottom: 16 }}
+          />
+          <Text style={{
+            fontSize: 18,
+            fontWeight: '700',
+            color: '#a95eff',
+            marginBottom: 8,
+            textAlign: 'center',
+            fontFamily: 'Nunito Sans',
+          }}>{customAlert.title}</Text>
+          <Text style={{
+            fontSize: 15,
+            color: '#fff',
+            textAlign: 'center',
+            lineHeight: 22,
+            marginBottom: 24,
+            fontFamily: 'Nunito Sans',
+          }}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={{
+                paddingVertical: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: '600',
+                fontFamily: 'Nunito Sans',
+              }}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View
@@ -147,16 +231,25 @@ const EventDashboardScreen = ({ navigation, route }) => {
         }}
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: 20 }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Feather name="arrow-left" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-            Event Dashboard
-          </Text>
-          <TouchableOpacity onPress={onShare}>
-            <Feather name="share-2" size={22} color="#fff" />
-          </TouchableOpacity>
+        <View style={[styles.header, { paddingTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+          {/* Left: Back Button and Title */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Feather name="arrow-left" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { marginLeft: 12 }]} numberOfLines={1} ellipsizeMode="tail">
+              Event Dashboard
+            </Text>
+          </View>
+          {/* Right: Discount Button Only */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              style={{ marginRight: 0, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#B15CDE' }}
+              onPress={() => navigation.navigate('HostDiscount', { eventId: eventData?._id })}
+            >
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Discount</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
@@ -209,7 +302,7 @@ const EventDashboardScreen = ({ navigation, route }) => {
                     {eventData?.venue || 'Central Park, New York'}
                   </Text>
                 </View>
-              </  View>
+              </View>
             </View>
             {/* Right Column: Stats Cards */}
             <View style={styles.statsColumn}>
@@ -261,8 +354,7 @@ const EventDashboardScreen = ({ navigation, route }) => {
           {isGuestListEnabled && (
             <TouchableOpacity
               style={styles.guestListBox}
-              onPress={() => navigation.navigate('HostEnableGuestList')}
-              activeOpacity={0.8}
+              onPress={() => navigation.navigate('HostEnableGuestList', { eventId: eventData?._id })}              activeOpacity={0.8}
             >
               <MaterialIcons name="people" size={20} color="#27FEF0" style={{ marginRight: 10 }} />
               <Text style={styles.guestListBoxText}>Guest List</Text>
@@ -270,6 +362,7 @@ const EventDashboardScreen = ({ navigation, route }) => {
           )}
         </ScrollView>
       </View>
+      <CustomAlertModal />
     </SafeAreaView>
   );
 };
@@ -283,7 +376,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: 393,
+    paddingHorizontal: 16,
     paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#C6C5ED',
@@ -300,8 +393,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 24,
-    paddingRight: 230,
-    overflow: 'hidden',
+    // Remove flex: 1 to avoid pushing right buttons out
   },
   scrollViewContent: {
     paddingTop: 16,

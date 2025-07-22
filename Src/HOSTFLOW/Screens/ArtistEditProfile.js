@@ -15,6 +15,7 @@ import {
   FlatList,
   ActivityIndicator,
   Dimensions,
+  Modal as RNModal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -32,6 +33,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import SignUpBackground from '../assets/Banners/SignUp';
 import Toast from 'react-native-toast-message';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -224,6 +226,7 @@ const ArtistEditProfileScreen = ({ navigation }) => {
   const userData = useSelector(selectUserData);
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   // Helper function to ensure unique videos in gallery
   const addUniqueVideo = (newVideo) => {
@@ -340,12 +343,12 @@ const ArtistEditProfileScreen = ({ navigation }) => {
 
   const handleSaveChanges = async () => {
     if (!token) {
-      Alert.alert('Error', 'You are not authenticated. Please log in again.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'You are not authenticated. Please log in again.' });
       navigation.navigate('ArtistSigninScreen');
       return;
     }
     if (email && !validateEmail(email)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      setCustomAlert({ visible: true, title: 'Invalid Email', message: 'Please enter a valid email address.' });
       return;
     }
     
@@ -433,7 +436,7 @@ const ArtistEditProfileScreen = ({ navigation }) => {
         });
         setTimeout(() => navigation.goBack(), 1200);
       } else {
-        Alert.alert('Error', response.data.message || 'Something went wrong.');
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Something went wrong.' });
       }
       
     } catch (error) {
@@ -502,29 +505,23 @@ const ArtistEditProfileScreen = ({ navigation }) => {
           });
           
           if (fallbackResponse.data.success) {
-            Alert.alert('Success', 'Profile updated successfully!', [
-              {
-                text: 'OK',
-                onPress: () => {
-                  dispatch(loginArtist({
-                    ...userData,
-                    location: address,
-                    token,
-                  }));
-                  navigation.goBack();
-                }
-              }
-            ]);
+            setCustomAlert({ visible: true, title: 'Success', message: 'Profile updated successfully!' });
+            dispatch(loginArtist({
+              ...userData,
+              location: address,
+              token,
+            }));
+            navigation.goBack();
           } else {
-            Alert.alert('Error', fallbackResponse.data.message || 'Something went wrong.');
+            setCustomAlert({ visible: true, title: 'Error', message: fallbackResponse.data.message || 'Something went wrong.' });
           }
           
         } catch (fallbackError) {
           console.error('❌ Fallback create also failed:', fallbackError.response?.data);
-          Alert.alert('Error', 'An error occurred while updating the profile.');
+          setCustomAlert({ visible: true, title: 'Error', message: 'An error occurred while updating the profile.' });
         }
       } else {
-        Alert.alert('Error', error.response?.data?.message || 'An error occurred while updating the profile.');
+        setCustomAlert({ visible: true, title: 'Error', message: error.response?.data?.message || 'An error occurred while updating the profile.' });
       }
     } finally {
       setLoading(false);
@@ -535,7 +532,7 @@ const ArtistEditProfileScreen = ({ navigation }) => {
     launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, (response) => {
       if (response.didCancel) return;
       if (response.errorCode) {
-        Alert.alert('Error', 'Could not open gallery.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Could not open gallery.' });
         return;
       }
       if (response.assets && response.assets.length > 0) {
@@ -548,7 +545,7 @@ const ArtistEditProfileScreen = ({ navigation }) => {
     launchCamera({ mediaType: 'video', videoQuality: 'medium', durationLimit: 60 }, (response) => {
       if (response.didCancel) return;
       if (response.errorCode) {
-        Alert.alert('Error', 'Could not open camera.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Could not open camera.' });
         return;
       }
       if (response.assets && response.assets.length > 0) {
@@ -561,7 +558,7 @@ const ArtistEditProfileScreen = ({ navigation }) => {
     launchImageLibrary({ mediaType: 'video', videoQuality: 'medium', durationLimit: 60 }, (response) => {
       if (response.didCancel) return;
       if (response.errorCode) {
-        Alert.alert('Error', 'Could not open gallery.');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Could not open gallery.' });
         return;
       }
       if (response.assets && response.assets.length > 0) {
@@ -599,16 +596,16 @@ const ArtistEditProfileScreen = ({ navigation }) => {
 
   const handleUpload = async () => {
     if (!videoSource) {
-      Alert.alert('No Video', 'Please select a video before uploading.');
+      setCustomAlert({ visible: true, title: 'No Video', message: 'Please select a video before uploading.' });
       return;
     }
     if (!venueName || !selectedGenre) {
-      Alert.alert('Missing Info', 'Please enter venue name and select genre.');
+      setCustomAlert({ visible: true, title: 'Missing Info', message: 'Please enter venue name and select genre.' });
       return;
     }
     
     if (!profileId) {
-      Alert.alert('Error', 'Profile ID not found. Please wait for the profile to load or try refreshing.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Profile ID not found. Please wait for the profile to load or try refreshing.' });
       return;
     }
     
@@ -693,11 +690,11 @@ const ArtistEditProfileScreen = ({ navigation }) => {
         setVideoSource(null);
         setVenueName('');
         setSelectedGenre('Electronic');
-        Alert.alert('Success', 'Performance video uploaded successfully!');
+        setCustomAlert({ visible: true, title: 'Success', message: 'Performance video uploaded successfully!' });
         
       } else {
         console.error('❌ Upload error:', res.data);
-        Alert.alert('Error', res.data?.message || 'Failed to upload performance.');
+        setCustomAlert({ visible: true, title: 'Error', message: res.data?.message || 'Failed to upload performance.' });
       }
       
     } catch (err) {
@@ -751,7 +748,7 @@ const ArtistEditProfileScreen = ({ navigation }) => {
             setVideoSource(null);
             setVenueName('');
             setSelectedGenre('Electronic');
-            Alert.alert('Success', 'Performance video uploaded successfully!');
+            setCustomAlert({ visible: true, title: 'Success', message: 'Performance video uploaded successfully!' });
             console.log('✅ Upload successful with artist ID');
             return; // Exit the function successfully
           }
@@ -792,14 +789,14 @@ const ArtistEditProfileScreen = ({ navigation }) => {
             setVideoSource(null);
             setVenueName('');
             setSelectedGenre('Electronic');
-            Alert.alert('Success', 'Performance video uploaded successfully!');
+            setCustomAlert({ visible: true, title: 'Success', message: 'Performance video uploaded successfully!' });
           } else {
-            Alert.alert('Error', fallbackRes.data?.message || 'Failed to upload performance.');
+            setCustomAlert({ visible: true, title: 'Error', message: fallbackRes.data?.message || 'Failed to upload performance.' });
           }
           
                  } catch (fallbackErr) {
            console.error('❌ Fallback POST also failed:', fallbackErr.response?.data);
-           Alert.alert('Upload Error', 'Failed to upload performance. Please try again.');
+           setCustomAlert({ visible: true, title: 'Upload Error', message: 'Failed to upload performance. Please try again.' });
          }
        } else if (err.response?.status === 405) {
          // Method not allowed - try POST create directly
@@ -835,19 +832,19 @@ const ArtistEditProfileScreen = ({ navigation }) => {
              setVideoSource(null);
              setVenueName('');
              setSelectedGenre('Electronic');
-             Alert.alert('Success', 'Performance video uploaded successfully!');
+             setCustomAlert({ visible: true, title: 'Success', message: 'Performance video uploaded successfully!' });
            } else {
-             Alert.alert('Error', fallbackRes.data?.message || 'Failed to upload performance.');
+             setCustomAlert({ visible: true, title: 'Error', message: fallbackRes.data?.message || 'Failed to upload performance.' });
            }
          } catch (methodErr) {
            console.error('❌ POST method also failed:', methodErr.response?.data);
-           Alert.alert('Upload Error', 'Failed to upload performance. Please try again.');
+           setCustomAlert({ visible: true, title: 'Upload Error', message: 'Failed to upload performance. Please try again.' });
          }
        } else {
         if (err.response && err.response.data) {
-          Alert.alert('Upload Error', err.response.data.message || 'Failed to upload performance.');
+          setCustomAlert({ visible: true, title: 'Upload Error', message: err.response.data.message || 'Failed to upload performance.' });
         } else {
-          Alert.alert('Network Error', 'Failed to upload performance. Please check your connection.');
+          setCustomAlert({ visible: true, title: 'Network Error', message: 'Failed to upload performance. Please check your connection.' });
         }
       }
     } finally {
@@ -1047,7 +1044,7 @@ const ArtistEditProfileScreen = ({ navigation }) => {
           
         } else {
           console.log('❌ No profile data found in API response');
-          Alert.alert('Error', 'Could not load profile data. Please try again.');
+          setCustomAlert({ visible: true, title: 'Error', message: 'Could not load profile data. Please try again.' });
         }
         
       } catch (err) {
@@ -1529,6 +1526,31 @@ const ArtistEditProfileScreen = ({ navigation }) => {
       />
       <AllVideosModal />
       <VideoPlayerModal />
+      <RNModal
+  visible={customAlert.visible}
+  transparent
+  animationType="fade"
+  onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+>
+  <View style={styles.shortlistModalOverlay}>
+    <View style={styles.shortlistModalContent}>
+      <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+      <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+      <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+      <TouchableOpacity
+        style={styles.shortlistModalButton}
+        onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+      >
+        <LinearGradient
+          colors={["#B15CDE", "#7952FC"]}
+          style={styles.shortlistModalButtonGradient}
+        >
+          <Text style={styles.shortlistModalButtonText}>OK</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
+  </View>
+</RNModal>
     </SafeAreaView>
   );
 };
@@ -2099,6 +2121,52 @@ const styles = StyleSheet.create({
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: -1,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#000',
+    width: '80%',
+    borderRadius: 15,
+    padding: 25,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#555',
+  },
+  shortlistModalTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  shortlistModalMessage: {
+    color: '#aaa',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  shortlistModalButtonGradient: {
+    width: '100%',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

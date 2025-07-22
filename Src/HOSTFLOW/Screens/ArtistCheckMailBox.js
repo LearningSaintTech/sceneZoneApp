@@ -11,6 +11,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal as RNModal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -18,6 +19,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import SignUpBackground from '../assets/Banners/SignUp';
 import MailboxIcon from '../assets/icons/mailbox';
 import api from '../Config/api';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -58,6 +60,7 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
   ];
   // Get email from navigation params
   const email = route?.params?.email || '';
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   const handleOtpChange = (text, index) => {
     const newOtp = [...otp];
@@ -73,7 +76,7 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
 
   const handleResendOTP = async () => {
     if (!email) {
-      Alert.alert('Error', 'Email is missing.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Email is missing.' });
       return;
     }
     try {
@@ -90,7 +93,7 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
       console.log("Resend Artist OTP Response:", response.data); // Debug log
 
       if (response.data) {
-        Alert.alert('Success', 'OTP has been resent successfully!');
+        setCustomAlert({ visible: true, title: 'Success', message: 'OTP has been resent successfully!' });
         // Clear existing OTP
         setOtp(['', '', '', '']);
         // Focus on first input
@@ -100,10 +103,11 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
       console.error("Resend Artist OTP Error:", error.message);
       console.error("Error Response:", error.response?.data);
       
-      Alert.alert(
-        'Error',
-        error.response?.data?.message || 'Failed to resend OTP. Please try again.'
-      );
+      setCustomAlert({
+        visible: true,
+        title: 'Error',
+        message: error.response?.data?.message || 'Failed to resend OTP. Please try again.'
+      });
     } finally {
       setIsResending(false);
     }
@@ -112,7 +116,7 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
   const handleConfirm = async () => {
     const code = otp.join('');
     if (!email || code.length !== 4) {
-      Alert.alert('Error', 'Please enter the 4-digit OTP and make sure email is present.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Please enter the 4-digit OTP and make sure email is present.' });
       return;
     }
     try {
@@ -121,14 +125,12 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
         code
       });
       if (response.data.success) {
-        Alert.alert('Success', 'OTP verified successfully!', [
-          { text: 'OK', onPress: () => navigation.navigate('ArtistCreateNewPassword', { email }) }
-        ]);
+        setCustomAlert({ visible: true, title: 'Success', message: 'OTP verified successfully!', onPress: () => navigation.navigate('ArtistCreateNewPassword', { email }) });
       } else {
-        Alert.alert('Error', response.data.message || 'OTP verification failed');
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'OTP verification failed' });
       }
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'OTP verification failed');
+      setCustomAlert({ visible: true, title: 'Error', message: error.response?.data?.message || 'OTP verification failed' });
     }
   };
 
@@ -269,10 +271,39 @@ const ArtistCheckMailbox = ({ navigation, route }) => {
             <Text style={styles.confirmButtonTextBorder}>Confirm</Text>
           </TouchableOpacity>
         </View>
+        <CustomAlertModal />
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
 };
+
+const CustomAlertModal = () => (
+  <RNModal
+    visible={customAlert.visible}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+  >
+    <View style={styles.shortlistModalOverlay}>
+      <View style={styles.shortlistModalContent}>
+        <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+        <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+        <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+        <TouchableOpacity
+          style={styles.shortlistModalButton}
+          onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+        >
+          <LinearGradient
+            colors={["#B15CDE", "#7952FC"]}
+            style={styles.shortlistModalButtonGradient}
+          >
+            <Text style={styles.shortlistModalButtonText}>OK</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </RNModal>
+);
 
 const styles = StyleSheet.create({
   container: { 
@@ -393,6 +424,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     color: 'rgba(198, 197, 237, 1)',
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 15,
+    padding: 25,
+    alignItems: 'center',
+    width: '80%',
+    maxWidth: 350,
+  },
+  shortlistModalTitle: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 27,
+    letterSpacing: 0,
+    textAlign: 'center',
+    color: 'rgba(198, 197, 237, 1)',
+    marginBottom: 10,
+  },
+  shortlistModalMessage: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    textAlign: 'center',
+    color: 'rgba(198, 197, 237, 1)',
+    marginBottom: 25,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortlistModalButtonText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    color: 'rgba(255, 255, 255, 1)',
   },
 });
 

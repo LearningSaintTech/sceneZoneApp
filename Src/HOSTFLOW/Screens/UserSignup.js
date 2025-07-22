@@ -26,6 +26,7 @@ import { loginUser } from '../Redux/slices/authSlice';
 import auth from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
+import { Modal as RNModal } from "react-native";
 
 const { width, height } = Dimensions.get('window');
 
@@ -67,6 +68,7 @@ const UserSignupScreen = ({ navigation }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   // Input refs for focus control
   const fullNameInputRef = useRef(null);
@@ -163,19 +165,19 @@ const UserSignupScreen = ({ navigation }) => {
     // Sanitize fullName
     const sanitizedFullName = fullName.trim().replace(/[^a-zA-Z\s]/g, '');
     if (!sanitizedFullName || sanitizedFullName.length < 2) {
-      Alert.alert('Error', 'Please enter a valid full name (at least 2 characters, letters only)');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid full name (at least 2 characters, letters only)' });
       console.log('[UserSignupScreen] Validation failed: Invalid full name', fullName);
       return false;
     }
     // Validate mobile number (10 digits)
     if (!mobile || mobile.length !== 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Please enter a valid 10-digit mobile number' });
       console.log('[UserSignupScreen] Validation failed: Invalid mobile number', mobile);
       return false;
     }
     // Validate password
     if (!isPasswordValid()) {
-      Alert.alert('Error', 'Password must meet all requirements:\n• At least 8 characters\n• One uppercase letter\n• One lowercase letter\n• One number\n• One special character');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Password must meet all requirements:\n• At least 8 characters\n• One uppercase letter\n• One lowercase letter\n• One number\n• One special character' });
       console.log('[UserSignupScreen] Validation failed: Password requirements not met');
       return false;
     }
@@ -220,7 +222,7 @@ const UserSignupScreen = ({ navigation }) => {
           } else if (error.code === 'auth/too-many-requests') {
             errorMessage = 'Too many requests. Please try again later';
           }
-          Alert.alert('Error', errorMessage);
+          setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
           setIsLoading(false);
           return;
         }
@@ -254,11 +256,40 @@ const UserSignupScreen = ({ navigation }) => {
         message: error.message,
         response: error.response?.data,
       });
-      Alert.alert('Error', error.response?.data?.message || 'Failed to sign up. Please check your network or try again later.');
+      setCustomAlert({ visible: true, title: 'Error', message: error.response?.data?.message || 'Failed to sign up. Please check your network or try again later.' });
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Move CustomAlertModal here so it can access customAlert/setCustomAlert
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
 
   return (
     <View style={styles.container}>
@@ -390,6 +421,7 @@ const UserSignupScreen = ({ navigation }) => {
             <Text style={styles.linkText}>Privacy Policy</Text>
           </Text>
         </ScrollView>
+        <CustomAlertModal />
       </SafeAreaView>
     </View>
   );
@@ -594,6 +626,54 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     fontSize: 13,
     flex: 1,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  shortlistModalContent: {
+    width: '80%',
+    backgroundColor: '#121212',
+    borderRadius: 15,
+    padding: 25,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  shortlistModalTitle: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 20,
+    color: '#fff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  shortlistModalMessage: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
+    fontSize: 14,
+    color: '#aaa',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shortlistModalButtonText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 1)',
   },
 });
 

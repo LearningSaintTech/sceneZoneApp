@@ -11,6 +11,7 @@ import {
   FlatList,
   Dimensions,
   ActivityIndicator,
+  Modal as RNModal,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import axios from 'axios';
@@ -18,6 +19,8 @@ import { API_BASE_URL } from '../Config/env';
 import { useSelector } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 import { SocketContext } from '../../../App';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import LinearGradient from "react-native-linear-gradient";
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +37,8 @@ const NegotiationScreen = ({ navigation, route }) => {
   const { chatId, eventId } = route.params || {};
   const { token } = useSelector((state) => state.auth);
   const socket = useContext(SocketContext);
+  const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '' });
+
   if (!socket) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1e1e1e' }}>
@@ -224,15 +229,17 @@ const NegotiationScreen = ({ navigation, route }) => {
         })));
         setIsUpdatePriceEnabled(!chat.isNegotiationComplete);
         if (chat.isNegotiationComplete) {
-          alert(`Price of ₹${chat.latestProposedPrice} has been finalized by both parties!`);
-          navigation.navigate('HostDetailUpdateBookingScreen', {
-            artist: {
-              artistId: chat.artistId._id,
-              profileImageUrl: chat.artistId.profileImageUrl,
-              approvedPrice: chat.latestProposedPrice,
-            },
-            eventId,
-          });
+          setCustomAlert({ visible: true, title: 'Negotiation Complete', message: `Price of ₹${chat.latestProposedPrice} has been finalized by both parties!` });
+          setTimeout(() => {
+            navigation.navigate('HostDetailUpdateBookingScreen', {
+              artist: {
+                artistId: chat.artistId._id,
+                profileImageUrl: chat.artistId.profileImageUrl,
+                approvedPrice: chat.latestProposedPrice,
+              },
+              eventId,
+            });
+          }, 1200);
         }
         flatListRef.current?.scrollToEnd({ animated: true });
       }
@@ -255,15 +262,17 @@ const NegotiationScreen = ({ navigation, route }) => {
         })));
         setIsUpdatePriceEnabled(!chat.isNegotiationComplete);
         if (chat.isNegotiationComplete) {
-          alert(`Price of ₹${chat.latestProposedPrice} has been finalized by both parties!`);
-          navigation.navigate('HostDetailUpdateBookingScreen', {
-            artist: {
-              artistId: chat.artistId._id,
-              profileImageUrl: chat.artistId.profileImageUrl,
-              approvedPrice: chat.latestProposedPrice,
-            },
-            eventId,
-          });
+          setCustomAlert({ visible: true, title: 'Negotiation Complete', message: `Price of ₹${chat.latestProposedPrice} has been finalized by both parties!` });
+          setTimeout(() => {
+            navigation.navigate('HostDetailUpdateBookingScreen', {
+              artist: {
+                artistId: chat.artistId._id,
+                profileImageUrl: chat.artistId.profileImageUrl,
+                approvedPrice: chat.latestProposedPrice,
+              },
+              eventId,
+            });
+          }, 1200);
         }
       }
     });
@@ -291,7 +300,8 @@ const NegotiationScreen = ({ navigation, route }) => {
           chatId,
           price,
         });
-        throw new Error('Invalid input or authentication');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Invalid input or authentication' });
+        return;
       }
 
       const messagePrefix = currentUser.role === 'host' ? 'Host' : 'Artist';
@@ -321,7 +331,7 @@ const NegotiationScreen = ({ navigation, route }) => {
         message: err.message,
         response: err.response?.data,
       });
-      alert('Failed to send price update');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Failed to send price update' });
     }
   };
 
@@ -330,7 +340,8 @@ const NegotiationScreen = ({ navigation, route }) => {
     try {
       if (!token || !chatId) {
         logDebug('No token or chatId for approving price', { token, chatId });
-        throw new Error('No authentication token or chat ID');
+        setCustomAlert({ visible: true, title: 'Error', message: 'No authentication token or chat ID' });
+        return;
       }
 
       logDebug('Approving price', { chatId });
@@ -349,7 +360,7 @@ const NegotiationScreen = ({ navigation, route }) => {
         message: err.message,
         response: err.response?.data,
       });
-      alert('Failed to approve price');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Failed to approve price' });
     }
   };
 
@@ -435,6 +446,87 @@ const NegotiationScreen = ({ navigation, route }) => {
     );
   };
 
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+      }}>
+        <View style={{
+          backgroundColor: '#1a1a1a',
+          borderRadius: 20,
+          padding: 28,
+          width: '85%',
+          maxWidth: 320,
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: '#333',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
+          elevation: 10,
+        }}>
+          <Ionicons
+            name={customAlert.title === 'Negotiation Complete' || customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'}
+            size={48}
+            color="#a95eff"
+            style={{ marginBottom: 16 }}
+          />
+          <Text style={{
+            fontSize: 18,
+            fontWeight: '700',
+            color: '#a95eff',
+            marginBottom: 8,
+            textAlign: 'center',
+            fontFamily: 'Nunito Sans',
+          }}>{customAlert.title}</Text>
+          <Text style={{
+            fontSize: 15,
+            color: '#fff',
+            textAlign: 'center',
+            lineHeight: 22,
+            marginBottom: 24,
+            fontFamily: 'Nunito Sans',
+          }}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={{
+                paddingVertical: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: '600',
+                fontFamily: 'Nunito Sans',
+              }}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -513,6 +605,7 @@ const NegotiationScreen = ({ navigation, route }) => {
           <Feather name="send" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
+      <CustomAlertModal />
     </SafeAreaView>
   );
 };

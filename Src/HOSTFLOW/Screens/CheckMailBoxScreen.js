@@ -11,6 +11,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal as RNModal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -19,6 +20,7 @@ import SignUpBackground from '../assets/Banners/SignUp';
 import MailboxIcon from '../assets/icons/mailbox';
 import api from '../Config/api';
 import auth from '@react-native-firebase/auth';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -57,6 +59,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
     useRef(null),
     useRef(null),
   ];
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   // Get inputType, value, and Firebase params from navigation
   const { inputType = 'email', value = '', confirmation, isFirebase = false, fullName = '', isForgotPassword = false } = route?.params || {};
@@ -83,7 +86,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
 
   const handleResendOTP = async () => {
     if (!value) {
-      Alert.alert('Error', `Please provide your ${inputType === 'email' ? 'email' : 'mobile number'}.`);
+      setCustomAlert({ visible: true, title: 'Error', message: `Please provide your ${inputType === 'email' ? 'email' : 'mobile number'}.` });
       console.log('[CheckMailboxScreen] Resend OTP failed: Missing input value', { inputType, value });
       return;
     }
@@ -94,7 +97,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
         const confirmationResult = await auth().signInWithPhoneNumber(value);
         console.log('[CheckMailboxScreen] Firebase OTP resent successfully:', confirmationResult);
 
-        Alert.alert('Success', 'OTP resent successfully!');
+        setCustomAlert({ visible: true, title: 'Success', message: 'OTP resent successfully!' });
         setOtp(['', '', '', '', '', '']);
         inputRefs[0]?.current?.focus();
 
@@ -109,11 +112,11 @@ const CheckMailboxScreen = ({ navigation, route }) => {
         console.log('[CheckMailboxScreen] Resend OTP response:', response.data);
 
         if (response.data) {
-          Alert.alert('Success', 'OTP resent successfully!');
+          setCustomAlert({ visible: true, title: 'Success', message: 'OTP resent successfully!' });
           setOtp(['', '', '', '', '', '']);
           inputRefs[0]?.current?.focus();
         } else {
-          Alert.alert('Error', response.data.message || 'Failed to resend OTP');
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to resend OTP' });
           console.log('[CheckMailboxScreen] Resend OTP failed:', response.data.message);
         }
       }
@@ -129,7 +132,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please try again later';
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -141,19 +144,19 @@ const CheckMailboxScreen = ({ navigation, route }) => {
     const mobileRegex = /^\+\d{1,3}\d{9,15}$/;
 
     if (!value || otpCode.length !== 6) {
-      Alert.alert('Error', `Please enter the 6-digit OTP and ensure ${inputType === 'email' ? 'email' : 'mobile number'} is present.`);
+      setCustomAlert({ visible: true, title: 'Error', message: `Please enter the 6-digit OTP and ensure ${inputType === 'email' ? 'email' : 'mobile number'} is present.` });
       console.log('[CheckMailboxScreen] OTP verification failed: Invalid input', { value, otpCode });
       return;
     }
 
     if (inputType === 'email' && !emailRegex.test(value)) {
-      Alert.alert('Error', 'Invalid email format.');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Invalid email format.' });
       console.log('[CheckMailboxScreen] OTP verification failed: Invalid email', { value });
       return;
     }
 
     if (inputType === 'mobile' && !mobileRegex.test(value)) {
-      Alert.alert('Error', 'Invalid mobile number. It must include country code (e.g., +91XXXXXXXXXX).');
+      setCustomAlert({ visible: true, title: 'Error', message: 'Invalid mobile number. It must include country code (e.g., +91XXXXXXXXXX).' });
       console.log('[CheckMailboxScreen] OTP verification failed: Invalid mobile number', { value });
       return;
     }
@@ -163,7 +166,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
       setIsLoading(true);
       if (isFirebase) {
         if (!confirmation) {
-          Alert.alert('Error', 'OTP session expired. Please request a new OTP.');
+          setCustomAlert({ visible: true, title: 'Error', message: 'OTP session expired. Please request a new OTP.' });
           console.log('[CheckMailboxScreen] OTP verification failed: Missing confirmation object');
           return;
         }
@@ -186,6 +189,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
 
         if (response.data.success) {
           console.log('[CheckMailboxScreen] Firebase OTP verified successfully, navigating to CreateNewPassword');
+          setCustomAlert({ visible: true, title: 'Success', message: 'OTP verified successfully!' });
           Alert.alert('Success', 'OTP verified successfully!', [
             {
               text: 'OK',
@@ -199,7 +203,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
             },
           ]);
         } else {
-          Alert.alert('Error', response.data.message || 'Firebase OTP verification failed');
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Firebase OTP verification failed' });
           console.log('[CheckMailboxScreen] Firebase OTP verification failed:', response.data.message);
         }
       } else {
@@ -212,6 +216,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
 
         if (response.data.success) {
           console.log('[CheckMailboxScreen] OTP verified successfully, navigating to CreateNewPassword');
+          setCustomAlert({ visible: true, title: 'Success', message: 'OTP verified successfully!' });
           Alert.alert('Success', 'OTP verified successfully!', [
             {
               text: 'OK',
@@ -225,7 +230,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
             },
           ]);
         } else {
-          Alert.alert('Error', response.data.message || 'OTP verification failed');
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'OTP verification failed' });
           console.log('[CheckMailboxScreen] OTP verification failed:', response.data.message);
         }
       }
@@ -241,7 +246,7 @@ const CheckMailboxScreen = ({ navigation, route }) => {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many requests. Please try again later';
       }
-      Alert.alert('Error', errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -341,10 +346,39 @@ const CheckMailboxScreen = ({ navigation, route }) => {
             <Text style={styles.confirmButtonTextBorder}>{isLoading ? 'Verifying...' : 'Confirm'}</Text>
           </TouchableOpacity>
         </View>
+        <CustomAlertModal />
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
 };
+
+const CustomAlertModal = () => (
+  <RNModal
+    visible={customAlert.visible}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+  >
+    <View style={styles.shortlistModalOverlay}>
+      <View style={styles.shortlistModalContent}>
+        <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+        <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+        <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+        <TouchableOpacity
+          style={styles.shortlistModalButton}
+          onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+        >
+          <LinearGradient
+            colors={["#B15CDE", "#7952FC"]}
+            style={styles.shortlistModalButtonGradient}
+          >
+            <Text style={styles.shortlistModalButtonText}>OK</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </RNModal>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -462,6 +496,63 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     color: 'rgba(198, 197, 237, 1)',
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 15,
+    padding: 25,
+    alignItems: 'center',
+    width: '80%',
+    borderWidth: 1,
+    borderColor: '#a95eff',
+  },
+  shortlistModalTitle: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 27,
+    letterSpacing: 0,
+    textAlign: 'center',
+    color: 'rgba(198, 197, 237, 1)',
+    marginBottom: 10,
+  },
+  shortlistModalMessage: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    textAlign: 'center',
+    color: 'rgba(198, 197, 237, 1)',
+    marginBottom: 25,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortlistModalButtonText: {
+    fontFamily: 'Nunito Sans',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    color: 'rgba(255, 255, 255, 1)',
   },
 });
 

@@ -87,14 +87,16 @@ const HostManageEventContent = ({ navigation, route }) => {
     const fetchEventById = async () => {
       try {
         setLoading(true);
+        console.log('[fetchEventById] Fetching event details for eventId:', eventId);
         const response = await api.get(`/host/events/get-event/${eventId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+        console.log('[fetchEventById] API response:', response);
         setEventData(response?.data?.data);
       } catch (error) {
-        console.error("Fetch event error:", error);
+        console.error('[fetchEventById] Fetch event error:', error);
         Alert.alert("Error", "Failed to fetch event details.");
       } finally {
         setLoading(false);
@@ -110,15 +112,16 @@ const HostManageEventContent = ({ navigation, route }) => {
     const fetchBookedArtists = async () => {
       try {
         setLoading(true);
-        console.log("eventId",eventId)
+        console.log('[fetchBookedArtists] Fetching booked artists for eventId:', eventId);
         const response = await api.get(`/host/events/booked-artists/${eventId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+        console.log('[fetchBookedArtists] API response:', response);
         setBookedArtists(response?.data?.data || []);
       } catch (error) {
-        console.error("Fetch booked artists error:", error);
+        console.error('[fetchBookedArtists] Fetch booked artists error:', error);
         Alert.alert("Error", "Failed to fetch booked artists.");
       } finally {
         setLoading(false);
@@ -131,6 +134,7 @@ const HostManageEventContent = ({ navigation, route }) => {
 
   // Handle Cancel Event
   const handleCancelEvent = async () => {
+    console.log('[handleCancelEvent] User requested to cancel event:', eventId);
     Alert.alert(
       "Confirm Cancel",
       "Are you sure you want to cancel this event?",
@@ -141,6 +145,7 @@ const HostManageEventContent = ({ navigation, route }) => {
           onPress: async () => {
             try {
               setLoading(true);
+              console.log('[handleCancelEvent] Sending cancel event API request for eventId:', eventId);
               const response = await api.patch(
                 `/host/events/cancel-event/${eventId}`,
                 {},
@@ -150,10 +155,11 @@ const HostManageEventContent = ({ navigation, route }) => {
                   },
                 }
               );
+              console.log('[handleCancelEvent] API response:', response);
               setEventData(response?.data?.data);
               Alert.alert("Success", "Event cancelled successfully.");
             } catch (error) {
-              console.error("Cancel event error:", error);
+              console.error('[handleCancelEvent] Cancel event error:', error);
               Alert.alert("Error", "Failed to cancel event.");
             } finally {
               setLoading(false);
@@ -166,6 +172,7 @@ const HostManageEventContent = ({ navigation, route }) => {
 
   // Handle Mark Event Completed
   const handleMarkEventCompleted = async () => {
+    console.log('[handleMarkEventCompleted] User requested to mark event as completed:', eventId);
     Alert.alert(
       "Confirm Completion",
       "Are you sure you want to mark this event as completed?",
@@ -176,6 +183,7 @@ const HostManageEventContent = ({ navigation, route }) => {
           onPress: async () => {
             try {
               setLoading(true);
+              console.log('[handleMarkEventCompleted] Sending mark event completed API request for eventId:', eventId);
               const response = await api.patch(
                 `/host/events/mark-event-completed/${eventId}`,
                 {},
@@ -185,10 +193,11 @@ const HostManageEventContent = ({ navigation, route }) => {
                   },
                 }
               );
+              console.log('[handleMarkEventCompleted] API response:', response);
               setEventData(response?.data?.data);
               Alert.alert("Success", "Event marked as completed successfully.");
             } catch (error) {
-              console.error("Mark event completed error:", error);
+              console.error('[handleMarkEventCompleted] Mark event completed error:', error);
               Alert.alert("Error", "Failed to mark event as completed.");
             } finally {
               setLoading(false);
@@ -215,169 +224,83 @@ const HostManageEventContent = ({ navigation, route }) => {
     : "";
 
   const renderArtistStatusCard = ({ item }) => {
-    let statusButtonStyle = {};
-    let statusButtonTextStyle = {};
-    let showPlusButton = false;
-    let statusText = item.paymentStatus;
-    let gradientColors = ["#B15CDE", "#7952FC"];
-
-    switch (item.paymentStatus) {
-      case "pending":
-        statusButtonStyle = styles.statusButtonPending;
-        statusButtonTextStyle = styles.statusButtonTextPending;
-        gradientColors = ["#FF9500", "#FFC371"];
-        break;
-      case "completed":
-        statusButtonStyle = styles.statusButtonBooked;
-        statusButtonTextStyle = styles.statusButtonTextBooked;
-        gradientColors = ["#28a745", "#43e97b"];
-        statusText = "Booked";
-        break;
-      case "failed":
-        statusButtonStyle = styles.statusButtonRejected;
-        statusButtonTextStyle = styles.statusButtonTextRejected;
-        gradientColors = ["#FF3B30", "#FF3B30"];
-        statusText = "Payment Failed";
-        showPlusButton = true;
-        break;
-      default:
-        break;
-    }
+    const artist = item.artistProfile || item;
+    const booking = item.booking || item;
 
     return (
-      <View
-        style={[
-          styles.artistCard,
-          {
-            padding: dimensions.cardPadding,
-            marginBottom: Math.max(dimensions.spacing.lg, 15),
-            borderRadius: dimensions.borderRadius.md,
-          },
-        ]}
+      <LinearGradient
+        colors={["#23233a", "#181828"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          borderRadius: dimensions.borderRadius.lg,
+          marginBottom: Math.max(dimensions.spacing.lg, 18),
+          padding: dimensions.cardPadding + 4,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.18,
+          shadowRadius: 8,
+          elevation: 6,
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderWidth: 1.5,
+          borderColor: '#2d2d44',
+        }}
       >
-        <Image
-          source={{ uri: item.profileImageUrl || "https://via.placeholder.com/60" }}
-          style={[
-            styles.artistImage,
-            {
+        <View style={{
+          backgroundColor: '#23233a',
+          borderRadius: dimensions.borderRadius.md,
+          padding: 2,
+          marginRight: Math.max(dimensions.spacing.md, 12),
+          shadowColor: '#a95eff',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.12,
+          shadowRadius: 4,
+          elevation: 2,
+        }}>
+          <Image
+            source={{ uri: artist.profileImageUrl || "https://via.placeholder.com/60" }}
+            style={{
               width: dimensions.artistImageSize,
               height: dimensions.artistImageSize,
-              borderRadius: dimensions.borderRadius.sm,
-              marginRight: Math.max(dimensions.spacing.md, 10),
-            },
-          ]}
-        />
-        <View style={styles.artistInfo}>
-          <Text
-            style={[
-              styles.artistBudget,
-              {
-                fontSize: Math.max(dimensions.fontSize.body, 14),
-              },
-            ]}
-          >
-            Budget: ${eventData?.budget || "N/A"}
-          </Text>
-          <Text
-            style={[
-              styles.artistGenre,
-              {
-                color: "#A6A6A6",
-                fontSize: Math.max(dimensions.fontSize.body, 14),
-                marginVertical: Math.max(dimensions.spacing.xs, 2),
-                fontWeight: "400",
-                fontFamily: "Poppins",
-              },
-            ]}
-          >
-            Genre:{" "}
-            <Text
-              style={{
-                color: "#000",
-                fontFamily: "Poppins",
-                fontSize: 16,
-                fontWeight: "600",
-              }}
-            >
-              {item.artistType || "N/A"}
-            </Text>
-          </Text>
-          <View
-            style={[
-              styles.artistStatusRow,
-              {
-                marginTop: Math.max(dimensions.spacing.xs, 5),
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.artistStatusLabel,
-                {
-                  fontSize: Math.max(dimensions.fontSize.body, 14),
-                },
-              ]}
-            >
-              Status:
-            </Text>
-            <TouchableOpacity
-              style={[statusButtonStyle]}
-              onPress={() =>
-                item.paymentStatus === "pending" &&
-                navigation.navigate("HostManageEventDetailBooking", {
-                  artistId: item.artistId,
-                  eventId,
-                })
-              }
-              activeOpacity={0.8}
-            >
-              <GradientText
-                text={statusText}
-                colors={gradientColors}
-                style={[statusButtonTextStyle, { fontSize: Math.max(dimensions.fontSize.small, 10) }]}
-              />
-            </TouchableOpacity>
-            {showPlusButton && (
-              <TouchableOpacity
-                style={[
-                  styles.plusButton,
-                  {
-                    borderRadius: Math.max(dimensions.borderRadius.lg, 15),
-                    width: Math.max(dimensions.spacing.xxl + 6, 30),
-                    height: Math.max(dimensions.spacing.xxl + 6, 30),
-                    marginLeft: Math.max(dimensions.spacing.md, 10),
-                  },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Feather
-                  name="plus"
-                  size={Math.max(dimensions.iconSize * 0.8, 18)}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            )}
+              borderRadius: dimensions.borderRadius.md,
+              backgroundColor: '#181828',
+              borderWidth: 2,
+              borderColor: '#7952FC',
+            }}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Ionicons name="mail" size={16} color="#a95eff" style={{ marginRight: 6 }} />
+            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '500' }}>{artist.email || "N/A"}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Ionicons name="person" size={16} color="#a95eff" style={{ marginRight: 6 }} />
+            <Text style={{ color: '#fff', fontSize: 15 }}>{artist.artistType || "N/A"}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Ionicons name="musical-notes" size={16} color="#a95eff" style={{ marginRight: 6 }} />
+            <Text style={{ color: '#fff', fontSize: 15 }}>{artist.instrument || "N/A"}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Ionicons name="cash" size={16} color="#a95eff" style={{ marginRight: 6 }} />
+            <Text style={{ color: '#fff', fontSize: 15 }}>₹{artist.budget || "N/A"}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Ionicons name="card" size={16} color="#a95eff" style={{ marginRight: 6 }} />
+            <Text style={{ color: booking.payment_status === 'completed' ? '#ffffff' : booking.payment_status === 'pending' ? '#FF9500' : '#FF3B30', fontSize: 15, fontWeight: '600' }}>{booking.payment_status || "N/A"}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="calendar" size={16} color="#a95eff" style={{ marginRight: 6 }} />
+            <Text style={{ color: '#fff', fontSize: 14 }}>{booking.date_time ? new Date(booking.date_time).toLocaleString() : "N/A"}</Text>
           </View>
         </View>
-        <View style={styles.artistActions}>
-          <Text
-            style={[
-              styles.artistDate,
-              {
-                fontSize: Math.max(dimensions.fontSize.small, 12),
-                marginBottom: Math.max(dimensions.spacing.xs, 5),
-              },
-            ]}
-          >
-            {formattedDate}
-          </Text>
-          <TouchableOpacity style={styles.trashButton} activeOpacity={0.7}>
-            <TrashIcon width={14} height={14} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      </LinearGradient>
     );
   };
+
+  console.log('[HostManageEventContent] Rendering main component. eventId:', eventId, 'eventData:', eventData, 'bookedArtists:', bookedArtists, 'loading:', loading);
 
   return (
     <View
@@ -441,7 +364,7 @@ const HostManageEventContent = ({ navigation, route }) => {
             <FlatList
               data={bookedArtists}
               renderItem={renderArtistStatusCard}
-              keyExtractor={(item) => item.artistId.toString()}
+              keyExtractor={(item) => item.artistId}
               scrollEnabled={false}
             />
           ) : (
@@ -639,11 +562,16 @@ const styles = StyleSheet.create({
   artistInfo: {
     flex: 1,
   },
-  artistBudget: {
-    color: "#6A6A6A",
-    fontFamily: "Poppins",
-    fontSize: Math.max(dimensions.fontSize.body, 14),
-  },
+  artistName: { fontWeight: "bold", color: "#a95eff", fontSize: 16 },
+  artistEmail: { color: "#333", fontSize: 14 },
+  artistMobile: { color: "#333", fontSize: 14 },
+  artistType: { color: "#7952FC", fontSize: 14 },
+  artistInstrument: { color: "#7952FC", fontSize: 14 },
+  artistBudget: { color: "#28a745", fontSize: 14 },
+  artistStatus: { color: "#FF9500", fontSize: 14 },
+  bookingStatus: { color: "#FF3B30", fontSize: 14 },
+  bookingDate: { color: "#888", fontSize: 13 },
+  bookingId: { color: "#888", fontSize: 12 },
   artistGenre: {
     color: "#A6A6A6",
     fontFamily: "Poppins",

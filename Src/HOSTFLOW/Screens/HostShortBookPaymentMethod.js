@@ -52,12 +52,12 @@ const dimensions = {
 const HostShortBookPaymentMethodContent = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('razorpay');
-  const { bookingDetails, eventId, artistId } = route.params || {};
+  const { bookingDetails = {}, eventId, artistId } = route.params || {};
   const token = useSelector(state => state.auth.token);
   const userName = useSelector(state => state.auth.user?.name) || 'Customer Name';
   const userEmail = useSelector(state => state.auth.user?.email) || 'customer@example.com';
   const userContact = useSelector(state => state.auth.user?.contact) || '9999999999';
-  const backendUrl = process.env.BACKEND_URL || 'https://api.thescenezone.com';
+  const backendUrl = process.env.BACKEND_URL || 'https://api.thescenezone.com/api';
 
   // Log input parameters for debugging
   console.log('Input parameters:', {
@@ -79,10 +79,15 @@ const HostShortBookPaymentMethodContent = ({ navigation, route }) => {
     });
 
     // Validate inputs
-    if (!bookingDetails?.total || !eventId || !artistId || !token) {
+    console.log("bookingDetails",bookingDetails)
+    console.log("eventId",eventId)
+    console.log("artistId",artistId)
+    console.log("token",token)
+
+    if (!bookingDetails.total || !eventId || !artistId || !token) {
       console.error('Validation failed:', {
-        hasTotal: !!bookingDetails?.total,
-        total: bookingDetails?.total,
+        hasTotal: !!bookingDetails.total,
+        total: bookingDetails.total,
         hasEventId: !!eventId,
         hasArtistId: !!artistId,
         hasToken: !!token,
@@ -111,7 +116,7 @@ const HostShortBookPaymentMethodContent = ({ navigation, route }) => {
       });
 
       // Step 1: Create an order on the backend
-      const orderResponse = await fetch(`${backendUrl}/api/bookings/create-order`, {
+      const orderResponse = await fetch(`${backendUrl}/bookings/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -183,7 +188,7 @@ const HostShortBookPaymentMethodContent = ({ navigation, route }) => {
 
       // Verify payment
       console.log('Preparing to fetch verify-payment:', {
-        url: `${backendUrl}/api/bookings/verify-payment`,
+        url: `${backendUrl}/bookings/verify-payment`,
         token: !!token,
         payload: {
           razorpay_order_id: data.razorpay_order_id,
@@ -205,7 +210,7 @@ const HostShortBookPaymentMethodContent = ({ navigation, route }) => {
       }
 
       try {
-        const verifyResponse = await fetch(`${backendUrl}/api/bookings/verify-payment`, {
+        const verifyResponse = await fetch(`${backendUrl}/bookings/verify-payment`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

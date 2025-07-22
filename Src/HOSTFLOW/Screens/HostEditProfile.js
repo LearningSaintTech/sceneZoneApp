@@ -11,6 +11,7 @@ import {
   Platform,
   Dimensions,
   Alert,
+  Modal,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
@@ -65,6 +66,7 @@ const HostEditProfileScreen = ({ navigation }) => {
   const [profileImageUri, setProfileImageUri] = useState(null);
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
   useEffect(() => {
     setFullName(userData?.fullName || userData?.name || "");
@@ -79,10 +81,7 @@ const HostEditProfileScreen = ({ navigation }) => {
     try {
       if (!token) {
         console.error("ProfileScreen: No token available in Redux store");
-        Alert.alert(
-          "Error",
-          "Authentication token not found. Please login again."
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: 'Authentication token not found. Please login again.' });
         setLoading(false);
         return;
       }
@@ -112,10 +111,7 @@ const HostEditProfileScreen = ({ navigation }) => {
           "ProfileScreen: API returned success: false",
           response.data
         );
-        Alert.alert(
-          "Error",
-          response.data.message || "Failed to fetch profile data"
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || "Failed to fetch profile data" });
       }
     } catch (error) {
       console.error("ProfileScreen: Error fetching profile:", error.message);
@@ -128,19 +124,13 @@ const HostEditProfileScreen = ({ navigation }) => {
           "ProfileScreen: Error response status:",
           error.response.status
         );
-        Alert.alert(
-          "Error",
-          error.response.data?.message || "Failed to fetch profile data"
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: error.response.data?.message || "Failed to fetch profile data" });
       } else if (error.request) {
         console.error("ProfileScreen: Error request:", error.request);
-        Alert.alert(
-          "Error",
-          "No response from server. Please check your internet connection."
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: "No response from server. Please check your internet connection." });
       } else {
         console.error("ProfileScreen: Error message:", error.message);
-        Alert.alert("Error", "An unexpected error occurred");
+        setCustomAlert({ visible: true, title: 'Error', message: "An unexpected error occurred" });
       }
     } finally {
       console.log(
@@ -181,7 +171,7 @@ const HostEditProfileScreen = ({ navigation }) => {
           if (cameraStatus !== RESULTS.GRANTED) {
             const result = await request(cameraPermission);
             if (result !== RESULTS.GRANTED) {
-              Alert.alert("Permission Error", "Camera permission is required");
+              setCustomAlert({ visible: true, title: 'Error', message: 'Camera permission is required' });
               return;
             }
           }
@@ -195,7 +185,7 @@ const HostEditProfileScreen = ({ navigation }) => {
           if (storageStatus !== RESULTS.GRANTED) {
             const result = await request(storagePermission);
             if (result !== RESULTS.GRANTED) {
-              Alert.alert("Permission Error", "Gallery permission is required");
+              setCustomAlert({ visible: true, title: 'Error', message: 'Gallery permission is required' });
               return;
             }
           }
@@ -213,7 +203,7 @@ const HostEditProfileScreen = ({ navigation }) => {
     ImagePicker.launchCamera(options, (response) => {
       if (response.didCancel) return;
       if (response.errorCode) {
-        Alert.alert("Camera Error", response.errorMessage || "Unknown error");
+        setCustomAlert({ visible: true, title: 'Camera Error', message: response.errorMessage || "Unknown error" });
         return;
       }
       if (response.assets && response.assets[0] && response.assets[0].uri) {
@@ -226,7 +216,7 @@ const HostEditProfileScreen = ({ navigation }) => {
     ImagePicker.launchImageLibrary(options, (response) => {
       if (response.didCancel) return;
       if (response.errorCode) {
-        Alert.alert("Gallery Error", response.errorMessage || "Unknown error");
+        setCustomAlert({ visible: true, title: 'Gallery Error', message: response.errorMessage || "Unknown error" });
         return;
       }
       if (response.assets && response.assets[0] && response.assets[0].uri) {
@@ -294,14 +284,11 @@ const HostEditProfileScreen = ({ navigation }) => {
 
       if (response.data.success) {
         console.log("Profile update successful.");
-        Alert.alert("Success", "Profile updated successfully");
+        setCustomAlert({ visible: true, title: 'Success', message: 'Profile updated successfully' });
         navigation.navigate("MainTabs");
       } else {
         console.log("Profile update failed:", response.data.message);
-        Alert.alert(
-          "Error",
-          response.data.message || "Failed to update profile"
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || "Failed to update profile" });
       }
     } catch (error) {
       console.error("--- Error updating profile ---");
@@ -322,17 +309,44 @@ const HostEditProfileScreen = ({ navigation }) => {
         console.error("Error Message:", error.message);
       }
       console.error("Full Error Object:", JSON.stringify(error, null, 2));
-      Alert.alert(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to update profile. Ensure server is running at https://api.thescenezone.com."
-      );
+      setCustomAlert({ visible: true, title: 'Error', message: error.response?.data?.message ||
+          "Failed to update profile. Ensure server is running at https://api.thescenezone.com/api."
+      });
     } finally {
       setLoading(false);
       console.log("Loading state set to false");
       console.log("--- Finished Profile Update ---");
     }
   };
+
+  // Custom Modal for Alerts
+  const CustomAlertModal = () => (
+    <Modal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -493,6 +507,7 @@ const HostEditProfileScreen = ({ navigation }) => {
           </Text>
         </LinearGradient>
       </TouchableOpacity>
+      <CustomAlertModal />
     </SafeAreaView>
   );
 };
@@ -667,6 +682,61 @@ const styles = StyleSheet.create({
     fontStyle: "normal",
     fontWeight: "500",
     lineHeight: 21,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 28,
+    width: '85%',
+    maxWidth: 320,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  shortlistModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#a95eff',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalMessage: {
+    fontSize: 15,
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalButton: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Nunito Sans',
   },
 });
 

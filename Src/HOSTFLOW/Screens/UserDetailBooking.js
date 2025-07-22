@@ -23,7 +23,33 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
   const token = useSelector((state) => state.auth.token);
   const user = useSelector((state) => state.auth.user);
   const { numberOfTickets, discountData, eventDetails } = route.params || {};
-  const isFreeEvent = eventDetails?.ticketSetting?.ticketType === 'free' || discountData?.isFreeEvent;
+  console.log("eventDetails",eventDetails)
+  // Calculate event type and payable amount
+  console.log('eventDetails.price:', eventDetails?.price, 'ticketType:', eventDetails?.ticketSetting?.ticketType);
+  const isFreeEvent =
+    eventDetails?.ticketSetting?.ticketType === 'free' ||
+    eventDetails?.price === 'Free' ||
+    eventDetails?.price === 0 ||
+    eventDetails?.price === '0' ||
+    discountData?.isFreeEvent;
+  let basePriceRaw = eventDetails?.ticketSetting?.price ?? (eventDetails?.price === 'Free' ? 0 : eventDetails?.price ?? 0);
+  // If basePriceRaw is a string with currency, extract the number
+  if (typeof basePriceRaw === 'string') {
+    basePriceRaw = basePriceRaw.replace(/[^0-9.]/g, '');
+  }
+  const basePrice = Number(basePriceRaw) || 0;
+
+  let guestDiscount = 0;
+  if (
+    eventDetails?.Discount &&
+    discountData?.guestType &&
+    eventDetails.Discount[discountData.guestType] != null
+  ) {
+    guestDiscount = Number(eventDetails.Discount[discountData.guestType]) || 0;
+  }
+  const price = isFreeEvent ? 0 : Math.max(basePrice - guestDiscount, 0);
+  const subtotal = isFreeEvent ? 0 : Number(numberOfTickets) * price;
+  console.log('basePrice:', basePrice, 'guestDiscount:', guestDiscount, 'price:', price, 'subtotal:', subtotal);
   console.log('eventDetails', eventDetails);
 
   const [userName, setUserName] = useState('Guest');
@@ -77,7 +103,6 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
     fetchData();
   }, [token]);
 
-  const subtotal = isFreeEvent ? 0 : numberOfTickets * (discountData?.discountedPrice || 0);
   const platformFees = isFreeEvent ? 0 : invoiceSettings.platformFees;
   const taxRate = isFreeEvent ? 0 : invoiceSettings.taxRate / 100;
   const taxAmount = subtotal * taxRate;
@@ -88,36 +113,28 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
   };
 
   const formatEventDate = () => {
-    console.log('Raw eventDate:', eventDetails?.eventDate);
+    console.log('Raw eventDateTime:', eventDetails?.eventDateTime);
     const currentDate = new Date();
-    console.log('Current date:', currentDate);
 
-    if (!eventDetails?.eventDate || !Array.isArray(eventDetails.eventDate) || eventDetails.eventDate.length === 0) {
-      console.log('No valid eventDate array, returning N/A');
+    if (!eventDetails?.eventDateTime || !Array.isArray(eventDetails.eventDateTime) || eventDetails.eventDateTime.length === 0) {
+      console.log('No valid eventDateTime array, returning N/A');
       return { month: 'N/A', day: 'N/A', year: 'N/A', time: 'N/A', selectedEventDate: null };
     }
 
-    const parsedDates = eventDetails.eventDate.map((dateItem) => {
+    const parsedDates = eventDetails.eventDateTime.map((dateItem) => {
       const dateStr = typeof dateItem === 'object' && dateItem.$date ? dateItem.$date : dateItem;
       const parsedDate = new Date(dateStr);
       return { parsedDate, isValid: !isNaN(parsedDate.getTime()) };
     });
 
-    console.log('Parsed dates:', parsedDates);
-
-    const upcomingDate = parsedDates.find(({ parsedDate, isValid }) => {
-      return isValid && parsedDate >= currentDate;
-    });
-
+    const upcomingDate = parsedDates.find(({ parsedDate, isValid }) => isValid && parsedDate >= currentDate);
     const selectedDateObj = upcomingDate || parsedDates.find(({ isValid }) => isValid);
+
     if (!selectedDateObj || !selectedDateObj.isValid) {
-      console.log('No valid or upcoming date found, returning N/A');
       return { month: 'N/A', day: 'N/A', year: 'N/A', time: 'N/A', selectedEventDate: null };
     }
 
     const selectedDate = selectedDateObj.parsedDate;
-    console.log('Selected date:', selectedDate);
-
     return {
       month: selectedDate.toLocaleString('default', { month: 'short' }),
       day: selectedDate.getDate().toString(),
@@ -139,33 +156,29 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
       Alert.alert('Error', 'Please select a valid event date.');
       return;
     }
-    if (!eventDetails.eventId || !numberOfTickets || !discountData?.discountLevel) {
-      console.log('eventDetails.eventId', eventDetails.eventId);
-      console.log('numberOfTickets', numberOfTickets);
-      console.log('discountData?.discountLevel', discountData);
+    const guestType = discountData?.guestType || 'level1';
+    if (!eventDetails.id || !numberOfTickets) {
       Alert.alert('Error', 'Missing required booking details.');
       return;
     }
-
-    console.log('Confirming booking:', { numberOfTickets, discountData, eventDetails, totalAmount, selectedEventDate });
-
     try {
       if (isFreeEvent) {
-        // Handle free event booking
+        // Scenario 1: Free, No Discount
+        const bookingPayload = {
+          eventId: eventDetails.id,
+          numberOfTickets: Number(numberOfTickets),
+          selectedEventDate,
+          guestType,
+        };
+        console.log('Booking payload:', bookingPayload);
         const response = await api.post(
           'https://api.thescenezone.com/api/eventhost/tickets/book',
-          {
-            eventId: eventDetails.eventId,
-            numberOfTickets,
-            guestType: discountData.guestType || 'level1',
-            selectedEventDate,
-          },
+          bookingPayload,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        console.log('Free ticket booking response:', response.data);
-
+        console.log('Booking API response:', response.data);
         if (response.data.success) {
           navigation.navigate('UserConfirmBookingScreen', {
             ticketBooking: response.data.data.ticketBooking,
@@ -174,33 +187,28 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
           Alert.alert('Error', response.data.message || 'Failed to book ticket');
         }
       } else {
-        // Handle paid event with Razorpay
-        const amount = Math.round(totalAmount * 100); // Convert to paise
+        // Scenario 2 & 3: Paid (with or without discount)
         const orderResponse = await api.post(
           'https://api.thescenezone.com/api/eventhost/tickets/create-order',
           {
-            eventId: eventDetails.eventId,
-            numberOfTickets,
-            guestType: discountData.guestType || 'level1',
+            eventId: eventDetails.id,
+            numberOfTickets: Number(numberOfTickets),
+            guestType,
             selectedEventDate,
           },
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        console.log('Order creation response:', orderResponse.data);
-
         if (!orderResponse.data.success) {
           Alert.alert('Error', orderResponse.data.message || 'Failed to create payment order');
           return;
         }
-
         const { orderId, amount: orderAmount, currency } = orderResponse.data.data;
         if (!orderId) {
           Alert.alert('Error', 'No payment required for free event');
           return;
         }
-
         const options = {
           key: process.env.RAZORPAY_KEY_ID || 'rzp_live_BWOUs1FhlzOLO7',
           amount: orderAmount,
@@ -221,24 +229,14 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
             color: '#7952FC',
           },
         };
-
-        console.log('Opening Razorpay checkout with options:', {
-          key: options.key,
-          amount: options.amount,
-          order_id: options.order_id,
-          timestamp: new Date().toISOString(),
-        });
-
         const data = await RazorpayCheckout.open(options);
-        console.log('Razorpay payment success:', data);
-
         // Verify payment and book ticket
         const response = await api.post(
           'https://api.thescenezone.com/api/eventhost/tickets/book',
           {
             eventId: eventDetails.eventId,
-            numberOfTickets,
-            guestType: discountData.guestType || 'level1',
+            numberOfTickets: Number(numberOfTickets),
+            guestType,
             selectedEventDate,
             razorpay_payment_id: data.razorpay_payment_id,
             razorpay_order_id: data.razorpay_order_id,
@@ -248,8 +246,6 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        console.log('Ticket booking response:', response.data);
-
         if (response.data.success) {
           navigation.navigate('UserConfirmBookingScreen', {
             ticketBooking: response.data.data.ticketBooking,
@@ -259,7 +255,6 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
         }
       }
     } catch (error) {
-      console.error('Error booking ticket:', error);
       Alert.alert('Error', 'Failed to book ticket. Please try again.');
     }
   };
@@ -397,7 +392,9 @@ const UserDetailBookingScreen = ({ navigation, route }) => {
         >
           <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmBooking}>
             <View style={styles.confirmButtonTextContainer}>
-              <Text style={styles.confirmButtonText}>{isFreeEvent ? 'Confirm Free Booking' : 'Confirm Payment'}</Text>
+              <Text style={styles.confirmButtonText}>
+                {isFreeEvent ? 'Book Now' : 'Confirm Payment'}
+              </Text>
             </View>
           </TouchableOpacity>
         </LinearGradient>

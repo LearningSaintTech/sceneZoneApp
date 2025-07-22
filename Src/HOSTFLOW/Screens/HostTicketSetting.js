@@ -25,6 +25,8 @@ import Camera from "../assets/icons/Camera";
 import { launchCamera, launchImageLibrary } from "react-native-image-picker";
 import { API_BASE_URL } from "../Config/env";
 import api from "../Config/api";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { Modal as RNModal } from "react-native";
 
 const requestPermission = async (permissionType) => {
   console.log(`Requesting ${permissionType} permission`);
@@ -114,6 +116,7 @@ const HostTicketSettingScreen = ({ navigation, route }) => {
   const token = useSelector((state) => state.auth.token) || "";
   const eventId = route.params?.eventId || null;
   const insets = useSafeAreaInsets();
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
 
 
 console.log("Event id",eventId);
@@ -170,12 +173,9 @@ console.log("Event id",eventId);
         console.log("Error fetching event details", {
           error: error.response?.data || error.message,
         });
-        setError(
-          error.response?.data?.message ||
-            "Failed to fetch event details. Please try again."
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: error.response?.data?.message || "Failed to fetch event details. Please try again." });
       } finally {
-        setLoading(false);
+        // setLoading(false); // This line was removed from the original file
       }
     };
     fetchEventDetails();
@@ -200,52 +200,24 @@ console.log("Event id",eventId);
     const galleryPermission = await requestPermission("photo");
     if (!cameraPermission || !galleryPermission) {
       console.log("Permissions denied, showing alert");
-      Alert.alert("Error", "Please grant camera and photo permissions");
+      setCustomAlert({ visible: true, title: 'Error', message: "Please grant camera and photo permissions" });
       return;
     }
 
-    Alert.alert(
-      "Upload Poster",
-      "Choose an option",
-      [
-        {
-          text: "Take Photo",
-          onPress: () =>
-            launchCamera(options, (response) => {
-              if (response.didCancel) {
-                console.log("User cancelled camera");
-              } else if (response.errorCode) {
-                console.log("Camera Error", response.errorMessage);
-              } else {
-                const uri = response.assets[0].uri;
-                const fileName =
-                  response.assets[0].fileName || uri.split("/").pop();
-                console.log("Photo taken", uri);
-                setUploadedImageName(fileName);
-              }
-            }),
-        },
-        {
-          text: "Choose from Gallery",
-          onPress: () =>
-            launchImageLibrary(options, (response) => {
-              if (response.didCancel) {
-                console.log("User cancelled gallery");
-              } else if (response.errorCode) {
-                console.log("Gallery Error", response.errorMessage);
-              } else {
-                const uri = response.assets[0].uri;
-                const fileName =
-                  response.assets[0].fileName || uri.split("/").pop();
-                console.log("Photo selected", uri);
-                setUploadedImageName(fileName);
-              }
-            }),
-        },
-        { text: "Cancel", style: "cancel" },
-      ],
-      { cancelable: true }
-    );
+    const result = await launchImageLibrary(options);
+
+    if (result.didCancel) {
+      console.log("User cancelled gallery");
+    } else if (result.errorCode) {
+      console.log("Gallery Error", result.errorMessage);
+      setCustomAlert({ visible: true, title: 'Error', message: result.errorMessage });
+    } else {
+      const uri = result.assets[0].uri;
+      const fileName =
+        result.assets[0].fileName || uri.split("/").pop();
+      console.log("Photo selected", uri);
+      setUploadedImageName(fileName);
+    }
   };
 
   const handleDateSelect = (dateType, event, selectedDate) => {
@@ -326,31 +298,31 @@ console.log("Event id",eventId);
 
     if (!token) {
       console.log("No token available, showing alert");
-      Alert.alert("Error", "Please log in to save ticket settings");
+      setCustomAlert({ visible: true, title: 'Error', message: "Please log in to save ticket settings" });
       return;
     }
 
     if (!eventId) {
       console.log("No eventId provided, showing alert");
-      Alert.alert("Error", "Event ID is missing");
+      setCustomAlert({ visible: true, title: 'Error', message: "Event ID is missing" });
       return;
     }
 
     if (!startDate || !endDate || !startTime || !endTime) {
       console.log("Missing date or time fields, showing alert");
-      Alert.alert("Error", "Please select sales start and end dates and times");
+      setCustomAlert({ visible: true, title: 'Error', message: "Please select sales start and end dates and times" });
       return;
     }
 
     if (!ticketQuantity || isNaN(parseInt(ticketQuantity, 10))) {
       console.log("Invalid ticket quantity, showing alert");
-      Alert.alert("Error", "Please enter a valid ticket quantity");
+      setCustomAlert({ visible: true, title: 'Error', message: "Please enter a valid ticket quantity" });
       return;
     }
 
     if (ticketType === "paid" && (!price || isNaN(parseFloat(price)))) {
       console.log("Invalid price, showing alert");
-      Alert.alert("Error", "Please enter a valid price");
+      setCustomAlert({ visible: true, title: 'Error', message: "Please enter a valid price" });
       return;
     }
 
@@ -383,26 +355,101 @@ console.log("Event id",eventId);
       console.log("API response received", response.data);
       if (response.data.success) {
         console.log("Success, showing alert and navigating back");
-        Alert.alert("Success", "Ticket settings updated successfully");
+        setCustomAlert({ visible: true, title: 'Success', message: "Ticket settings updated successfully" });
         navigation.goBack();
       } else {
         console.log("Failure, showing error alert");
-        Alert.alert(
-          "Error",
-          response.data.message || "Failed to update ticket settings"
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || "Failed to update ticket settings" });
       }
     } catch (error) {
       console.log("Error caught", {
         error: error.response?.data || error.message,
       });
-      Alert.alert(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to save ticket settings. Please try again."
-      );
+      setCustomAlert({ visible: true, title: 'Error', message: error.response?.data?.message || "Failed to save ticket settings. Please try again." });
     }
   };
+
+  // Move CustomAlertModal inside the component
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+      }}>
+        <View style={{
+          backgroundColor: '#1a1a1a',
+          borderRadius: 20,
+          padding: 28,
+          width: '85%',
+          maxWidth: 320,
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: '#333',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
+          elevation: 10,
+        }}>
+          <Ionicons
+            name={customAlert.title === 'Success' ? 'checkmark-done-circle' : 'alert-circle'}
+            size={48}
+            color="#a95eff"
+            style={{ marginBottom: 16 }}
+          />
+          <Text style={{
+            fontSize: 18,
+            fontWeight: '700',
+            color: '#a95eff',
+            marginBottom: 8,
+            textAlign: 'center',
+            fontFamily: 'Nunito Sans',
+          }}>{customAlert.title}</Text>
+          <Text style={{
+            fontSize: 15,
+            color: '#fff',
+            textAlign: 'center',
+            lineHeight: 22,
+            marginBottom: 24,
+            fontFamily: 'Nunito Sans',
+          }}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+            onPress={() => setCustomAlert({ ...customAlert, visible: false })}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={{
+                paddingVertical: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 12,
+              }}
+            >
+              <Text style={{
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: '600',
+                fontFamily: 'Nunito Sans',
+              }}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </RNModal>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -910,25 +957,29 @@ console.log("Event id",eventId);
 
         {/* Save Details Button */}
         {(ticketType === "paid" || ticketType === "free") && (
-          <LinearGradient
-            colors={["#B15CDE", "#7952FC"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+          <TouchableOpacity
             style={styles.saveDetailsButton}
+            onPress={handleSaveDetails}
+            activeOpacity={0.8}
           >
-            <TouchableOpacity
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={{
-                flex: 1,
+                width: '100%',
+                height: '100%',
+                borderRadius: 16,
                 alignItems: "center",
                 justifyContent: "center",
               }}
-              onPress={handleSaveDetails}
             >
               <Text style={styles.saveDetailsButtonText}>Save Details</Text>
-            </TouchableOpacity>
-          </LinearGradient>
+            </LinearGradient>
+          </TouchableOpacity>
         )}
       </ScrollView>
+      <CustomAlertModal />
     </SafeAreaView>
   );
 };
@@ -1277,6 +1328,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignSelf: "stretch",
     marginBottom: dimensions.spacing.xl,
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.85)',
+  },
+  shortlistModalContent: {
+    width: '80%',
+    backgroundColor: '#121212',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2d2d3a',
+  },
+  shortlistModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  shortlistModalMessage: {
+    fontSize: 16,
+    color: '#7A7A90',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  shortlistModalButton: {
+    width: '100%',
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  shortlistModalButtonGradient: {
+    width: '100%',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shortlistModalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 

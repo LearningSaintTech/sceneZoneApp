@@ -73,22 +73,22 @@ const UserConfirmBookingScreen = ({ navigation, route }) => {
         )}
       </View>
 
-      <LinearGradient
-        colors={['#B15CDE', '#7952FC']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          styles.confirmButtonGradient,
-          {
-            marginHorizontal: Math.max(width * 0.05, 20),
-            marginBottom: Math.max(insets.bottom, 10),
-          }
-        ]}
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={handleConfirm}
+        style={{ alignSelf: 'center' }}
       >
-        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-          <Text style={styles.confirmButtonText}>Confirm</Text>
-        </TouchableOpacity>
-      </LinearGradient>
+        <LinearGradient
+          colors={['#B15CDE', '#7952FC']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.confirmButtonGradient}
+        >
+          <View style={styles.confirmButton}>
+            <Text style={styles.confirmButtonText}>Confirm</Text>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -170,9 +170,9 @@ const styles = StyleSheet.create({
   confirmButtonGradient: {
     borderRadius: 14,
     overflow: 'hidden',
-    width: 361,
-    height: 52,
-    paddingHorizontal: 16,
+    width: 320,
+    height: 40,
+    paddingHorizontal: 0,
     paddingVertical: 0,
     alignSelf: 'center',
     justifyContent: 'center',
@@ -184,8 +184,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
-    height: 52,
+    gap: 6,
+    height: 40,
     paddingVertical: 0,
   },
   confirmButtonText: {

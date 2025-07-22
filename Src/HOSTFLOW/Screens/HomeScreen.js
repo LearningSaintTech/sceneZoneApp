@@ -13,6 +13,7 @@ import {
   Platform,
   Easing,
   Alert,
+  BackHandler,
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -23,14 +24,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MiddleButton from "../assets/icons/MiddleButton";
 import NotificationIcon from "../assets/icons/NotificationIcon";
 import SignUpBackground from "../assets/Banners/SignUp";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
+import { Modal as RNModal } from "react-native";
 import {
   selectFullName,
   selectLocation,
   selectUserData,
 } from "../Redux/slices/authSlice";
 import { API_BASE_URL } from "../Config/env";
+import Geolocation from 'react-native-geolocation-service';
+import { PermissionsAndroid } from 'react-native';
 
 const { width, height } = Dimensions.get("window");
 const isBigScreen = width >= 600;
@@ -73,7 +77,7 @@ const HomeScreen = ({ navigation }) => {
   const fullName = useSelector(selectFullName);
   const location = useSelector(selectLocation);
   const userData = useSelector(selectUserData);
-  const { unreadCount } = useSelector((state) => state.notifications);
+  const { unreadCount, unreadChatCount } = useSelector((state) => state.notifications);
   const [selected, setSelected] = React.useState({
     price: { ranges: [], sort: "low-high" },
     instruments: [],
@@ -85,6 +89,30 @@ const HomeScreen = ({ navigation }) => {
   const [page, setPage] = React.useState(1);
   const limit = 10;
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
+  const [alreadyShortlistedVisible, setAlreadyShortlistedVisible] = React.useState(false);
+  const [customAlert, setCustomAlert] = React.useState({ visible: false, title: '', message: '' });
+  const [deviceLocation, setDeviceLocation] = React.useState('Fetching location...');
+  const [showExitAlert, setShowExitAlert] = React.useState(false);
+
+  // Reset exit alert on mount
+  React.useEffect(() => {
+    setShowExitAlert(false);
+  }, []);
+
+  // Handle Android back button to show exit modal
+  React.useEffect(() => {
+    const backAction = () => {
+      // Only show exit alert if on HomeScreen
+      const currentRoute = navigation.getState()?.routes[navigation.getState()?.index]?.name;
+      if (currentRoute === 'Home') {
+        setShowExitAlert(true);
+        return true; // Prevent default back action
+      }
+      return false;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [navigation]);
 
   const filterOptions = {
     priceRanges: ["under-1000", "1000-2000", "2000-3000", "3000-above"],
@@ -115,7 +143,7 @@ const HomeScreen = ({ navigation }) => {
       }).start();
       try {
         if (!token) {
-          Alert.alert("Error", "Authentication token is missing");
+          setCustomAlert({ visible: true, title: 'Error', message: 'Authentication token is missing' });
           return;
         }
         const filterPayload = {
@@ -146,22 +174,12 @@ const HomeScreen = ({ navigation }) => {
         } else {
           setArtistData([]);
           setFilteredArtistData([]);
-          Alert.alert(
-            "Error",
-            response.data.message || "Failed to fetch artists."
-          );
+          setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Failed to fetch artists.' });
         }
       } catch (error) {
         setArtistData([]);
         setFilteredArtistData([]);
-        Alert.alert(
-          "Error",
-          error.response?.status === 404
-            ? "Artist filter endpoint not found."
-            : error.message === "Network Error"
-            ? "Unable to connect to the server."
-            : "Failed to fetch artists."
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: error.response?.status === 404 ? 'Artist filter endpoint not found.' : error.message === 'Network Error' ? 'Unable to connect to the server.' : 'Failed to fetch artists.' });
       } finally {
         setIsLoading(false);
         // Fade in after loading
@@ -175,19 +193,89 @@ const HomeScreen = ({ navigation }) => {
     fetchArtists();
   }, [token, selected, page]);
 
+  // Fetch device location on mount
+  React.useEffect(() => {
+    const requestLocationPermission = async () => {
+      try {
+        if (Platform.OS === 'android') {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            {
+              title: 'Location Permission',
+              message: 'This app needs access to your location to show your city.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            },
+          );
+          console.log('[Location] Android permission result:', granted);
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            setDeviceLocation('Permission denied');
+            setCustomAlert({ visible: true, title: 'Error', message: 'Location permission denied.' });
+            return;
+          }
+        }
+        Geolocation.getCurrentPosition(
+          async (position) => {
+            console.log('[Location] Got position:', position);
+            const { latitude, longitude } = position.coords;
+            // Optionally, reverse geocode to get city name
+            try {
+              const apiKey = 'pk.bbae5b128a235f16723bac232aa283eb';
+              const response = await fetch(`https://us1.locationiq.com/v1/reverse.php?key=${apiKey}&lat=${latitude}&lon=${longitude}&format=json`);
+              const data = await response.json();
+              console.log('[Location] LocationIQ response:', data);
+              const city = data.address?.city || data.address?.town || data.address?.village;
+              const state = data.address?.state;
+              const country = data.address?.country;
+              let locationText = '';
+              if (city && state) {
+                locationText = `${capitalize(city)}, ${capitalize(state)}`;
+              } else if (city) {
+                locationText = capitalize(city);
+              } else if (state) {
+                locationText = capitalize(state);
+              } else if (country) {
+                locationText = capitalize(country);
+              } else {
+                locationText = 'Unknown location';
+              }
+              setDeviceLocation(locationText);
+              console.log('[Location] Final location text:', locationText);
+            } catch (e) {
+              setDeviceLocation('Unknown location');
+              console.log('[Location] Reverse geocoding failed:', e);
+            }
+          },
+          (error) => {
+            setDeviceLocation('Location unavailable');
+            setCustomAlert({ visible: true, title: 'Error', message: 'Failed to fetch device location.' });
+            console.log('[Location] Geolocation error:', error);
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+        );
+      } catch (err) {
+        setDeviceLocation('Location unavailable');
+        setCustomAlert({ visible: true, title: 'Error', message: 'Failed to fetch device location.' });
+        console.log('[Location] Exception in requestLocationPermission:', err);
+      }
+    };
+    requestLocationPermission();
+  }, []);
+
   const handleShortlist = async () => {
     if (!filteredArtistData || filteredArtistData.length === 0) {
-      Alert.alert("No Artists", "There are no artists to shortlist.");
+      setCustomAlert({ visible: true, title: 'No Artists', message: 'There are no artists to shortlist.' });
       return;
     }
     const artist = filteredArtistData[currentIndex];
     if (!artist || !artist.artistId) {
-      Alert.alert("Error", "Could not find artist to shortlist.");
+      setCustomAlert({ visible: true, title: 'Error', message: 'Could not find artist to shortlist.' });
       return;
     }
     const artistId = artist.artistId;
     if (!token) {
-      Alert.alert("Error", "Authentication token is missing");
+      setCustomAlert({ visible: true, title: 'Error', message: 'Authentication token is missing' });
       return;
     }
     try {
@@ -202,17 +290,14 @@ const HomeScreen = ({ navigation }) => {
         }
       );
       if (response.data.success) {
-        Alert.alert("Success", "Artist shortlisted successfully!");
+        setCustomAlert({ visible: true, title: 'Success', message: 'Artist shortlisted successfully!' });
         setFilteredArtistData((prev) =>
           prev.map((item, index) =>
             index === currentIndex ? { ...item, isShortlisted: true } : item
           )
         );
       } else {
-        Alert.alert(
-          "Error",
-          response.data.message || "Could not shortlist the artist."
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: response.data.message || 'Could not shortlist the artist.' });
       }
     } catch (error) {
       if (
@@ -220,12 +305,9 @@ const HomeScreen = ({ navigation }) => {
         error.response.data &&
         error.response.data.message === "Artist already shortlisted."
       ) {
-        Alert.alert("Already Shortlisted", "Artist already in shortlist.");
+        setCustomAlert({ visible: true, title: 'Already Shortlisted', message: 'Artist already in shortlist.' });
       } else {
-        Alert.alert(
-          "Error",
-          "An error occurred while shortlisting. Please try again."
-        );
+        setCustomAlert({ visible: true, title: 'Error', message: 'An error occurred while shortlisting. Please try again.' });
       }
     }
   };
@@ -581,13 +663,40 @@ const HomeScreen = ({ navigation }) => {
     );
   }
 
-  if (filteredArtistData.length === 0 && !isLoading) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.noDataText}>No artists available</Text>
+  // Custom Modal for Alerts
+  const CustomAlertModal = () => (
+    <RNModal
+      visible={customAlert.visible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlert({ ...customAlert, visible: false })}
+    >
+      <View style={styles.shortlistModalOverlay}>
+        <View style={styles.shortlistModalContent}>
+          <Ionicons name={customAlert.title === 'Success' ? 'checkmark-done-circle' : customAlert.title === 'Already Shortlisted' ? 'checkmark-done-circle' : 'alert-circle'} size={48} color="#a95eff" style={{ marginBottom: 16 }} />
+          <Text style={styles.shortlistModalTitle}>{customAlert.title}</Text>
+          <Text style={styles.shortlistModalMessage}>{customAlert.message}</Text>
+          <TouchableOpacity
+            style={styles.shortlistModalButton}
+            onPress={() => {
+              if (typeof customAlert.onPress === 'function') {
+                customAlert.onPress();
+              } else {
+                setCustomAlert({ ...customAlert, visible: false });
+              }
+            }}
+          >
+            <LinearGradient
+              colors={["#B15CDE", "#7952FC"]}
+              style={styles.shortlistModalButtonGradient}
+            >
+              <Text style={styles.shortlistModalButtonText}>OK</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
-    );
-  }
+    </RNModal>
+  );
 
   return (
     <View
@@ -626,7 +735,7 @@ const HomeScreen = ({ navigation }) => {
             Hello {userData.name || "User"}!
           </Text>
           <Text style={[styles.location, { fontSize: responsiveDimensions.fontSize.medium }]}>
-            📍 H-70, Sector 63, Noida
+            📍 {deviceLocation}
           </Text>
         </View>
         <View style={styles.headerIcons}>
@@ -637,7 +746,16 @@ const HomeScreen = ({ navigation }) => {
               marginRight: responsiveDimensions.spacing.sm,
             }}
           >
-            <Icon name="message-circle" size={responsiveDimensions.iconSize} color="#a95eff" />
+            <View style={{ position: 'relative' }}>
+              <Icon name="message-circle" size={responsiveDimensions.iconSize} color="#a95eff" />
+              {unreadChatCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate("Notification")}
@@ -675,37 +793,21 @@ const HomeScreen = ({ navigation }) => {
           },
         ]}
       >
-        {showDropdowns ? (
-          <LinearGradient
-            colors={["#B15CDE", "#7952FC"]}
-            style={styles.curatedButton}
-          >
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                width: "100%",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              onPress={handleCuratedPress}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.curatedButtonText, { color: "#fff", fontSize: responsiveDimensions.fontSize.medium }]}>
-                Personalised Curated Events by Scenezone 
-              </Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        ) : (
-          <TouchableOpacity
-            style={styles.curatedButton}
-            onPress={handleCuratedPress}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.curatedButtonText, { fontSize: responsiveDimensions.fontSize.medium }]}>
+        <LinearGradient
+          colors={["#B15CDE", "#7952FC"]}
+          style={styles.curatedButton}
+        >
+          <View style={{
+            flex: 1,
+            width: "100%",
+            alignItems: "center",
+            justifyContent: "center",
+          }}>
+            <Text style={[styles.curatedButtonText, { color: "#fff", fontSize: responsiveDimensions.fontSize.medium }]}> 
               Personalised Curated Events by Scenezone 
             </Text>
-          </TouchableOpacity>
-        )}
+          </View>
+        </LinearGradient>
 
         {/* {showDropdowns && (
           <View style={styles.dropdownContainer}>
@@ -739,29 +841,56 @@ const HomeScreen = ({ navigation }) => {
         )} */}
       </View>
 
-      <Animated.ScrollView
-        ref={scrollViewRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={snapToInterval}
-        decelerationRate="fast"
-        contentContainerStyle={[
-          styles.eventListContainer,
-          {
-            paddingHorizontal: Math.max(
-              peekingDistance + responsiveDimensions.safeAreaLeft,
-              peekingDistance
-            ),
-            paddingTop: responsiveDimensions.spacing.sm,
-            paddingBottom: responsiveDimensions.spacing.sm,
-          },
-        ]}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        style={{ opacity: fadeAnim }}
-      >
-        {filteredArtistData.map((item, index) => renderEventCard(item, index))}
-      </Animated.ScrollView>
+      <View style={{ minHeight: 470, maxHeight: 470, width: '100%', position: 'relative' }}>
+        <Animated.ScrollView
+          ref={scrollViewRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={snapToInterval}
+          decelerationRate="fast"
+          contentContainerStyle={[
+            styles.eventListContainer,
+            {
+              paddingHorizontal: Math.max(
+                peekingDistance + responsiveDimensions.safeAreaLeft,
+                peekingDistance
+              ),
+              paddingTop: responsiveDimensions.spacing.sm,
+              paddingBottom: responsiveDimensions.spacing.sm,
+            },
+          ]}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          style={{ opacity: fadeAnim }}
+        >
+          {isLoading ? (
+            <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+              <Text style={styles.noDataText}>Loading artists...</Text>
+            </View>
+          ) : filteredArtistData.length === 0 ? null : (
+            filteredArtistData.map((item, index) => renderEventCard(item, index))
+          )}
+        </Animated.ScrollView>
+        {(!isLoading && filteredArtistData.length === 0) && (
+          <View style={{ position: 'absolute', top: '40%', left: 0, right: 0, alignItems: 'center', zIndex: 10 }}>
+            <View style={{
+              backgroundColor: 'rgba(30,30,40,0.95)',
+              borderRadius: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 28,
+              borderWidth: 1,
+              borderColor: '#a95eff',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 8,
+            }}>
+              <Text style={[styles.noDataText, { marginTop: 0, fontSize: 16 }]}>No artists available</Text>
+            </View>
+          </View>
+        )}
+      </View>
 
       <View
         style={[
@@ -812,9 +941,58 @@ const HomeScreen = ({ navigation }) => {
       </View>
 
       <FilterModal />
+      <CustomAlertModal />
+
+      {/* Custom Exit Alert Modal */}
+      <Modal
+        visible={showExitAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowExitAlert(false)}
+      >
+        <View style={{flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20}}>
+          <View style={{backgroundColor: '#1a1a1a', borderRadius: 20, padding: 24, width: '100%', maxWidth: 280, alignItems: 'center', borderWidth: 1, borderColor: '#333', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10}}>
+            <View style={{width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255, 107, 107, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 16}}>
+              <Ionicons name="exit-outline" size={32} color="#FF6B6B" />
+            </View>
+            <Text style={{fontSize: 16, fontWeight: '700', color: '#fff', marginBottom: 8, textAlign: 'center'}}>Exit App</Text>
+            <Text style={{fontSize: 14, color: '#aaa', textAlign: 'center', lineHeight: 22, marginBottom: 24}}>
+              Are you sure you want to exit the application?
+            </Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', width: '100%', gap: 12}}>
+              <TouchableOpacity 
+                style={{flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#333', borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center'}}
+                onPress={() => setShowExitAlert(false)}
+              >
+                <Text style={{color: '#aaa', fontSize: 14, fontWeight: '600'}}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{flex: 1, borderRadius: 12, overflow: 'hidden'}}
+                onPress={() => {
+                  setShowExitAlert(false);
+                  BackHandler.exitApp();
+                }}
+              >
+                <LinearGradient
+                  colors={['#FF6B6B', '#FF5252']}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
+                  style={{paddingVertical: 14, alignItems: 'center', justifyContent: 'center'}}>
+                  <Text style={{color: '#fff', fontSize: 14, fontWeight: '600'}}>Exit</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
+
+function capitalize(str) {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -872,7 +1050,7 @@ const styles = StyleSheet.create({
     paddingVertical: dimensions.spacing.sm,
     minHeight: dimensions.headerHeight,
     zIndex: 1,
-    backgroundColor: "#000",
+    
   },
   headerContent: {
     flexDirection: "column",
@@ -1168,6 +1346,61 @@ const styles = StyleSheet.create({
     fontSize: dimensions.fontSize.medium,
     fontWeight: "500",
     fontFamily: "Nunito Sans",
+  },
+  shortlistModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  shortlistModalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 20,
+    padding: 28,
+    width: '85%',
+    maxWidth: 320,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  shortlistModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#a95eff',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalMessage: {
+    fontSize: 15,
+    color: '#fff',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+    fontFamily: 'Nunito Sans',
+  },
+  shortlistModalButton: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  shortlistModalButtonGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  shortlistModalButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    fontFamily: 'Nunito Sans',
   },
 });
 export default HomeScreen;

@@ -6,14 +6,15 @@ import { logout, selectToken, selectUserData, selectLocation, selectFullName, se
 import HostEditProfileScreen from './HostEditProfile';
 import api from '../Config/api';
 import { useFocusEffect } from '@react-navigation/native';
+import notificationService from '../services/notificationService';
 
 const settings = [
   { icon: 'user', label: 'Edit Profile', nav: 'HostEditProfile' },
   // { icon: 'star', label: 'Ticket Settings', nav: 'HostTicketSetting' },
-  { icon: 'shield', label: 'Account Security', nav: 'HostAccountSecurity' }, 
-  { icon: 'credit-card', label: 'Payment Settings', nav: 'hostPaymentSetting' },
+  // Removed Account Security and Payment Settings
   { icon: 'settings', label: 'General Settings', nav: 'HostGeneralSetting' },
   { icon: 'message-square', label: 'Help Centre', nav: 'HostHelpCentre' },
+  { icon: 'users', label: 'Guest List', nav: 'HostGuestEventList' }, // New event-based Guest List option
 ];
 
 const ProfileScreen = ({ navigation }) => {
@@ -99,8 +100,9 @@ console.log("host profile",userData)
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log('ProfileScreen: handleLogout called');
+    await notificationService.removeTokenFromBackend();
     dispatch(logout());
     console.log('ProfileScreen: Dispatched logout action');
     navigation.reset({
@@ -108,6 +110,36 @@ console.log("host profile",userData)
       routes: [{ name: 'Onboard1' }],
     });
     console.log('ProfileScreen: Navigated to Onboard1');
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await api.delete('/host/auth/deleteHost', {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (response.data && response.data.success) {
+                await notificationService.removeTokenFromBackend();
+                dispatch(logout());
+                navigation.reset({ index: 0, routes: [{ name: 'Onboard1' }] });
+              } else {
+                Alert.alert('Error', response.data?.message || 'Failed to delete account');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to delete account');
+            }
+          },
+        },
+      ]
+    );
   };
 
   console.log('ProfileScreen: Rendering with profileData:', profileData);
@@ -168,6 +200,19 @@ console.log("host profile",userData)
               <Feather name="chevron-right" size={22} color="#b3b3cc" style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
           ))}
+
+          {/* Delete Account Button styled as settings row */}
+          <TouchableOpacity
+            style={[styles.settingsRow, { borderColor: '#ff4d4f' }]}
+            activeOpacity={0.7}
+            onPress={handleDeleteAccount}
+          >
+            <View style={styles.settingsIconCircle}>
+              <Feather name="trash-2" size={22} color="#ff4d4f" />
+            </View>
+            <Text style={[styles.settingsLabel, { color: '#ff4d4f' }]}>Delete Account</Text>
+            <Feather name="chevron-right" size={22} color="#ff4d4f" style={{ marginLeft: 'auto' }} />
+          </TouchableOpacity>
         </View>
         {/* Version */}
         <Text style={styles.versionText}>App version 1.0.0.1</Text>
